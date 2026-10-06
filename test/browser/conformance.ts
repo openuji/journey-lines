@@ -39,6 +39,7 @@ const PNG_SIGNATURE_BASE64 = 'iVBORw0KGgo';
 
 const preClick = episodeLabel(InteractionLabel.preClick, 1);
 const postClick = episodeLabel(InteractionLabel.postClick, 1);
+const postScroll = episodeLabel(InteractionLabel.postScroll, 1);
 
 type Rect = Readonly<{ x: number; y: number; width: number; height: number }>;
 
@@ -64,6 +65,18 @@ class MemorySink implements CaptureSink {
     return this.captures
       .filter((capture) => url === undefined || capture.url === url)
       .map((capture) => capture.label);
+  }
+
+  /** The scroll captures of one URL, each with the page offset its frame shows. */
+  public scrolls(url: string): string[] {
+    return this.captures
+      .filter(
+        (capture) =>
+          capture.url === url &&
+          (capture.label.startsWith(InteractionLabel.preScroll) ||
+            capture.label.startsWith(InteractionLabel.postScroll)),
+      )
+      .map(({ label, frame }) => `${label} ${frame.scrollY}`);
   }
 }
 
@@ -282,6 +295,10 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         await click(target.cdp, BUTTON_CENTER.x, BUTTON_CENTER.y);
         await waitForLabel(postClick, first);
 
+        // The page keeps painting (its ticker), so frames show the scroll ending.
+        await wheel(target.cdp, SCROLL_POINT.x, SCROLL_POINT.y, 600);
+        await waitForLabel(postScroll, first);
+
         await target.navigate(second);
         await waitForLabel(DocumentLabel.first, second);
 
@@ -301,6 +318,12 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         expect(labels.indexOf(preClick)).toBeLessThan(
           labels.indexOf(postClick),
         );
+        // One scroll, one pair, from the frames on either side of it. Checked
+        // per view: the departing page's last frame can still arrive after the
+        // navigation and land in the next view (changes/scroll-rebuild.md).
+        expect(sink.scrolls(first)).toEqual(['03-pre-scroll-01 0', '04-post-scroll-01 600']);
+        const scrolled = sink.captures.find((capture) => capture.label === postScroll);
+        expect(scrolled?.scrollEpisode?.settled).toBe(true);
 
         const clicked = sink.captures.find(
           (capture) => capture.label === postClick,
@@ -308,6 +331,43 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         expect(clicked?.domTarget?.selector).toBe('button#go');
         for (const capture of sink.captures) {
           expect(capture.frame.base64.startsWith(PNG_SIGNATURE_BASE64)).toBe(true);
+        }
+      }));
+
+    it('pipeline: a scroll on a page that stops painting ends by itself, with the frames from either side', () =>
+      withTarget(async (target) => {
+        const url = fixture.url('/still');
+        const sink = new MemorySink();
+        const recording = await startRecording(target.cdp, {
+          sinks: [sink],
+          screencast: { viewport: target.viewport },
+        });
+
+        await target.navigate(url);
+        await waitForLoaded(target.cdp, url);
+        await vi.waitFor(() => expect(sink.labels(url)).toContain(DocumentLabel.first), WAIT);
+
+        await wheel(target.cdp, SCROLL_POINT.x, SCROLL_POINT.y, 600);
+        await vi.waitFor(() => expect(sink.labels(url)).toContain(postScroll), WAIT);
+        // The page scrolling itself: the case that once recorded one scroll twice.
+        await target.cdp.send('Runtime.evaluate', { expression: 'scrollTo(0, 1400)' });
+        await vi.waitFor(
+          () => expect(sink.labels(url)).toContain(episodeLabel(InteractionLabel.postScroll, 2)),
+          WAIT,
+        );
+
+        await recording.stop();
+
+        expect(sink.scrolls(url)).toEqual([
+          '03-pre-scroll-01 0',
+          '04-post-scroll-01 600',
+          '03-pre-scroll-02 600',
+          '04-post-scroll-02 1400',
+        ]);
+        for (const capture of sink.captures) {
+          if (capture.label.startsWith(InteractionLabel.postScroll)) {
+            expect(capture.scrollEpisode?.settled).toBe(true);
+          }
         }
       }));
 

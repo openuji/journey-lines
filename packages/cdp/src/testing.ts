@@ -4,7 +4,7 @@
  * Tests script Chromium's side of the conversation: `respond` sets what a
  * command returns, `emit` plays an event, and `sent` records every command the
  * code under test issued, in order. Time is a manual clock: it stands still
- * until `advance` moves it.
+ * until `advance` moves it, and timers set on it fire only then.
  */
 
 import { createCdpEventRouter } from './router.js';
@@ -13,6 +13,7 @@ import type {
   CdpEventName,
   CdpResult,
   CdpTransport,
+  Clock,
 } from './transport.js';
 
 export interface SentCommand {
@@ -39,7 +40,10 @@ export interface FakeCdpTransport extends CdpTransport {
    * the fields the code under test reads.
    */
   emit(event: CdpEventName, params?: unknown): void;
-  /** Move the clock forward; events emitted afterwards carry the new time. */
+  /**
+   * Move the clock forward, firing every timer that comes due on the way, in
+   * order; events emitted afterwards carry the new time.
+   */
   advance(ms: number): void;
   listenerCount(event?: CdpEventName): number;
 }
@@ -49,13 +53,54 @@ export interface FakeCdpTransportOptions {
   startAtMs?: number;
 }
 
+/** A clock that moves only when told to. */
+export interface ManualClock extends Clock {
+  /** Move forward `ms`, firing each timer that comes due, in deadline order. */
+  advance(ms: number): void;
+}
+
+export function createManualClock(startAtMs = 0): ManualClock {
+  type Timer = Readonly<{ atMs: number; fire: (atMs: number) => void }>;
+  let time = startAtMs;
+  const timers = new Set<Timer>();
+
+  const nextDue = (untilMs: number): Timer | undefined => {
+    let due: Timer | undefined;
+    for (const timer of timers) {
+      if (timer.atMs <= untilMs && (!due || timer.atMs < due.atMs)) due = timer;
+    }
+    return due;
+  };
+
+  return {
+    now: () => time,
+    at(atMs, fire) {
+      const timer: Timer = { atMs, fire };
+      timers.add(timer);
+      return () => {
+        timers.delete(timer);
+      };
+    },
+    advance(ms) {
+      const untilMs = time + ms;
+      // One at a time: a timer that fires may set or cancel others.
+      for (let due = nextDue(untilMs); due; due = nextDue(untilMs)) {
+        timers.delete(due);
+        time = Math.max(time, due.atMs);
+        due.fire(due.atMs);
+      }
+      time = untilMs;
+    },
+  };
+}
+
 export function createFakeCdpTransport(
   options: FakeCdpTransportOptions = {},
 ): FakeCdpTransport {
-  let time = options.startAtMs ?? 0;
+  const clock = createManualClock(options.startAtMs ?? 0);
 
   const router = createCdpEventRouter({
-    clock: () => time,
+    clock,
     // Surface listener bugs as test failures rather than log noise.
     onListenerError: (error) => {
       throw error;
@@ -77,7 +122,7 @@ export function createFakeCdpTransport(
   return {
     send: send as CdpTransport['send'],
     on: router.on,
-    now: router.now,
+    clock,
     sent,
     sentMethods: () => sent.map((command) => command.method),
     respond(method, result) {
@@ -86,9 +131,7 @@ export function createFakeCdpTransport(
     emit(event, params) {
       router.dispatch(event, params);
     },
-    advance(ms) {
-      time += ms;
-    },
+    advance: (ms) => clock.advance(ms),
     listenerCount: (event) => router.listenerCount(event),
   };
 }

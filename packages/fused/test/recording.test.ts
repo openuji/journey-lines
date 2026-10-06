@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createFakeCdpTransport } from '@openuji/cdp/testing';
 import type { CaptureSink, MilestoneCapture } from '@openuji/core';
-import { startRecording } from '@openuji/fused';
+import { defaultRules, startRecording } from '@openuji/fused';
+import { defaultDocumentRules } from '@openuji/rules-document';
+import { defaultInteractionRules } from '@openuji/rules-interaction';
 import { PROBE_BINDING_NAME } from '@openuji/stream-interaction';
 import {
   bindingCalled,
@@ -132,6 +134,62 @@ describe('startRecording', () => {
       '00-first',
       '99-before-navigation',
     ]);
+  });
+
+  it('ends a scroll on a page that stops painting once the stream goes quiet', async () => {
+    const cdp = createFakeCdpTransport();
+    const sink = new MemorySink();
+    const recording = await startRecording(cdp, { sinks: [sink], screencast });
+
+    frameNavigated(cdp, 'loader-a');
+    screencastFrame(cdp, { scrollY: 0, data: 'dG9w' });
+    cdp.advance(50);
+    screencastFrame(cdp, { scrollY: 600, data: 'bGFuZGVk' });
+    // Chrome sends nothing more.
+    cdp.advance(250);
+    await settle();
+
+    // Before Stop: the stream's quiet ended it.
+    expect(sink.captures.map((c) => c.label)).toEqual([
+      '00-first',
+      '03-pre-scroll-01',
+      '04-post-scroll-01',
+    ]);
+    const [, pre, post] = sink.captures;
+    expect(pre?.frame.base64).toBe('dG9w');
+    expect(post?.frame.base64).toBe('bGFuZGVk');
+    expect(post?.scrollEpisode?.settled).toBe(true);
+
+    await recording.stop();
+  });
+
+  it('flushes a scroll still open at Stop before the final resting state', async () => {
+    const cdp = createFakeCdpTransport();
+    const sink = new MemorySink();
+    const recording = await startRecording(cdp, { sinks: [sink], screencast });
+
+    frameNavigated(cdp, 'loader-a');
+    screencastFrame(cdp, { scrollY: 0 });
+    screencastFrame(cdp, { scrollY: 600 });
+    await settle();
+    await recording.stop();
+
+    expect(sink.captures.map((c) => c.label)).toEqual([
+      '00-first',
+      '03-pre-scroll-01',
+      '04-post-scroll-01',
+      '99-before-navigation',
+    ]);
+    expect(sink.captures[2]?.scrollEpisode?.settled).toBe(false);
+  });
+
+  it('runs every rule of both categories once', () => {
+    expect(new Set(defaultRules)).toEqual(
+      new Set([...defaultDocumentRules, ...defaultInteractionRules]),
+    );
+    expect(defaultRules).toHaveLength(
+      defaultDocumentRules.length + defaultInteractionRules.length,
+    );
   });
 
   it('is idempotent on stop', async () => {

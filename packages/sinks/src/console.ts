@@ -11,7 +11,7 @@ const CYAN = '\x1b[36m';
 const GREY = '\x1b[90m';
 
 function colorFor(label: string): string {
-  if (label.includes('click')) return MAGENTA;
+  if (label.includes('click') || label.includes('scroll')) return MAGENTA;
   if (label.includes('99')) return YELLOW;
   return CYAN;
 }

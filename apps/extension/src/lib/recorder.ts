@@ -65,7 +65,7 @@ export class Recorder {
 
       this.target = target;
       this.journey = [];
-      this.current = { state: 'recording', tab, startedAtMs: target.cdp.now() };
+      this.current = { state: 'recording', tab, startedAtMs: target.cdp.clock.now() };
       // A snapshot, not a status: panels drop the previous journey with it.
       this.emit(this.snapshot());
 
@@ -95,7 +95,7 @@ export class Recorder {
 
     const { tab, startedAtMs } = this.current;
     const target = this.target;
-    const endedAtMs = target.cdp.now();
+    const endedAtMs = target.cdp.clock.now();
     this.setStatus({ state: 'stopping', tab, startedAtMs });
 
     try {

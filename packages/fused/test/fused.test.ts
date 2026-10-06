@@ -95,6 +95,27 @@ describe('createFusedStream', () => {
     ).toEqual([{ sessionId: 41 }, { sessionId: 42 }]);
   });
 
+  it('says quiet once nothing has arrived for 250 ms, stamped with that moment', async () => {
+    const cdp = createFakeCdpTransport({ startAtMs: 1_000 });
+    const { events, stop } = await createFusedStream(cdp, {
+      screencast: { viewport },
+    });
+
+    screencastFrame(cdp);
+    cdp.advance(249);
+    screencastFrame(cdp); // at 1249: any event re-arms it
+    cdp.advance(5_000); // quiet at 1499, and only once per quiet stretch
+    screencastFrame(cdp);
+    await stop();
+    cdp.advance(5_000); // never after stop
+
+    expect(
+      (await collect(events)).map((event) =>
+        event.type === 'quiet' ? `quiet ${event.receivedAtMs}` : event.type,
+      ),
+    ).toEqual(['frame', 'frame', 'quiet 1499', 'frame']);
+  });
+
   it('detaches every source on stop and ends the stream', async () => {
     const cdp = createFakeCdpTransport();
     cdp.respond('Page.addScriptToEvaluateOnNewDocument', { identifier: 'probe' });

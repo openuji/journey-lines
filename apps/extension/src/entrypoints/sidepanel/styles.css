@@ -334,7 +334,8 @@ button:disabled {
   color: var(--muted);
 }
 
-.capture-row--click .capture-row__icon {
+.capture-row--click .capture-row__icon,
+.capture-row--scroll .capture-row__icon {
   color: var(--accent);
 }
 

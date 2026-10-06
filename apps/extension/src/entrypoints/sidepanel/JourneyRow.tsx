@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import { Camera, Globe, LogOut, MousePointerClick, Route, type LucideIcon } from 'lucide-react';
+import {
+  ArrowDownUp,
+  Camera,
+  Globe,
+  LogOut,
+  MousePointerClick,
+  Route,
+  type LucideIcon,
+} from 'lucide-react';
 import type { MilestoneCapture, ViewEntry } from '@openuji/core';
 import { formatClock, frameSrc, shortUrl, type CaptureKind } from '../../lib/journey';
 
 const captureIcon: Record<CaptureKind, LucideIcon> = {
   view: Camera,
+  scroll: ArrowDownUp,
   click: MousePointerClick,
   leave: LogOut,
 };

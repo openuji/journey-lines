@@ -16,6 +16,9 @@
  *    origin, comparable only with other `monotonicTime` values (milestones).
  *  - `pageTimeMs`: the page's `Date.now()` at the DOM event, Unix epoch ms
  *    (interactions).
+ *
+ * Time decides one thing: whether the page has stopped (the fused stream's
+ * `quiet`, and the scroll rule's `stillMs`), both on `receivedAtMs`.
  */
 
 import type { InteractionAction, TargetElementMeta } from './wire.js';
@@ -117,6 +120,13 @@ export type ViewState = Readonly<{
 }>;
 
 /**
+ * How long nothing may arrive before the fused stream says so with `quiet`,
+ * ms. Also how long a page's offset must stay unchanged for a scroll to have
+ * ended: one number for "the page has stopped".
+ */
+export const QUIET_AFTER_MS = 250;
+
+/**
  * Everything the rules engine sees: the sources' events exactly as they emit
  * them, compositor frames tagged for the queue, and two events the engine and
  * recorder synthesize themselves.
@@ -127,6 +137,20 @@ export type DomainEvent =
   | Readonly<{
       type: 'frame';
       frame: CompositorFrame;
+    }>
+  /**
+   * Synthesized by the fused stream once nothing (no frame, no lifecycle event,
+   * no interaction) has arrived for `QUIET_AFTER_MS`, once per quiet stretch. A
+   * page that stops moving stops painting, so no next frame is coming: what
+   * shows is `lastFrame`.
+   */
+  | Readonly<{
+      type: 'quiet';
+      /**
+       * The moment it describes: the last event's `receivedAtMs` plus
+       * `QUIET_AFTER_MS`, on the transport's clock.
+       */
+      receivedAtMs: number;
     }>
   /**
    * Synthesized by the rules engine — never produced by a stream. Emitted to
@@ -147,6 +171,37 @@ export type DomainEvent =
       type: 'stop';
     }>;
 
+/** Every event but `stop` carries the time it arrived. */
+export type TimedEvent = Exclude<DomainEvent, { type: 'stop' }>;
+
+/** When `event` arrived, on the transport's clock. */
+export function arrivedAtMs(event: TimedEvent): number {
+  return event.type === 'frame' ? event.frame.receivedAtMs : event.receivedAtMs;
+}
+
+/** Where the page's scroll offset was in one frame. */
+export type ScrollSample = Readonly<{
+  frameIndex: number;
+  receivedAtMs: number;
+  x: number;
+  y: number;
+}>;
+
+/** One scroll of the page, from the frame before it moved to the frame it landed on. */
+export type ScrollEpisode = Readonly<{
+  /**
+   * The offset stayed put for `QUIET_AFTER_MS` afterwards. False when the view
+   * ended first (a navigation, or Stop), so whether the page had stopped is
+   * unknown.
+   */
+  settled: boolean;
+  /**
+   * The pre-scroll frame, then every frame that moved; the last one is the
+   * post-scroll frame. Distance, direction and speed all derive from it.
+   */
+  path: readonly ScrollSample[];
+}>;
+
 export type MilestoneCapture = Readonly<{
   viewId: number;
   entry: ViewEntry;
@@ -157,6 +212,8 @@ export type MilestoneCapture = Readonly<{
   frame: CompositorFrame;
   detail: string;
   domTarget?: TargetElementMeta;
+  /** On a post-scroll capture: the scroll it ends. */
+  scrollEpisode?: ScrollEpisode;
 }>;
 
 export type InteractionLogRecord = Readonly<{
@@ -179,4 +236,5 @@ export type InteractionLogRecord = Readonly<{
   }>;
   detail: string;
   domTarget?: TargetElementMeta;
+  scrollEpisode?: ScrollEpisode;
 }>;

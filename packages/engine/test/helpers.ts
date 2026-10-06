@@ -75,12 +75,17 @@ export function target(selector = 'a.link'): TargetElementMeta {
   };
 }
 
-export function click(selector?: string): DomainEvent {
+export function click(selector?: string, receivedAtMs = 0): DomainEvent {
   return {
     type: 'interaction',
     action: 'click',
     target: target(selector),
-    receivedAtMs: 0,
+    receivedAtMs,
     pageTimeMs: 0,
   };
+}
+
+/** The fused stream saying nothing has arrived for a while. */
+export function quiet(receivedAtMs = 0): DomainEvent {
+  return { type: 'quiet', receivedAtMs };
 }

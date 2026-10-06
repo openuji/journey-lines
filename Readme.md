@@ -27,6 +27,8 @@ starts a view, and so does an SPA route change. `nav-00001` is the first view,
 | `nav-00001-00-first.png` | First compositor paint of the view |
 | `nav-00001-01-domcontentloaded.png` | Frame following `DOMContentLoaded` |
 | `nav-00001-02-settled.png` | Frame following `networkAlmostIdle` |
+| `nav-00001-03-pre-scroll-01.png` | Last frame at rest before scroll 1 of the page |
+| `nav-00001-04-post-scroll-01.png` | Frame where scroll 1 landed (+ its path) |
 | `nav-00001-10-pre-click-01.png` | Visual state immediately before click 1 (+ DOM target) |
 | `nav-00001-11-post-click-01.png` | Compositor response to click 1 (+ DOM target) |
 | `nav-00001-99-before-navigation.png` | Final visible frame before navigating away or ending |
@@ -57,7 +59,9 @@ preserve them:
    the fusion — no per-stream buffering, priority or round-robin merging.
 2. **"Next frame after X" is load-bearing.** A lifecycle notification says a
    milestone was reached but not what the user can see; the pixels arrive on a
-   later frame. Rules arm on a signal and capture the following frame.
+   later frame. Rules arm on a signal and capture the following frame. A page
+   that stops moving stops painting, though, so the fused stream also says
+   when nothing has arrived for a while: one `quiet` event, after 250 ms.
 3. **`lastFrame` advances after rules run.** That gap is what lets one rule
    capture the resting frame *before* an event while another captures the frame
    *after* it.
@@ -75,6 +79,12 @@ transport, so tests run on a manual one. Source times keep their own clock under
 (Chromium frame swap, epoch ms), `monotonicTime` (Chromium `MonotonicTime`,
 seconds from an arbitrary origin) and `pageTimeMs` (the page's clock, epoch ms).
 Never subtract one clock from another.
+
+Time decides one thing: whether the page has stopped, after 250 ms in which
+nothing changed. Timers belong to the transport's clock too (`clock.at`), so
+the fused stream's `quiet` carries exactly the moment it describes: the last
+event's `receivedAtMs` plus 250 ms. The scroll rule then checks every event the
+same way, `quiet` included.
 
 ### Views: page loads and SPA routes alike
 
@@ -102,12 +112,32 @@ in. Records carry `viewId`, `entry` (`load` or `route`), `documentId` and the
 
 ### Scroll
 
-Scroll capture is removed for now and will be rebuilt step by step. Its first
-version raced the probe's scroll signals against the screencast frames: a
-`scrollend` could arrive before the frame showing the scroll, which recorded
-one scroll twice and gave the post-scroll capture a frame from before it.
-Frames still carry the page's scroll offset (`scrollX`/`scrollY`), and every
-record keeps the offset of its frame.
+Scrolls of the page come from the compositor frames alone: each frame's
+metadata carries the page's offset, so nothing but frames picks an image.
+
+- A scroll opens on the first frame whose offset moved from where the page
+  rested, and has ended once the offset stops changing: on `quiet` for a page
+  that stopped painting, or 250 ms without motion for one that keeps painting.
+  A navigation or Stop flushes a scroll still open, with `settled: false`.
+- `03-pre-scroll` is the last frame at rest before the offset moved;
+  `04-post-scroll` is the frame where it landed. Whatever paints after the
+  landing, a click's response or lazy images, belongs to what comes next.
+- Both are decided once, when the scroll ends. A click within 250 ms of the
+  landing is therefore recorded before that scroll's pair; the frames are the
+  same either way.
+- The `04` record carries `scrollEpisode`: `settled` and the `path`, one
+  sample (`frameIndex`, `receivedAtMs`, `x`, `y`) per frame that moved.
+- Scrolls under 8 px of travel are dropped as jitter.
+- Known gap: on a page with no main-thread work, Chrome reports a wheel or key
+  scroll's offset a few frames late, so `03` can already show the scroll
+  beginning, and the path is sparse. `04` is unaffected.
+
+Not yet: who scrolled (every page scroll is `03`/`04`, a page's own
+`scrollTo` included), scroll depth, and elements with their own scrollbar. The
+steps are in `changes/scroll-rebuild.md`. A first version used the in-page
+probe's `scrollend` to end a scroll, and it raced the frames: recording one
+scroll twice and a post-scroll frame from before the scroll. That is why it
+was removed and rebuilt from frames.
 
 ### Attaching to a page that already has a document
 
@@ -165,8 +195,13 @@ packages:
   per view, the lifecycle milestones once per document (they are scoped to its
   `loaderId`, since only a load produces them). Adding or removing a milestone
   is an entry in an array — see `lifecycleMilestoneRule`.
-- **Interaction rules** repeat within a view, number each episode from 01 in
-  every view, and tag every capture with what the user touched.
+- **Interaction rules** repeat within a view and number each episode from 01
+  in every view. A click's captures carry what was clicked; a scroll's carry
+  the path the page took.
+
+Within one event, captures come out in rule order, so `defaultRules` lists the
+rules in label order: a scroll still open when the view ends is filed before
+its `99-before-navigation`.
 
 ### Hosts
 

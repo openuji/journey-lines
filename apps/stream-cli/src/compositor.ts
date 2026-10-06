@@ -16,7 +16,7 @@ runMain(async () => {
       });
 
       const consumed = (async () => {
-        const startTime = target.cdp.now();
+        const startTime = target.cdp.clock.now();
         for await (const frame of frames) {
           const elapsedMs = (frame.receivedAtMs - startTime).toFixed(0);
           const sizeKb = (base64ByteLength(frame.base64) / 1024).toFixed(1);

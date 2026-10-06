@@ -15,10 +15,16 @@ function capture(viewId: number, label: string, receivedAtMs: number): Milestone
 describe('journey rows', () => {
   it('names each capture by what the rules saw', () => {
     expect(
-      ['00-first', '02-settled', '10-pre-click-01', '11-post-click-01', '99-before-navigation'].map(
-        captureKind,
-      ),
-    ).toEqual(['view', 'view', 'click', 'click', 'leave']);
+      [
+        '00-first',
+        '02-settled',
+        '03-pre-scroll-01',
+        '04-post-scroll-01',
+        '10-pre-click-01',
+        '11-post-click-01',
+        '99-before-navigation',
+      ].map(captureKind),
+    ).toEqual(['view', 'view', 'scroll', 'scroll', 'click', 'click', 'leave']);
   });
 
   it('opens each view with a divider and times captures from the start', () => {

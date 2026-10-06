@@ -77,7 +77,7 @@ export async function attachLifecycle(
     const root = tree?.frameTree?.frame;
     if (tree?.frameTree) rememberLoaders(tree.frameTree, loaders);
     if (root) mainFrameId = root.id;
-    if (root && root.url !== 'about:blank') emit(navigated(root, cdp.now()));
+    if (root && root.url !== 'about:blank') emit(navigated(root, cdp.clock.now()));
 
     // Chromium answers this only after reporting every milestone the current
     // document has already reached. Listening for milestones from here on keeps

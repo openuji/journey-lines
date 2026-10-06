@@ -18,6 +18,7 @@ import type {
   Clock,
   Unsubscribe,
 } from './transport.js';
+import { systemClock } from './clock.js';
 
 export interface CdpEventRouter {
   on<E extends CdpEventName>(
@@ -27,13 +28,13 @@ export interface CdpEventRouter {
   /** Deliver one event to every listener registered for `method`. */
   dispatch(method: string, params: unknown): void;
   /** The clock `dispatch` stamps events with. */
-  readonly now: Clock;
+  readonly clock: Clock;
   /** Registered listeners for `method`, or across all methods when omitted. */
   listenerCount(method?: string): number;
 }
 
 export interface CdpEventRouterOptions {
-  /** Stamps `receivedAtMs`. Defaults to `Date.now`. */
+  /** Stamps `receivedAtMs`. Defaults to `systemClock`. */
   clock?: Clock;
   /** Called when a listener throws. Defaults to `console.error`. */
   onListenerError?: (error: unknown, method: string) => void;
@@ -50,11 +51,11 @@ export function createCdpEventRouter(
       console.error(`CDP listener for ${method} threw:`, error);
     });
 
-  const clock = options.clock ?? Date.now;
+  const clock = options.clock ?? systemClock;
   const listeners = new Map<string, Set<AnyListener>>();
 
   return {
-    now: clock,
+    clock,
 
     on(event, listener) {
       const handler = listener as AnyListener;
@@ -77,7 +78,7 @@ export function createCdpEventRouter(
       const set = listeners.get(method);
       if (!set) return;
 
-      const meta: CdpEventMeta = { receivedAtMs: clock() };
+      const meta: CdpEventMeta = { receivedAtMs: clock.now() };
 
       // Snapshot, so a listener that unsubscribes (or subscribes) mid-dispatch
       // does not change who receives this event.

@@ -1,16 +1,25 @@
 import type { MilestoneRule } from '@openuji/engine';
-import { defaultDocumentRules } from '@openuji/rules-document';
+import {
+  BeforeNavigationRule,
+  DomContentLoadedRule,
+  FirstFrameRule,
+  NetworkAlmostIdleRule,
+} from '@openuji/rules-document';
 import { defaultInteractionRules } from '@openuji/rules-interaction';
 
 /**
- * The standard rule suite: both categories, document rules first.
+ * The standard rule suite, in label order.
  *
- * Order matters only within a single event: captures are emitted in rule
- * order. The categories rarely share an event; when they do — the first frame
- * of a route a click just opened is both that click's post-click and the
- * route's `00-first` — the document rule's capture comes first.
+ * Within one event, captures come out in rule order, so rule order is label
+ * order. The first frame of a route a click just opened is the route's
+ * `00-first` before it is the click's `11-post-click`. A scroll still open
+ * when the view ends is flushed (`03`/`04`) before the view's
+ * `99-before-navigation`.
  */
 export const defaultRules: readonly MilestoneRule[] = [
-  ...defaultDocumentRules,
-  ...defaultInteractionRules,
+  FirstFrameRule, // 00
+  DomContentLoadedRule, // 01
+  NetworkAlmostIdleRule, // 02
+  ...defaultInteractionRules, // 03–04 scroll, 10–11 click
+  BeforeNavigationRule, // 99
 ];

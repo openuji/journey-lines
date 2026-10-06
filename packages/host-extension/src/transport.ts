@@ -34,7 +34,7 @@ export function createChromeDebuggerTransport(
     // `chrome.debugger` is untyped CDP; the transport contract types it.
     send: send as CdpTransport['send'],
     on: (event, listener) => router.on(event, listener),
-    now: router.now,
+    clock: router.clock,
     dispose: () => chromeDebugger.onEvent.removeListener(forward),
   };
 }

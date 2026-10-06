@@ -29,8 +29,19 @@ export type CdpEventName = keyof ProtocolMapping.Events;
 export type CdpEventParams<E extends CdpEventName> =
   ProtocolMapping.Events[E] extends [infer P] ? P : undefined;
 
-/** Unix epoch ms. Injected wherever time is read, so tests control it. */
-export type Clock = () => number;
+/** Stops a timer that has not fired yet. */
+export type Cancel = () => void;
+
+/**
+ * Unix epoch ms, and timers on that same reading. Injected wherever time is
+ * read or waited on, so tests control both through one clock, and a timer can
+ * never disagree with the time it was set for.
+ */
+export interface Clock {
+  now(): number;
+  /** Calls `fire(atMs)` once `now()` reads `atMs` or later; `atMs` is its stamp. */
+  at(atMs: number, fire: (atMs: number) => void): Cancel;
+}
 
 /** What the transport knows about an event beyond its payload. */
 export type CdpEventMeta = Readonly<{
@@ -73,7 +84,8 @@ export interface CdpTransport {
 
   /**
    * The clock that stamps `receivedAtMs`. For the rare value a source derives
-   * from a command response rather than an event, so it stays on one clock.
+   * from a command response rather than an event, and for timers, so all of
+   * them stay on one clock.
    */
-  readonly now: Clock;
+  readonly clock: Clock;
 }

@@ -29,6 +29,8 @@ const WAIT = { timeout: 15_000, interval: 50 };
 
 const preClick = episodeLabel(InteractionLabel.preClick, 1);
 const postClick = episodeLabel(InteractionLabel.postClick, 1);
+const preScroll = episodeLabel(InteractionLabel.preScroll, 1);
+const postScroll = episodeLabel(InteractionLabel.postScroll, 1);
 
 const BUTTON_CENTER = { x: BUTTON.x + BUTTON.width / 2, y: BUTTON.y + BUTTON.height / 2 };
 const SCROLL_POINT = { x: 400, y: 400 };
@@ -165,17 +167,21 @@ describe('extension host against a real browser', () => {
       WAIT,
     );
 
-    // Scrolling captures nothing on its own; a click after it does, on frames
-    // that carry where the page now is.
+    // The frames carry the offset, so the scroll is captured from them, and a
+    // click after it lands on frames that show where the page now is.
+    await waitForLabel(postScroll);
     await click(recordedTab, SCROLL_POINT.x, SCROLL_POINT.y);
     await waitForLabel(postClick);
     await stop();
 
-    const clicked = await extension.worker.evaluate(
-      (label) => recorder.captures.find((capture) => capture.label === label)?.frame.scrollY,
-      postClick,
-    );
-    expect(clicked).toBe(600);
+    const scrollYOf = (label: string): Promise<number | undefined> =>
+      extension.worker.evaluate(
+        (label) => recorder.captures.find((capture) => capture.label === label)?.frame.scrollY,
+        label,
+      );
+    expect(await scrollYOf(preScroll)).toBe(0);
+    expect(await scrollYOf(postScroll)).toBe(600);
+    expect(await scrollYOf(postClick)).toBe(600);
     expect(await scaleOfIdleTab(tabId)).toBe(2);
   });
 

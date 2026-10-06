@@ -8,6 +8,7 @@ runMain(async () => {
   await session.start();
 
   console.log('\nReady! Full UXR recording is active:');
+  console.log('  • Scroll the page               -> 03-pre-scroll + 04-post-scroll + path');
   console.log('  • Click any element             -> 10-pre-click + 11-post-click + DOM metadata');
   console.log('  • Navigate or press Ctrl+C      -> 99-before-navigation');
   console.log(`  • Logs recorded in real time to -> ${session.ndjsonPath}\n`);

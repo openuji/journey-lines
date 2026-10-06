@@ -7,7 +7,9 @@ export const BUTTON = { x: 100, y: 100, width: 200, height: 60 } as const;
 /**
  * The page under test. The `requestAnimationFrame` counter keeps the compositor
  * producing frames: a static page stops sending screencast frames once it has
- * painted, and every "next frame after X" rule would then wait forever.
+ * painted, and every "next frame after X" rule would then wait forever. The
+ * scroll rule doesn't wait for frames (the stream's `quiet` ends a scroll);
+ * `STILL` is the page that checks it.
  */
 const INDEX = `<!doctype html>
 <html>
@@ -36,6 +38,29 @@ const INDEX = `<!doctype html>
       };
       requestAnimationFrame(loop);
     </script>
+  </body>
+</html>`;
+
+/**
+ * A tall page that paints once and then stops, as most real pages do: no
+ * ticker, so the screencast goes silent between scrolls. Each 600 px section
+ * is labelled with where it starts, so a capture shows which offset it is at.
+ */
+const STILL = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>uxr fixture, still</title>
+    <style>
+      body { margin: 0; font: 32px sans-serif; }
+      section { height: 600px; padding: 16px; box-sizing: border-box; }
+      section:nth-child(odd) { background: #dde6f5; }
+    </style>
+  </head>
+  <body>
+    <section>0 px</section><section>600 px</section><section>1200 px</section>
+    <section>1800 px</section><section>2400 px</section><section>3000 px</section>
+    <section>3600 px</section>
   </body>
 </html>`;
 
@@ -111,6 +136,7 @@ const SPA_PAGE = `<!doctype html>
 const PAGES: Readonly<Record<string, string>> = {
   '/': INDEX,
   '/second': SECOND,
+  '/still': STILL,
   '/spa': SPA_PAGE,
   '/spa/b': SPA_PAGE,
 };

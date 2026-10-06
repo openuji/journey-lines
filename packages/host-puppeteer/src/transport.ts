@@ -49,7 +49,7 @@ export function createPuppeteerTransport(
   return {
     send: send as CdpTransport['send'],
     on,
-    now: router.now,
+    clock: router.clock,
     dispose: () => {
       for (const [method, forward] of forwarders) emitter.off(method, forward);
       forwarders.clear();

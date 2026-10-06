@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createCdpEventRouter } from '../src/router.js';
+import { createManualClock } from '../src/testing.js';
+import type { Clock } from '../src/transport.js';
+
+/** A clock read through `now`; these tests set no timers. */
+const reading = (now: () => number): Clock => ({ now, at: () => () => {} });
 
 describe('createCdpEventRouter', () => {
   it('delivers each event only to listeners of its method, in registration order', () => {
@@ -18,7 +23,7 @@ describe('createCdpEventRouter', () => {
   });
 
   it('stops delivering after unsubscribe', () => {
-    const router = createCdpEventRouter({ clock: () => 7 });
+    const router = createCdpEventRouter({ clock: createManualClock(7) });
     const listener = vi.fn();
 
     const off = router.on('Page.screencastFrame', listener);
@@ -33,7 +38,7 @@ describe('createCdpEventRouter', () => {
 
   it('stamps each event once, and every listener sees that stamp', () => {
     let time = 100;
-    const router = createCdpEventRouter({ clock: () => time++ });
+    const router = createCdpEventRouter({ clock: reading(() => time++) });
     const stamps: number[] = [];
 
     router.on('Page.lifecycleEvent', (_, { receivedAtMs }) => stamps.push(receivedAtMs));
@@ -45,12 +50,12 @@ describe('createCdpEventRouter', () => {
   });
 
   it('reads no clock for an event nobody listens to', () => {
-    const clock = vi.fn(() => 0);
-    const router = createCdpEventRouter({ clock });
+    const now = vi.fn(() => 0);
+    const router = createCdpEventRouter({ clock: reading(now) });
 
     router.dispatch('Page.screencastFrame', {});
 
-    expect(clock).not.toHaveBeenCalled();
+    expect(now).not.toHaveBeenCalled();
   });
 
   it('delivers the in-flight event to a listener unsubscribed mid-dispatch', () => {

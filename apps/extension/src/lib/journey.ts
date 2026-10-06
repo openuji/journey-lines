@@ -8,7 +8,7 @@ import { DocumentLabel } from '@openuji/rules-document';
 import { InteractionLabel } from '@openuji/rules-interaction';
 
 /** What a capture shows, as one icon in the panel. */
-export type CaptureKind = 'view' | 'click' | 'leave';
+export type CaptureKind = 'view' | 'scroll' | 'click' | 'leave';
 
 export type JourneyRow =
   | Readonly<{ kind: 'view'; key: string; entry: ViewEntry; url: string }>
@@ -23,6 +23,9 @@ export type JourneyRow =
 
 export function captureKind(label: string): CaptureKind {
   if (label === DocumentLabel.beforeNavigation) return 'leave';
+  if (label.startsWith(InteractionLabel.preScroll) || label.startsWith(InteractionLabel.postScroll)) {
+    return 'scroll';
+  }
   if (label.startsWith(InteractionLabel.preClick) || label.startsWith(InteractionLabel.postClick)) {
     return 'click';
   }

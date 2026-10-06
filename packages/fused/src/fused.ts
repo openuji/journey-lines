@@ -1,9 +1,12 @@
-import type { CdpTransport, Detach } from '@openuji/cdp';
+import type { Cancel, CdpTransport, Detach } from '@openuji/cdp';
 import {
+  arrivedAtMs,
   createPushStream,
+  QUIET_AFTER_MS,
   type CompositorFrame,
   type DomainEvent,
   type PushStreamStats,
+  type TimedEvent,
 } from '@openuji/core';
 import {
   attachCompositor,
@@ -52,6 +55,8 @@ export interface FusedStreamHandle {
  * The sources are the same `attach*` functions the standalone streams run, and
  * what they emit already are domain events, so a source watched in isolation
  * yields exactly what it feeds the engine here.
+ *
+ * The one event of its own: `quiet`, once nothing has arrived for a while.
  */
 export async function createFusedStream(
   cdp: CdpTransport,
@@ -67,16 +72,26 @@ export async function createFusedStream(
     },
   });
 
+  // Once nothing has arrived for `QUIET_AFTER_MS`, say so, once. A page that
+  // stops moving stops painting, so without this the engine would learn that
+  // only from whatever happens next. Every event re-arms the timer; `quiet`
+  // itself does not. The timer is the transport's clock, so `quiet` carries
+  // exactly the moment it describes.
+  let cancelQuiet: Cancel | undefined;
+  const push = (event: TimedEvent): void => {
+    stream.push(event);
+    cancelQuiet?.();
+    cancelQuiet = cdp.clock.at(arrivedAtMs(event) + QUIET_AFTER_MS, (atMs) =>
+      stream.push({ type: 'quiet', receivedAtMs: atMs }),
+    );
+  };
+
   // Lifecycle and interaction events already are domain events; only a
   // compositor frame, which is also the payload captures carry, gets tagged.
   const attached = await Promise.allSettled([
-    attachCompositor(
-      cdp,
-      (frame) => stream.push({ type: 'frame', frame }),
-      screencast,
-    ),
-    attachLifecycle(cdp, stream.push),
-    attachInteraction(cdp, stream.push),
+    attachCompositor(cdp, (frame) => push({ type: 'frame', frame }), screencast),
+    attachLifecycle(cdp, push),
+    attachInteraction(cdp, push),
   ]);
 
   const detaches: Detach[] = attached.flatMap((result) =>
@@ -85,6 +100,9 @@ export async function createFusedStream(
 
   const detachAll = async (): Promise<void> => {
     await Promise.all(detaches.map((detach) => detach().catch(() => {})));
+    // After the sources are gone, so nothing re-arms it. A push to an ended
+    // stream is a no-op anyway.
+    cancelQuiet?.();
   };
 
   const failure = attached.find(

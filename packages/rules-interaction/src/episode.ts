@@ -3,6 +3,8 @@
  * filenames. Build full labels with {@link episodeLabel}.
  */
 export const InteractionLabel = {
+  preScroll: '03-pre-scroll',
+  postScroll: '04-post-scroll',
   preClick: '10-pre-click',
   postClick: '11-post-click',
 } as const;
