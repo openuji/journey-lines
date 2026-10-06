@@ -16,10 +16,3 @@ export const MAX_TEXT_SNIPPET_LENGTH = 40;
 
 /** How many class names contribute to a generated selector. */
 export const MAX_SELECTOR_CLASSES = 2;
-
-/**
- * Scroll input is reported at most this often (page clock, ms). Enough to keep
- * the host's evidence fresh through a long gesture, without a binding call for
- * every wheel tick.
- */
-export const SCROLL_INPUT_INTERVAL_MS = 100;

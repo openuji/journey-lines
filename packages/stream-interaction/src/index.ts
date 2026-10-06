@@ -38,8 +38,6 @@ export function decodeProbePayload(
     target: payload.target,
     receivedAtMs,
     pageTimeMs: payload.pageTimeMs,
-    ...(payload.scroll ? { scroll: payload.scroll } : {}),
-    ...(payload.input ? { input: payload.input } : {}),
   };
 }
 

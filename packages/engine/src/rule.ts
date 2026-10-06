@@ -56,7 +56,7 @@ export function unchanged<TState>(state: TState): RuleResult<TState> {
 /** What a rule decides about a capture: everything but whose it is. */
 export type CaptureFields = Pick<
   MilestoneCapture,
-  'label' | 'frame' | 'detail' | 'domTarget' | 'scrollEpisode'
+  'label' | 'frame' | 'detail' | 'domTarget'
 >;
 
 /**

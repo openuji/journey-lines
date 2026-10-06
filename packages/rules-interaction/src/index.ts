@@ -1,10 +1,8 @@
 import type { MilestoneRule } from '@openuji/engine';
 import { ClickEpisodeRule } from './click.js';
-import { ScrollLifecycleRule } from './scroll.js';
 
 export * from './episode.js';
 export * from './click.js';
-export * from './scroll.js';
 
 /**
  * User-interaction rules.
@@ -13,7 +11,4 @@ export * from './scroll.js';
  * from 01 in every view, and every capture carries the DOM metadata of what the
  * user touched.
  */
-export const defaultInteractionRules: readonly MilestoneRule[] = [
-  ScrollLifecycleRule,
-  ClickEpisodeRule,
-];
+export const defaultInteractionRules: readonly MilestoneRule[] = [ClickEpisodeRule];

@@ -1,4 +1,4 @@
-import type { CdpTransport } from '@openuji/cdp';
+import type { CdpTransport, Unsubscribe } from './transport.js';
 
 /**
  * Navigate the top frame and resolve once the new document has committed,
@@ -43,5 +43,30 @@ export async function navigateAndCommit(cdp: CdpTransport, url: string): Promise
     });
   } finally {
     off();
+  }
+}
+
+/**
+ * `navigateAndCommit`, given up once the target goes away.
+ *
+ * There is deliberately no timeout: on a slow page one would fail a recording
+ * that is going fine. The target closing is what ends a navigation that never
+ * answers.
+ */
+export async function navigateUntilClosed(
+  cdp: CdpTransport,
+  url: string,
+  onClosed: (listener: () => void) => Unsubscribe,
+): Promise<void> {
+  let stopWatching: Unsubscribe = () => {};
+  const closed = new Promise<never>((_, reject) => {
+    stopWatching = onClosed(() =>
+      reject(new Error(`Target closed while navigating to ${url}`)),
+    );
+  });
+  try {
+    await Promise.race([navigateAndCommit(cdp, url), closed]);
+  } finally {
+    stopWatching();
   }
 }

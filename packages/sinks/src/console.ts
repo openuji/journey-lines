@@ -11,7 +11,7 @@ const CYAN = '\x1b[36m';
 const GREY = '\x1b[90m';
 
 function colorFor(label: string): string {
-  if (label.includes('click') || label.includes('scroll')) return MAGENTA;
+  if (label.includes('click')) return MAGENTA;
   if (label.includes('99')) return YELLOW;
   return CYAN;
 }
@@ -56,18 +56,6 @@ export class ConsoleSink implements CaptureSink {
         `    ${GREY}↳ DOM: <${target.selector}> text:"${target.textSnippet ?? ''}" ` +
           `role:${target.role ?? '-'} at:(${target.clientX}, ${target.clientY}) ` +
           `rect:[${target.boundingRect.width}x${target.boundingRect.height}]${RESET}`,
-      );
-    }
-
-    const scroll = capture.scrollEpisode;
-    if (scroll) {
-      const position = (p: { x: number; y: number } | undefined): string =>
-        p ? `(${p.x}, ${p.y})` : '?';
-      const range = scroll.to ?? scroll.from;
-      console.log(
-        `    ${GREY}↳ scroll: ${scroll.origin}${scroll.input ? ` ${scroll.input}` : ''} ` +
-          `${position(scroll.from)} → ${position(scroll.to)}` +
-          `${range ? ` of max (${range.maxX}, ${range.maxY})` : ''}${RESET}`,
       );
     }
   }

@@ -5,7 +5,10 @@
 
 import type { CdpTransport } from '@openuji/cdp';
 
-export async function click(cdp: CdpTransport, x: number, y: number): Promise<void> {
+/** Input only sends commands, so any host's command channel will do. */
+type CommandSender = Pick<CdpTransport, 'send'>;
+
+export async function click(cdp: CommandSender, x: number, y: number): Promise<void> {
   await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
   await cdp.send('Input.dispatchMouseEvent', {
     type: 'mousePressed',
@@ -25,7 +28,7 @@ export async function click(cdp: CdpTransport, x: number, y: number): Promise<vo
 
 /** The pointer moves over the point first, as a person's does before wheeling. */
 export async function wheel(
-  cdp: CdpTransport,
+  cdp: CommandSender,
   x: number,
   y: number,
   deltaY: number,

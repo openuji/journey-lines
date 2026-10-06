@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createFakeCdpTransport } from '@openuji/cdp/testing';
-import { frameNavigated } from '../../cdp/test/events.js';
-import { navigateAndCommit } from '../src/navigate.js';
+import { frameNavigated } from './events.js';
+import { navigateAndCommit, navigateUntilClosed } from '../src/navigate.js';
 
 const URL = 'https://example.com/next';
 
@@ -83,5 +83,29 @@ describe('navigateAndCommit', () => {
       `Navigation to ${URL} failed: net::ERR_NAME_NOT_RESOLVED`,
     );
     expect(cdp.listenerCount('Page.frameNavigated')).toBe(0);
+  });
+});
+
+describe('navigateUntilClosed', () => {
+  it('gives up a navigation that never commits once the target goes away', async () => {
+    const cdp = createFakeCdpTransport();
+    cdp.respond('Page.navigate', { frameId: 'main', loaderId: 'next' });
+
+    let close = (): void => {};
+    let watching = false;
+    const onClosed = (listener: () => void) => {
+      close = listener;
+      watching = true;
+      return () => {
+        watching = false;
+      };
+    };
+
+    const navigation = navigateUntilClosed(cdp, URL, onClosed);
+    await settle();
+    close();
+
+    await expect(navigation).rejects.toThrow(`Target closed while navigating to ${URL}`);
+    expect(watching).toBe(false);
   });
 });

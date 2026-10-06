@@ -21,19 +21,23 @@
     "rebuild": "pnpm run clean && pnpm run build",
     "test": "pnpm run build:probe && vitest run",
     "test:watch": "pnpm run build:probe && vitest",
-    "test:browser": "pnpm run build:probe && vitest run -c vitest.browser.config.ts",
+    "test:browser": "pnpm run build:extension && vitest run -c vitest.browser.config.ts",
     "start": "pnpm run build && node apps/recorder/dist/cli.js",
     "dev:compositor": "pnpm run build && node apps/stream-cli/dist/compositor.js",
     "dev:lifecycle": "pnpm run build && node apps/stream-cli/dist/lifecycle.js",
     "dev:interaction": "pnpm run build && node apps/stream-cli/dist/interaction.js",
-    "dev:fused": "pnpm run build && node apps/stream-cli/dist/fused.js"
+    "dev:fused": "pnpm run build && node apps/stream-cli/dist/fused.js",
+    "dev:extension": "pnpm run build:probe && pnpm --filter @openuji/extension dev",
+    "build:extension": "pnpm run build:probe && pnpm --filter @openuji/extension build"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/chrome": "0.3.4",
     "@types/node": "^22.10.2",
     "esbuild": "^0.24.2",
+    "puppeteer": "25.12.0",
     "tsx": "^4.23.13",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"

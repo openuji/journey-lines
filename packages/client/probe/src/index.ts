@@ -12,7 +12,6 @@ export {
   PROBE_INJECTED_FLAG,
   MAX_TEXT_SNIPPET_LENGTH,
   MAX_SELECTOR_CLASSES,
-  SCROLL_INPUT_INTERVAL_MS,
 } from './constants.js';
 
 export { PROBE_SOURCE } from './generated/probe-source.js';

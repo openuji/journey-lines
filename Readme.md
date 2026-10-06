@@ -23,14 +23,10 @@ starts a view, and so does an SPA route change. `nav-00001` is the first view,
 
 | Artifact | Meaning |
 | --- | --- |
-| `interactions.ndjson` | One record per capture: screenshot path, view, URL showing, scroll offset, DOM target, scroll episode |
+| `interactions.ndjson` | One record per capture: screenshot path, view, URL showing, the frame's scroll offset, DOM target |
 | `nav-00001-00-first.png` | First compositor paint of the view |
 | `nav-00001-01-domcontentloaded.png` | Frame following `DOMContentLoaded` |
 | `nav-00001-02-settled.png` | Frame following `networkAlmostIdle` |
-| `nav-00001-03-pre-scroll-01.png` | Resting frame before the person's scroll 1, of the page or any element |
-| `nav-00001-04-post-scroll-01.png` | Settled frame after it |
-| `nav-00001-05-pre-auto-scroll-01.png` | Resting frame before the page's own scroll 1 (router reset, scroll to an error) |
-| `nav-00001-06-post-auto-scroll-01.png` | Settled frame after it |
 | `nav-00001-10-pre-click-01.png` | Visual state immediately before click 1 (+ DOM target) |
 | `nav-00001-11-post-click-01.png` | Compositor response to click 1 (+ DOM target) |
 | `nav-00001-99-before-navigation.png` | Final visible frame before navigating away or ending |
@@ -104,39 +100,14 @@ changes the route is filed with its pre-click, under the view it was clicked
 in. Records carry `viewId`, `entry` (`load` or `route`), `documentId` and the
 `url` showing at capture time.
 
-### Scroll: whatever scrolls, whoever scrolls it
+### Scroll
 
-A scroll episode is the same thing whether the page scrolls or an element
-with its own scrollbar does (an app shell's `<main>`, a list pane). The scroll
-rule reads two signals:
-
-- **The page's frame deltas.** Screencast frames carry the page's scroll
-  offset, which makes its resting frames exact.
-- **The probe's `scrollstart`/`scrollend`.** These cover every scroller,
-  including where screencast offsets read 0, and carry exact positions.
-
-Whoever scrolled is decided by **scroll input** (wheel, touch, scroll keys, a
-scrollbar press), which the probe reports as `scrollinput`:
-
-- With input, the episode is the person's (`03`/`04`).
-- With none, the page scrolled itself (`05`/`06`).
-- Chrome can paint a wheel scroll before the input reaches the page, so an
-  episode that opens without input stays pending, and becomes the person's if
-  input follows before it settles.
-
-Every scroll capture carries `scrollEpisode` in its record:
-
-- the scroller;
-- the origin (`user` or `auto`) and the input kind;
-- the scroller's `from` and `to` positions, with `maxX`/`maxY`, for scroll depth.
-
-`from` is reported only when the probe saw the scroller at rest before it moved.
-It notes resting positions when the pointer arrives, when a touch starts, or
-when a scroll key goes down, never at the wheel itself.
-
-For an element, the "pre" frame is approximate, because screencast frames carry
-no element offsets. A navigation or the end of a session settles an open
-episode, so pairs are never left half-open.
+Scroll capture is removed for now and will be rebuilt step by step. Its first
+version raced the probe's scroll signals against the screencast frames: a
+`scrollend` could arrive before the frame showing the scroll, which recorded
+one scroll twice and gave the post-scroll capture a frame from before it.
+Frames still carry the page's scroll offset (`scrollX`/`scrollY`), and every
+record keeps the offset of its frame.
 
 ### Attaching to a page that already has a document
 
@@ -163,9 +134,11 @@ page yields `00-first`, not a stale `01-domcontentloaded`.
 | `@openuji/rules-interaction` | Repeating numbered episodes carrying DOM target metadata. |
 | `@openuji/sinks` | Optional capture destinations: console and PNG + NDJSON persistence. |
 | `@openuji/host-puppeteer` | Puppeteer-launched Chrome for Testing as a host: `launchPuppeteerTarget()`. The only library package that depends on Puppeteer. |
+| `@openuji/host-extension` | A tab in the user's own Chrome as a host, through `chrome.debugger`: `attachTab()`. Isomorphic: `chrome.debugger` is passed in. |
 | `@openuji/cli-kit` | Shared launch, navigation and shutdown scaffolding for the Node CLIs. |
 | `@openuji/stream-cli` | Dev runners: each source on its own, and the fused detection pipeline. |
 | `@openuji/recorder` | The end-to-end session and its CLI. |
+| `@openuji/extension` | The Chrome extension (WXT): the pipeline in its service worker, the journey live in its side panel. |
 
 ### Sources run alone or fused — same code
 
@@ -194,8 +167,6 @@ packages:
   is an entry in an array — see `lifecycleMilestoneRule`.
 - **Interaction rules** repeat within a view, number each episode from 01 in
   every view, and tag every capture with what the user touched.
-  `scrollLifecycleRule` is a signal processor over frame deltas and the
-  probe's scroll signals, with tunable thresholds.
 
 ### Hosts
 
@@ -207,18 +178,20 @@ DevTools connection of their own, so no host does.
 | Mode | Host | CDP through | Chrome |
 | --- | --- | --- | --- |
 | Node CLI | `@openuji/host-puppeteer` | Puppeteer `CDPSession` | Chrome for Testing, pinned with Puppeteer |
-| Extension (next) | — | `chrome.debugger` | the user's own Chrome |
+| Extension | `@openuji/host-extension` | `chrome.debugger` | the user's own Chrome |
 | Desktop (later) | — | Electron `webContents.debugger` | the Chromium Electron ships |
 
 Headless (`UXR_HEADLESS=1`) runs `chrome-headless-shell`: full Chrome's headless
-mode reports every screencast frame at scroll offset 0. That blinds the scroll
-rule's frame-exact view of the page. The probe's scroll signals still catch the
-scroll, but only with approximate resting frames.
+mode reports every screencast frame at scroll offset 0.
 
 Headed, the page lays out to its real window and reflows when the window is
 resized; the viewport size only sets the window's opening content area. The
 device scale factor stays pinned at 1, because at any other — a HiDPI screen's
 own included — Chrome reports screencast scroll offsets as 0 too.
+
+The extension attaches to a tab the person already has open and keeps after
+the recording. It pins the scale factor to 1 for the recording's length, so
+the tab renders at 1x on a HiDPI screen until Stop gives it its own back.
 
 Puppeteer and `devtools-protocol` (the CDP types in `@openuji/cdp`) move
 together, in one change, to the versions Puppeteer pins. The streams still
@@ -264,9 +237,26 @@ runners live in `apps/stream-cli`:
 ```bash
 pnpm dev:compositor  https://my.fu-berlin.de/   # frame index, latency, scroll offset
 pnpm dev:lifecycle   https://my.fu-berlin.de/   # navigations (SPA routes too), loaderIds, milestones
-pnpm dev:interaction https://my.fu-berlin.de/   # clicks, scroll input, every scroller's start/end, with DOM metadata
+pnpm dev:interaction https://my.fu-berlin.de/   # clicks, with DOM metadata
 pnpm dev:fused       https://my.fu-berlin.de/   # full detection pipeline, zero disk I/O
 ```
+
+### Extension
+
+```bash
+pnpm dev:extension                        # Chrome for Testing with the extension; panel hot-reloads
+UXR_START_URL=https://my.fu-berlin.de/ pnpm dev:extension
+pnpm build:extension                      # apps/extension/.output/chrome-mv3, for "Load unpacked"
+```
+
+The dev browser starts with a fresh profile every run: a kept profile would keep
+running the first service worker it installed. Click the toolbar button to open
+the panel.
+
+The service worker exposes its recorder as `recorder`: in `chrome://extensions`,
+open "Inspect views: service worker" and read `recorder.status` and
+`recorder.captures`, or send CDP with `await recorder.cdp.send(...)`. The
+browser tests (`test/browser/extension.test.ts`) drive it the same way.
 
 ### Backpressure
 

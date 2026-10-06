@@ -94,31 +94,6 @@ describe('decodeProbePayload', () => {
     });
   });
 
-  it("carries a scroll's position and the input behind it", () => {
-    const target = {
-      tagName: 'div',
-      selector: 'div#pane',
-      clientX: 0,
-      clientY: 0,
-      boundingRect: { x: 0, y: 0, width: 280, height: 240 },
-    };
-    const scroll = { x: 0, y: 640, maxX: 0, maxY: 2760 };
-
-    expect(
-      decodeProbePayload(
-        JSON.stringify({ action: 'scrollend', target, pageTimeMs: 1, scroll }),
-        0,
-      ),
-    ).toMatchObject({ action: 'scrollend', target: { selector: 'div#pane' }, scroll });
-    expect(
-      decodeProbePayload(
-        JSON.stringify({ action: 'scrollinput', target, pageTimeMs: 1, input: 'touch' }),
-        0,
-      ),
-    ).toMatchObject({ action: 'scrollinput', input: 'touch' });
-    expect(decodeProbePayload(clickPayload(), 0)).not.toHaveProperty('scroll');
-  });
-
   it.each(['{not json', 'null', '42'])('rejects %s', (json) => {
     expect(decodeProbePayload(json, 0)).toBeNull();
   });

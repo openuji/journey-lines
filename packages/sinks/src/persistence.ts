@@ -67,7 +67,6 @@ export class PersistenceSink implements CaptureSink {
       },
       detail: capture.detail,
       ...(capture.domTarget ? { domTarget: capture.domTarget } : {}),
-      ...(capture.scrollEpisode ? { scrollEpisode: capture.scrollEpisode } : {}),
     };
 
     const line = `${JSON.stringify(record)}\n`;

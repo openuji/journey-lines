@@ -1,6 +1,11 @@
 import puppeteer, { type Browser, type Page } from 'puppeteer';
-import type { RecordingTarget, Unsubscribe, Viewport } from '@openuji/cdp';
-import { navigateAndCommit } from './navigate.js';
+import {
+  navigateUntilClosed,
+  pinScaleFactor,
+  type RecordingTarget,
+  type Unsubscribe,
+  type Viewport,
+} from '@openuji/cdp';
 import { createPuppeteerTransport } from './transport.js';
 
 export const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
@@ -11,7 +16,7 @@ export interface PuppeteerTargetOptions {
   /**
    * Headless runs `chrome-headless-shell`, not full Chrome's headless mode: the
    * latter reports every screencast frame at scroll offset 0 (seen on Chrome
-   * 154), which blinds the scroll rules. Defaults to headless.
+   * 154). Defaults to headless.
    */
   readonly headless?: boolean;
   /**
@@ -70,7 +75,7 @@ export async function launchPuppeteerTarget(
     // Every launch gets a fresh temporary profile, so the default context is
     // already isolated; reusing its first tab avoids a stray blank window.
     const page = (await browser.pages())[0] ?? (await browser.newPage());
-    const session = await page.createCDPSession();
+    const cdp = createPuppeteerTransport(await page.createCDPSession());
     if (!headless) {
       // Sizes the content area, not the window, so the toolbar does not eat
       // into it. The OS may still clamp it to fit the screen.
@@ -78,18 +83,9 @@ export async function launchPuppeteerTarget(
         contentWidth: viewport.width,
         contentHeight: viewport.height,
       });
-      // Width and height 0 leave the layout to the real window. The scale
-      // factor stays pinned at 1: at any other — a HiDPI screen's own included
-      // — Chrome reports every screencast frame at scroll offset 0 (seen on
-      // Chrome 154), which blinds the scroll rules.
-      await session.send('Emulation.setDeviceMetricsOverride', {
-        width: 0,
-        height: 0,
-        deviceScaleFactor: 1,
-        mobile: false,
-      });
+      // The layout follows the real window; only the scale factor is pinned.
+      await pinScaleFactor(cdp);
     }
-    const cdp = createPuppeteerTransport(session);
 
     const onClosed = (listener: () => void): Unsubscribe => {
       // Closing the last window does not end the browser everywhere (macOS
@@ -123,19 +119,8 @@ export async function launchPuppeteerTarget(
         }
 
         // `page.goto` cannot stop at commit, and on a slow page its timeout
-        // would fail a recording that is going fine. So there is no timeout;
-        // the target going away is what ends a navigation that never answers.
-        let stopWatching: Unsubscribe = () => {};
-        const closed = new Promise<never>((_, reject) => {
-          stopWatching = onClosed(() =>
-            reject(new Error(`Target closed while navigating to ${url}`)),
-          );
-        });
-        try {
-          await Promise.race([navigateAndCommit(cdp, url), closed]);
-        } finally {
-          stopWatching();
-        }
+        // would fail a recording that is going fine.
+        await navigateUntilClosed(cdp, url, onClosed);
       },
 
       onClosed,

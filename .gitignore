@@ -10,3 +10,7 @@ dist
 packages/client/probe/src/generated
 .claude
 apps/web
+
+# extension: WXT output and generated types
+apps/extension/.output
+apps/extension/.wxt

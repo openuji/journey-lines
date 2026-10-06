@@ -18,12 +18,7 @@
  *    (interactions).
  */
 
-import type {
-  InteractionAction,
-  ScrollInputKind,
-  ScrollPosition,
-  TargetElementMeta,
-} from './wire.js';
+import type { InteractionAction, TargetElementMeta } from './wire.js';
 
 export type CompositorFrame = Readonly<{
   index: number;
@@ -94,29 +89,6 @@ export type InteractionEvent = Readonly<{
   target: TargetElementMeta;
   receivedAtMs: number;
   pageTimeMs: number;
-  /** As the probe sent it; see `InteractionWirePayload`. */
-  scroll?: ScrollPosition;
-  input?: ScrollInputKind;
-}>;
-
-/**
- * What is known about one scroll episode — whatever scrolled, and whoever
- * scrolled it.
- */
-export type ScrollEpisode = Readonly<{
-  /** What scrolled; `selector` is `VIEWPORT_SELECTOR` for the page itself. */
-  scroller: TargetElementMeta;
-  /** `user` when scroll input came with it; `auto` when the page scrolled itself. */
-  origin: 'user' | 'auto';
-  /** What the person scrolled with; absent for `auto`. */
-  input?: ScrollInputKind;
-  /**
-   * The scroller's positions as the page reports them. Absent when the probe
-   * did not report this scroller — the page's frame offsets are still on the
-   * capture's frame — and `to` is absent until the episode settles.
-   */
-  from?: ScrollPosition;
-  to?: ScrollPosition;
 }>;
 
 /**
@@ -185,7 +157,6 @@ export type MilestoneCapture = Readonly<{
   frame: CompositorFrame;
   detail: string;
   domTarget?: TargetElementMeta;
-  scrollEpisode?: ScrollEpisode;
 }>;
 
 export type InteractionLogRecord = Readonly<{
@@ -208,5 +179,4 @@ export type InteractionLogRecord = Readonly<{
   }>;
   detail: string;
   domTarget?: TargetElementMeta;
-  scrollEpisode?: ScrollEpisode;
 }>;

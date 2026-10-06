@@ -13,6 +13,7 @@
     { "path": "./packages/fused" },
     { "path": "./packages/sinks" },
     { "path": "./packages/host-puppeteer" },
+    { "path": "./packages/host-extension" },
     { "path": "./packages/cli-kit" },
     { "path": "./apps/stream-cli" },
     { "path": "./apps/recorder" }

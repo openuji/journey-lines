@@ -9,7 +9,6 @@ runMain(async () => {
 
   console.log('\nReady! Full UXR recording is active:');
   console.log('  • Click any element             -> 10-pre-click + 11-post-click + DOM metadata');
-  console.log('  • Scroll down or up             -> 03-pre-scroll-XX + 04-post-scroll-XX per episode');
   console.log('  • Navigate or press Ctrl+C      -> 99-before-navigation');
   console.log(`  • Logs recorded in real time to -> ${session.ndjsonPath}\n`);
 

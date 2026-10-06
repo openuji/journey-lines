@@ -51,17 +51,15 @@ export const SPA = {
   link: { x: 100, y: 100, width: 200, height: 60 },
   /** Rewrites the query string only: `replaceState('?q=x')`. */
   filter: { x: 100, y: 200, width: 200, height: 60 },
-  /** A scroll container of its own, as in an app shell. */
-  pane: { x: 360, y: 100, width: 280, height: 240 },
 } as const;
 
 const box = ({ x, y, width, height }: { x: number; y: number; width: number; height: number }) =>
   `position: absolute; left: ${x}px; top: ${y}px; width: ${width}px; height: ${height}px;`;
 
 /**
- * A single-page app: one document, routes switched by the History API, and a
- * pane that scrolls on its own. Served at `/spa` and `/spa/b`, the way an SPA
- * server answers every route with the same shell.
+ * A single-page app: one document, routes switched by the History API.
+ * Served at `/spa` and `/spa/b`, the way an SPA server answers every route
+ * with the same shell.
  */
 const SPA_PAGE = `<!doctype html>
 <html>
@@ -72,8 +70,6 @@ const SPA_PAGE = `<!doctype html>
       body { margin: 0; height: 4000px; font: 16px sans-serif; }
       #to-b { ${box(SPA.link)} display: block; }
       #filter { ${box(SPA.filter)} }
-      #pane { ${box(SPA.pane)} overflow: auto; border: 1px solid #888; }
-      #pane > div { height: 3000px; background: linear-gradient(#fff, #69c); }
       #route { position: fixed; left: 8px; bottom: 8px; }
       #tick { position: fixed; right: 8px; bottom: 8px; }
     </style>
@@ -81,7 +77,6 @@ const SPA_PAGE = `<!doctype html>
   <body>
     <a id="to-b" href="/spa/b">To route B</a>
     <button id="filter">Filter</button>
-    <div id="pane"><div>pane</div></div>
     <span id="route"></span>
     <span id="tick">0</span>
     <script>
