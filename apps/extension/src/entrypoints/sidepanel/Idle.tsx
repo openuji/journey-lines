@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button } from '../../ui/Button';
 
 /** Before a recording: one button, for the tab in front of the person. */
 export function Idle({
@@ -28,10 +29,15 @@ export function Idle({
 
   return (
     <section className="idle">
-      <button className="record-button" disabled={pending} onClick={() => void record()}>
+      <Button
+        className="record-button"
+        variant="primary"
+        disabled={pending}
+        onClick={() => void record()}
+      >
         <span className="record-dot" aria-hidden />
         Record
-      </button>
+      </Button>
       <p className="hint">Records the active tab</p>
     </section>
   );

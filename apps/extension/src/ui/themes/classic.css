@@ -1,0 +1,63 @@
+/* Session Recorder — the only production theme. */
+:root {
+  --ds-color-canvas: light-dark(#f7f7f5, #0f1114);
+  --ds-color-surface: light-dark(#ffffff, #16181d);
+  --ds-color-surface-raised: light-dark(#ffffff, #16181d);
+  --ds-color-ink: light-dark(#16181d, #ececea);
+  --ds-color-ink-muted: light-dark(#3b3f47, #b9bcc2);
+  --ds-color-ink-soft: light-dark(#686d75, #878b93);
+  --ds-color-line: light-dark(#e7e7e3, #24272e);
+  --ds-color-line-strong: light-dark(#c9c9c3, #4a4e57);
+  --ds-color-accent: light-dark(#ff5a4d, #ff6355);
+  --ds-color-accent-text: light-dark(#b93830, #ff6355);
+  --ds-color-accent-strong: light-dark(#e5484d, #ff756a);
+  --ds-color-accent-ink: light-dark(#16181d, #0f1114);
+  --ds-color-accent-tint: light-dark(rgb(255 90 77 / 0.08), rgb(255 99 85 / 0.1));
+  --ds-color-accent-line: light-dark(rgb(255 90 77 / 0.5), rgb(255 99 85 / 0.55));
+  --ds-color-focus: light-dark(#075fcc, #91b4ff);
+  --ds-color-success: light-dark(#2f9e6f, #51bd8e);
+  --ds-color-error: light-dark(#e5484d, #ff6b70);
+
+  --ds-font-sans: ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Inter, system-ui, sans-serif;
+  --ds-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+  --ds-type-title: 13px;
+  --ds-type-body: 13px;
+  --ds-type-label: 12px;
+  --ds-type-meta: 11px;
+  --ds-leading-body: 1.5;
+  --ds-leading-tight: 1.2;
+  --ds-weight-regular: 400;
+  --ds-weight-medium: 500;
+  --ds-weight-bold: 600;
+
+  --ds-radius-panel: 8px;
+  --ds-radius-card: 11px;
+  --ds-radius-thumbnail: 6px;
+  --ds-radius-control: 8px;
+  --ds-radius-pill: 999px;
+  --ds-control-small: 32px;
+  --ds-control-default: 44px;
+  --ds-focus-width: 2px;
+  --ds-focus-offset: 2px;
+
+  --ds-button-primary-bg: var(--ds-color-accent);
+  --ds-button-primary-text: var(--ds-color-accent-ink);
+  --ds-button-primary-border: var(--ds-color-accent);
+  --ds-button-primary-hover-border: var(--ds-color-accent-strong);
+  --ds-button-primary-radius: var(--ds-radius-pill);
+  --ds-button-secondary-bg: var(--ds-color-surface);
+  --ds-button-secondary-text: var(--ds-color-ink);
+  --ds-button-secondary-border: var(--ds-color-line);
+  --ds-button-secondary-hover-border: var(--ds-color-line-strong);
+  --ds-status-live-bg: var(--ds-color-accent-tint);
+  --ds-status-live-text: var(--ds-color-accent-text);
+  --ds-status-live-border: var(--ds-color-accent-line);
+  --ds-stop-text: var(--ds-color-accent-text);
+  --ds-stop-border: var(--ds-color-accent-line);
+  --ds-stop-hover-border: var(--ds-color-accent);
+
+  --event-view: var(--ds-color-ink-soft);
+  --event-scroll: var(--ds-color-accent-text);
+  --event-click: var(--ds-color-accent-text);
+  --event-leave: var(--ds-color-ink-soft);
+}

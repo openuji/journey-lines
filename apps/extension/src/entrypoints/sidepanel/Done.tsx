@@ -1,6 +1,7 @@
 import type { MilestoneCapture } from '@openuji/core';
 import { formatClock, shortUrl } from '../../lib/journey';
 import type { EndedBy, RecorderStatus } from '../../lib/protocol';
+import { Button } from '../../ui/Button';
 import { Journey } from './Journey';
 
 type Finished = Extract<RecorderStatus, { state: 'done' }>;
@@ -26,9 +27,9 @@ export function Done({
   return (
     <>
       <header className="done-header">
-        <button className="secondary-button" onClick={onReset}>
+        <Button className="secondary-button" size="small" onClick={onReset}>
           Done
-        </button>
+        </Button>
         <span className="done-header__title" title={status.tab.url}>
           {status.tab.title || shortUrl(status.tab.url)}
         </span>

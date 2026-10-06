@@ -14,3 +14,4 @@ apps/web
 # extension: WXT output and generated types
 apps/extension/.output
 apps/extension/.wxt
+apps/extension/storybook-static

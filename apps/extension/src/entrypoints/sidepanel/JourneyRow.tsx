@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import {
   ArrowDownUp,
   Camera,
@@ -23,7 +23,7 @@ export function ViewRow({ entry, url }: { entry: ViewEntry; url: string }) {
   const Icon = entry === 'load' ? Globe : Route;
   return (
     <li className="view-row" title={url}>
-      <Icon size={14} strokeWidth={1.75} />
+      <Icon className="view-row__mark" size={14} strokeWidth={1.75} aria-hidden />
       <span className="view-row__url">{shortUrl(url)}</span>
       <span className="view-row__entry">{entry}</span>
     </li>
@@ -42,6 +42,7 @@ export function CaptureRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const Icon = captureIcon[captureKind];
+  const frameId = `capture-frame-${useId().replaceAll(':', '')}`;
 
   return (
     <li className={`capture-row capture-row--${captureKind}`}>
@@ -54,11 +55,21 @@ export function CaptureRow({
       <button
         className="capture-row__thumb"
         aria-label={expanded ? 'Collapse frame' : 'Expand frame'}
+        aria-expanded={expanded}
+        aria-controls={frameId}
         onClick={() => setExpanded(!expanded)}
       >
-        <img src={frameSrc(capture)} alt="" />
+        <img src={frameSrc(capture)} alt="" loading="lazy" />
       </button>
-      {expanded && <img className="capture-row__frame" src={frameSrc(capture)} alt={capture.label} />}
+      {expanded && (
+        <img
+          id={frameId}
+          className="capture-row__frame"
+          src={frameSrc(capture)}
+          alt={capture.label}
+          loading="lazy"
+        />
+      )}
     </li>
   );
 }

@@ -28,7 +28,9 @@
     "dev:interaction": "pnpm run build && node apps/stream-cli/dist/interaction.js",
     "dev:fused": "pnpm run build && node apps/stream-cli/dist/fused.js",
     "dev:extension": "pnpm run build:probe && pnpm --filter @openuji/extension dev",
-    "build:extension": "pnpm run build:probe && pnpm --filter @openuji/extension build"
+    "build:extension": "pnpm run build:probe && pnpm --filter @openuji/extension build",
+    "storybook:extension": "pnpm --filter @openuji/extension storybook",
+    "build:storybook": "pnpm --filter @openuji/extension build-storybook"
   },
   "keywords": [],
   "author": "",

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import type { MilestoneCapture } from '@openuji/core';
 import { journeyRows } from '../../lib/journey';
 import { CaptureRow, ViewRow } from './JourneyRow';
@@ -18,6 +18,7 @@ export function Journey({
 }) {
   const list = useRef<HTMLOListElement>(null);
   const atBottom = useRef(true);
+  const rows = useMemo(() => journeyRows(captures, startedAtMs), [captures, startedAtMs]);
 
   useLayoutEffect(() => {
     const element = list.current;
@@ -37,7 +38,7 @@ export function Journey({
 
   return (
     <ol className="journey" ref={list} onScroll={onScroll}>
-      {journeyRows(captures, startedAtMs).map((row) =>
+      {rows.map((row) =>
         row.kind === 'view' ? (
           <ViewRow key={row.key} entry={row.entry} url={row.url} />
         ) : (
