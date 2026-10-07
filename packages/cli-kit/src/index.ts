@@ -18,7 +18,18 @@ export function targetUrlFromArgv(argv: readonly string[] = process.argv): strin
  * `UXR_HEADLESS=1` exists so the CLIs can be exercised without a display.
  */
 export function headlessFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
-  const value = env['UXR_HEADLESS'];
+  return isOn(env['UXR_HEADLESS']);
+}
+
+/**
+ * Off by default: each scroll is its `03`/`04` screenshots. `UXR_VIDEO=1`
+ * also records a video of it.
+ */
+export function videoFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
+  return isOn(env['UXR_VIDEO']);
+}
+
+function isOn(value: string | undefined): boolean {
   return value === '1' || value === 'true';
 }
 

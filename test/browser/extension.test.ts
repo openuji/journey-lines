@@ -11,6 +11,7 @@
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '@openuji/cdp';
+import { QUIET_AFTER_MS } from '@openuji/core';
 import { DocumentLabel } from '@openuji/rules-document';
 import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import type { Recorder } from '../../apps/extension/src/lib/recorder';
@@ -159,6 +160,8 @@ describe('extension host against a real browser', () => {
         frameScrollY = metadata.scrollOffsetY;
       });
     });
+    // Long enough for a frame to be proven at rest: the scroll's "before".
+    await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
     await wheel(recordedTab, SCROLL_POINT.x, SCROLL_POINT.y, 600);
     // At scale factor 2 every frame would report 0. The command returns before
     // the page has scrolled, so wait for the frame that shows it.

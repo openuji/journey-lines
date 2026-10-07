@@ -29,11 +29,13 @@ starts a view, and so does an SPA route change. `nav-00001` is the first view,
 | `nav-00001-02-settled.png` | Frame following `networkAlmostIdle` |
 | `nav-00001-03-pre-scroll-01.png` | Last frame at rest before scroll 1 of the page |
 | `nav-00001-04-post-scroll-01.png` | Frame where scroll 1 landed (+ its path) |
+| `nav-00001-04-post-scroll-01.webm` | With `UXR_VIDEO=1`: video of scroll 1, from its `03` to its `04` (+ its trace) |
 | `nav-00001-10-pre-click-01.png` | Visual state immediately before click 1 (+ DOM target) |
 | `nav-00001-11-post-click-01.png` | Compositor response to click 1 (+ DOM target) |
 | `nav-00001-99-before-navigation.png` | Final visible frame before navigating away or ending |
 
-Set `UXR_HEADLESS=1` to run without a visible browser window.
+Set `UXR_HEADLESS=1` to run without a visible browser window, and
+`UXR_VIDEO=1` to also record a video of each scroll.
 
 ---
 
@@ -68,6 +70,12 @@ preserve them:
 4. **One transport, owned by the host.** All three sources attach to the
    transport the host hands out; streams subscribe and unsubscribe but never
    create or close it. Only the host (`RecordingTarget.close()`) ends it.
+
+Rules never touch a sink. Each returns what it decided as data: captures, and
+for a span it follows (a scroll) clip writes. `startRecording` delivers
+captures to the capture sinks and clip writes to its `clips` sink. Whether a
+recording makes videos is only which clip sink it is given: `noClips`, the
+default, discards them.
 
 ### Clocks
 
@@ -110,27 +118,59 @@ changes the route is filed with its pre-click, under the view it was clicked
 in. Records carry `viewId`, `entry` (`load` or `route`), `documentId` and the
 `url` showing at capture time.
 
+On an animated page, `00-first` can show the previous page's or route's last
+picture: Chrome may deliver it a few milliseconds after the switch. Later
+captures of the view are its own.
+
 ### Scroll
 
 Scrolls of the page come from the compositor frames alone: each frame's
 metadata carries the page's offset, so nothing but frames picks an image.
 
-- A scroll opens on the first frame whose offset moved from where the page
-  rested, and has ended once the offset stops changing: on `quiet` for a page
-  that stopped painting, or 250 ms without motion for one that keeps painting.
-  A navigation or Stop flushes a scroll still open, with `settled: false`.
-- `03-pre-scroll` is the last frame at rest before the offset moved;
-  `04-post-scroll` is the frame where it landed. Whatever paints after the
-  landing, a click's response or lazy images, belongs to what comes next.
+- A frame is **proven at rest** once 250 ms have passed after it with no frame
+  reporting motion. A younger frame isn't trusted: Chrome stamps each capture
+  with the offset of the frame that triggered it but copies a later one, so a
+  frame reporting no motion may already show some.
+- A scroll starts from a frame of the same page proven at rest: that is
+  `03-pre-scroll`. In a page's first 250 ms nothing is proven yet, and what
+  moves is the page arriving, not a scroll. So every scroll has its `03`.
+- It is recorded once the frame it landed on, `04-post-scroll`, is proven at
+  rest: by `quiet` on a page that stopped painting, by later frames on one
+  that keeps painting. Whatever paints after the landing, a click's response
+  or lazy images, belongs to what comes next.
+- A page change can put a frame on the wrong side of it: the previous page's
+  last frame can arrive after the switch, and an SPA's new route can be
+  painted before its URL changes. So a scroll is never taken across a page
+  change:
+  - when a new page reports `firstPaint`, tracking starts over from the
+    frame on screen, and that frame's stillness counts from then;
+  - a scroll still open when the page or route changes, or the recording
+    stops, is not recorded: its last frame may already be the next page's.
 - Both are decided once, when the scroll ends. A click within 250 ms of the
   landing is therefore recorded before that scroll's pair; the frames are the
   same either way.
-- The `04` record carries `scrollEpisode`: `settled` and the `path`, one
-  sample (`frameIndex`, `receivedAtMs`, `x`, `y`) per frame that moved.
+- The `04` record carries `scrollEpisode.path`, one sample (`frameIndex`,
+  `receivedAtMs`, `x`, `y`) per frame that moved.
 - Scrolls under 8 px of travel are dropped as jitter.
-- Known gap: on a page with no main-thread work, Chrome reports a wheel or key
-  scroll's offset a few frames late, so `03` can already show the scroll
-  beginning, and the path is sparse. `04` is unaffected.
+- **Its frames, for a video.** Next to its captures the rule returns clip
+  writes: every frame from `03` to `04` once, in order, as soon as it is known
+  to be inside the scroll (the still ones of a pause only once the page moves
+  again), then `keep` with the `04`, or `drop` for a scroll not recorded.
+  `scroll-clip.ts` reads them off the rule's state; the detection above does
+  not know about them.
+- **The video**, when the recording makes them (`UXR_VIDEO=1` in the CLI;
+  off by default). `@openuji/clip-webm` encodes in a worker thread, so the
+  recording's own timing is untouched: each PNG is decoded, scaled to half
+  size and encoded as VP8 in WebM, all in WebAssembly (a vendored libav.js
+  build). It keeps up with a 60 fps scroll and takes about 1.2 MB per second
+  of scrolling. The video's times are decided in one place, next to the
+  pipeline: the `03` shows for at most 250 ms, every frame keeps its real
+  spacing, and the `04` stays 250 ms. The file is `….webm` next to the `04`,
+  and its own NDJSON line carries `trace`, one sample (`frameIndex`, `atMs`
+  in the video, `x`, `y`) per frame of it.
+- Known gap: the path holds offsets as the frames reported them. On a page
+  with no main-thread work, Chrome reports a wheel or key scroll's offset a few
+  frames late, so the path is sparse there and trails the images.
 
 Not yet: who scrolled (every page scroll is `03`/`04`, a page's own
 `scrollTo` included), scroll depth, and elements with their own scrollbar. The
@@ -162,7 +202,8 @@ page yields `00-first`, not a stale `01-domcontentloaded`.
 | `@openuji/engine` | `reduce()` — the whole engine as one pure function — plus a thin stateful wrapper, and `view.ts`, which decides when a view begins. |
 | `@openuji/rules-document` | One-shot rules: first frame and farewell per view, lifecycle milestones per document. |
 | `@openuji/rules-interaction` | Repeating numbered episodes carrying DOM target metadata. |
-| `@openuji/sinks` | Optional capture destinations: console and PNG + NDJSON persistence. |
+| `@openuji/clip-webm` | Scroll video: the clip sink's two sides, recorder (video times, trace) and encoder (in a worker), and a WebM encoder on a vendored libav.js build. Isomorphic. |
+| `@openuji/sinks` | Optional capture destinations: console and PNG + NDJSON persistence (videos too), and `startClipWorker`, the Node host's encoder thread. |
 | `@openuji/host-puppeteer` | Puppeteer-launched Chrome for Testing as a host: `launchPuppeteerTarget()`. The only library package that depends on Puppeteer. |
 | `@openuji/host-extension` | A tab in the user's own Chrome as a host, through `chrome.debugger`: `attachTab()`. Isomorphic: `chrome.debugger` is passed in. |
 | `@openuji/cli-kit` | Shared launch, navigation and shutdown scaffolding for the Node CLIs. |
@@ -251,7 +292,8 @@ Stream and pipeline tests run on `createFakeCdpTransport()` from
 
 The fake transport only replays what we believe Chrome sends. `pnpm test:browser`
 checks that belief against a launched Chrome: each source alone, then the full
-pipeline, on a local fixture page driven through CDP `Input.*`.
+pipeline, on a local fixture page driven through CDP `Input.*`. It builds first:
+the video encoder's worker thread runs the compiled `dist`.
 
 ```bash
 pnpm test:browser                         # pinned Chrome for Testing, headed
@@ -292,6 +334,16 @@ The service worker exposes its recorder as `recorder`: in `chrome://extensions`,
 open "Inspect views: service worker" and read `recorder.status` and
 `recorder.captures`, or send CDP with `await recorder.cdp.send(...)`. The
 browser tests (`test/browser/extension.test.ts`) drive it the same way.
+
+### The video encoder's WebAssembly
+
+`packages/clip-webm/vendor/libav/` is a build of libav.js (FFmpeg compiled to
+WebAssembly) with only FFmpeg's PNG decoder, the scaler, libvpx's VP8 encoder
+and the WebM muxer. Rebuild it with `pnpm --filter @openuji/clip-webm
+build-libav` (git and Docker); the script pins the libav.js tag and the
+Emscripten image, and reproduces the vendored files byte for byte. Unlike the
+rest of the repository these files are LGPL-2.1-or-later (FFmpeg) and BSD
+(libvpx, zlib); see the README there.
 
 ### Backpressure
 

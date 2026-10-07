@@ -53,14 +53,14 @@ export function withinDocument(
   };
 }
 
-export function milestone(name: string, loaderId: string): DomainEvent {
+export function milestone(name: string, loaderId: string, receivedAtMs = 0): DomainEvent {
   return {
     type: 'milestone',
     frameId: 'main',
     isMainFrame: true,
     loaderId,
     name,
-    receivedAtMs: 0,
+    receivedAtMs,
     monotonicTime: 0,
   };
 }

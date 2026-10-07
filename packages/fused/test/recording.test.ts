@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createFakeCdpTransport } from '@openuji/cdp/testing';
-import type { CaptureSink, MilestoneCapture } from '@openuji/core';
+import type { CaptureSink, ClipSink, ClipWrite, MilestoneCapture } from '@openuji/core';
 import { defaultRules, startRecording } from '@openuji/fused';
 import { defaultDocumentRules } from '@openuji/rules-document';
 import { defaultInteractionRules } from '@openuji/rules-interaction';
@@ -30,6 +30,22 @@ class MemorySink implements CaptureSink {
   public async drain(): Promise<void> {
     this.drained += 1;
     if (this.failDrain) throw new Error('disk full');
+  }
+}
+
+/** Records every clip write; `onDrain` runs when the recording drains it. */
+class MemoryClips implements ClipSink {
+  public readonly name = 'memory-clips';
+  public readonly writes: ClipWrite[] = [];
+
+  constructor(private readonly onDrain: () => void = () => {}) {}
+
+  public enqueue(write: ClipWrite): void {
+    this.writes.push(write);
+  }
+
+  public async drain(): Promise<void> {
+    this.onDrain();
   }
 }
 
@@ -143,10 +159,10 @@ describe('startRecording', () => {
 
     frameNavigated(cdp, 'loader-a');
     screencastFrame(cdp, { scrollY: 0, data: 'dG9w' });
-    cdp.advance(50);
+    cdp.advance(300); // quiet: the page is proven at rest
     screencastFrame(cdp, { scrollY: 600, data: 'bGFuZGVk' });
     // Chrome sends nothing more.
-    cdp.advance(250);
+    cdp.advance(300);
     await settle();
 
     // Before Stop: the stream's quiet ended it.
@@ -158,29 +174,23 @@ describe('startRecording', () => {
     const [, pre, post] = sink.captures;
     expect(pre?.frame.base64).toBe('dG9w');
     expect(post?.frame.base64).toBe('bGFuZGVk');
-    expect(post?.scrollEpisode?.settled).toBe(true);
 
     await recording.stop();
   });
 
-  it('flushes a scroll still open at Stop before the final resting state', async () => {
+  it('drops a scroll still open at Stop: it has not settled', async () => {
     const cdp = createFakeCdpTransport();
     const sink = new MemorySink();
     const recording = await startRecording(cdp, { sinks: [sink], screencast });
 
     frameNavigated(cdp, 'loader-a');
     screencastFrame(cdp, { scrollY: 0 });
+    cdp.advance(300); // quiet: the page is proven at rest
     screencastFrame(cdp, { scrollY: 600 });
     await settle();
     await recording.stop();
 
-    expect(sink.captures.map((c) => c.label)).toEqual([
-      '00-first',
-      '03-pre-scroll-01',
-      '04-post-scroll-01',
-      '99-before-navigation',
-    ]);
-    expect(sink.captures[2]?.scrollEpisode?.settled).toBe(false);
+    expect(sink.captures.map((c) => c.label)).toEqual(['00-first', '99-before-navigation']);
   });
 
   it('runs every rule of both categories once', () => {
@@ -219,5 +229,77 @@ describe('startRecording', () => {
 
     await expect(recording.stop()).rejects.toThrow('disk full');
     expect(cdp.listenerCount()).toBe(0);
+  });
+
+  describe('clips', () => {
+    /** A scroll the default rules record: rest, quiet, one move, quiet. */
+    const scroll = (cdp: ReturnType<typeof createFakeCdpTransport>): void => {
+      frameNavigated(cdp, 'loader-a');
+      screencastFrame(cdp, { scrollY: 0, data: 'dG9w' });
+      cdp.advance(300);
+      screencastFrame(cdp, { scrollY: 600, data: 'bGFuZGVk' });
+      cdp.advance(300);
+    };
+
+    it('hands the scroll rule\'s clip writes to the clip sink, in order', async () => {
+      const cdp = createFakeCdpTransport();
+      const clips = new MemoryClips();
+      const recording = await startRecording(cdp, { sinks: [new MemorySink()], clips, screencast });
+
+      scroll(cdp);
+      await settle();
+      await recording.stop();
+
+      expect(clips.writes.map((w) => (w.type === 'frame' ? `frame ${w.frame.base64}` : w.type))).toEqual([
+        'frame dG9w',
+        'frame bGFuZGVk',
+        'keep',
+      ]);
+    });
+
+    it('records exactly as before without a clip sink', async () => {
+      const withClips = new MemorySink();
+      const without = new MemorySink();
+
+      for (const [sink, clips] of [[withClips, new MemoryClips()], [without, undefined]] as const) {
+        const cdp = createFakeCdpTransport();
+        const recording = await startRecording(cdp, { sinks: [sink], screencast, ...(clips ? { clips } : {}) });
+        scroll(cdp);
+        await settle();
+        await recording.stop();
+      }
+
+      expect(without.captures).toEqual(withClips.captures);
+    });
+
+    it('drains the clip sink before the capture sinks: a finished clip may still hand them a file', async () => {
+      const order: string[] = [];
+      const sink = new MemorySink();
+      const drainSink = sink.drain.bind(sink);
+      sink.drain = async () => {
+        order.push('sinks');
+        await drainSink();
+      };
+      const cdp = createFakeCdpTransport();
+      const recording = await startRecording(cdp, {
+        sinks: [sink],
+        clips: new MemoryClips(() => order.push('clips')),
+        screencast,
+      });
+
+      await recording.stop();
+
+      expect(order).toEqual(['clips', 'sinks']);
+    });
+
+    it('reports a failing clip sink and a failing capture sink together', async () => {
+      const cdp = createFakeCdpTransport();
+      const clips = new MemoryClips(() => {
+        throw new Error('encoder gone');
+      });
+      const recording = await startRecording(cdp, { sinks: [new MemorySink(true)], clips, screencast });
+
+      await expect(recording.stop()).rejects.toThrow(/encoder gone[\s\S]*disk full/);
+    });
   });
 });

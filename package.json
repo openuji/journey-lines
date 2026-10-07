@@ -21,7 +21,7 @@
     "rebuild": "pnpm run clean && pnpm run build",
     "test": "pnpm run build:probe && vitest run",
     "test:watch": "pnpm run build:probe && vitest",
-    "test:browser": "pnpm run build:extension && vitest run -c vitest.browser.config.ts",
+    "test:browser": "pnpm run build && pnpm run build:extension && vitest run -c vitest.browser.config.ts",
     "start": "pnpm run build && node apps/recorder/dist/cli.js",
     "dev:compositor": "pnpm run build && node apps/stream-cli/dist/compositor.js",
     "dev:lifecycle": "pnpm run build && node apps/stream-cli/dist/lifecycle.js",

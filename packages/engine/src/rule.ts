@@ -1,4 +1,5 @@
 import type {
+  ClipWrite,
   CompositorFrame,
   DomainEvent,
   MilestoneCapture,
@@ -16,9 +17,16 @@ export interface RuleContext {
   readonly currentFrame: CompositorFrame | null;
 }
 
+/**
+ * What a rule decided about one event. Everything that should happen outside
+ * the engine is in here, as data: the pipeline delivers captures to the
+ * capture sinks and clip writes to the clip sink. A rule never calls a sink.
+ */
 export interface RuleResult<TState> {
   readonly nextState: TState;
   readonly captures: readonly MilestoneCapture[];
+  /** Frames of a span this rule follows, for a video of it. Most rules have none. */
+  readonly clipWrites?: readonly ClipWrite[];
 }
 
 /**

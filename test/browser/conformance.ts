@@ -12,10 +12,14 @@
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { CdpTransport, RecordingTarget } from '@openuji/cdp';
-import type {
-  CaptureSink,
-  LifecycleEvent,
-  MilestoneCapture,
+import {
+  QUIET_AFTER_MS,
+  type CaptureSink,
+  type ClipSink,
+  type ClipWrite,
+  type CompositorFrame,
+  type LifecycleEvent,
+  type MilestoneCapture,
 } from '@openuji/core';
 import { startRecording } from '@openuji/fused';
 import { DocumentLabel } from '@openuji/rules-document';
@@ -39,6 +43,7 @@ const PNG_SIGNATURE_BASE64 = 'iVBORw0KGgo';
 
 const preClick = episodeLabel(InteractionLabel.preClick, 1);
 const postClick = episodeLabel(InteractionLabel.postClick, 1);
+const preScroll = episodeLabel(InteractionLabel.preScroll, 1);
 const postScroll = episodeLabel(InteractionLabel.postScroll, 1);
 
 type Rect = Readonly<{ x: number; y: number; width: number; height: number }>;
@@ -77,6 +82,34 @@ class MemorySink implements CaptureSink {
             capture.label.startsWith(InteractionLabel.postScroll)),
       )
       .map(({ label, frame }) => `${label} ${frame.scrollY}`);
+  }
+}
+
+/** Records the clip writes, and reads back the frames of each kept clip. */
+class MemoryClips implements ClipSink {
+  public readonly name = 'memory-clips';
+  public readonly writes: ClipWrite[] = [];
+
+  public enqueue(write: ClipWrite): void {
+    this.writes.push(write);
+  }
+
+  public async drain(): Promise<void> {}
+
+  /** Each kept clip: the capture it belongs to, and its frames in order. */
+  public kept(): { capture: MilestoneCapture; frames: CompositorFrame[] }[] {
+    return this.writes.flatMap((keep) =>
+      keep.type === 'keep'
+        ? [
+            {
+              capture: keep.capture,
+              frames: this.writes.flatMap((w) =>
+                w.type === 'frame' && w.id === keep.id ? [w.frame] : [],
+              ),
+            },
+          ]
+        : [],
+    );
   }
 }
 
@@ -318,12 +351,11 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         expect(labels.indexOf(preClick)).toBeLessThan(
           labels.indexOf(postClick),
         );
-        // One scroll, one pair, from the frames on either side of it. Checked
-        // per view: the departing page's last frame can still arrive after the
-        // navigation and land in the next view (changes/scroll-rebuild.md).
+        // One scroll, one pair, from the frames on either side of it. The
+        // departing page's last frame may still arrive after the navigation,
+        // in /second's view, but that is no scroll there.
         expect(sink.scrolls(first)).toEqual(['03-pre-scroll-01 0', '04-post-scroll-01 600']);
-        const scrolled = sink.captures.find((capture) => capture.label === postScroll);
-        expect(scrolled?.scrollEpisode?.settled).toBe(true);
+        expect(sink.scrolls(second)).toEqual([]);
 
         const clicked = sink.captures.find(
           (capture) => capture.label === postClick,
@@ -338,14 +370,28 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
       withTarget(async (target) => {
         const url = fixture.url('/still');
         const sink = new MemorySink();
+        const clips = new MemoryClips();
         const recording = await startRecording(target.cdp, {
           sinks: [sink],
+          clips,
           screencast: { viewport: target.viewport },
+        });
+
+        // What is on screen: the latest frame, and when it came.
+        let onScreen = { data: '', atMs: 0 };
+        const off = target.cdp.on('Page.screencastFrame', ({ data }, { receivedAtMs }) => {
+          onScreen = { data, atMs: receivedAtMs };
         });
 
         await target.navigate(url);
         await waitForLoaded(target.cdp, url);
         await vi.waitFor(() => expect(sink.labels(url)).toContain(DocumentLabel.first), WAIT);
+        // The page has stopped painting: what shows now is the page at rest.
+        await vi.waitFor(
+          () => expect(target.cdp.clock.now() - onScreen.atMs).toBeGreaterThan(QUIET_AFTER_MS),
+          WAIT,
+        );
+        const atRest = onScreen.data;
 
         await wheel(target.cdp, SCROLL_POINT.x, SCROLL_POINT.y, 600);
         await vi.waitFor(() => expect(sink.labels(url)).toContain(postScroll), WAIT);
@@ -357,6 +403,7 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         );
 
         await recording.stop();
+        off();
 
         expect(sink.scrolls(url)).toEqual([
           '03-pre-scroll-01 0',
@@ -364,12 +411,64 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           '03-pre-scroll-02 600',
           '04-post-scroll-02 1400',
         ]);
-        for (const capture of sink.captures) {
-          if (capture.label.startsWith(InteractionLabel.postScroll)) {
-            expect(capture.scrollEpisode?.settled).toBe(true);
-          }
-        }
+        // The image itself, not just the offset it reports: a frame's image can
+        // be newer than its offset, so the one before the offset moved may
+        // already show the scroll.
+        const pre = sink.captures.find((capture) => capture.label === preScroll);
+        expect(pre?.frame.base64).toBe(atRest);
+
+        // Each scroll's clip: every frame from its 03 to its 04, none missing,
+        // none twice. The frames between include those that showed the scroll
+        // before their offset did.
+        const pairs = sink.captures.filter((c) => c.url === url && c.label.match(/^0[34]-/));
+        const kept = clips.kept();
+        expect(kept.map(({ capture }) => capture.label)).toEqual([
+          postScroll,
+          episodeLabel(InteractionLabel.postScroll, 2),
+        ]);
+        kept.forEach(({ capture, frames }, i) => {
+          const [from, to] = [pairs[2 * i]?.frame, pairs[2 * i + 1]?.frame];
+          expect(capture.frame).toBe(to);
+          expect(frames[0]).toBe(from);
+          expect(frames.at(-1)).toBe(to);
+          const indices = frames.map((f) => f.index);
+          expect(indices).toEqual(indices.map((_, k) => (from?.index ?? NaN) + k));
+        });
       }));
+
+    for (const [kind, link] of [
+      ['pushes the URL, then renders', SPA.link],
+      ['renders, then pushes the URL', SPA.lateLink],
+    ] as const) {
+      it(`pipeline: a route change that resets the scroll is no scroll (router ${kind})`, () =>
+        withTarget(async (target) => {
+          const spa = fixture.url('/spa');
+          const routeB = fixture.url('/spa/b');
+          const sink = new MemorySink();
+          const recording = await startRecording(target.cdp, {
+            sinks: [sink],
+            screencast: { viewport: target.viewport },
+          });
+
+          await target.navigate(spa);
+          await vi.waitFor(() => expect(sink.labels(spa)).toContain(DocumentLabel.settled), WAIT);
+
+          await wheel(target.cdp, SCROLL_POINT.x, SCROLL_POINT.y, 2000);
+          await vi.waitFor(() => expect(sink.labels(spa)).toContain(postScroll), WAIT);
+
+          // The router shows route B at the top. A frame can land on the wrong
+          // side of the route change, in either direction.
+          const at = center(link);
+          await click(target.cdp, at.x, at.y);
+          await vi.waitFor(() => expect(sink.labels(routeB)).toContain(DocumentLabel.first), WAIT);
+          // Long enough for a fake scroll to have been decided, either side.
+          await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+          await recording.stop();
+
+          expect(sink.scrolls(spa)).toEqual(['03-pre-scroll-01 0', '04-post-scroll-01 2000']);
+          expect(sink.scrolls(routeB)).toEqual([]);
+        }));
+    }
 
     it('pipeline: an SPA route change is a view of its own, and every capture has the URL showing', () =>
       withTarget(async (target) => {

@@ -167,6 +167,12 @@ importers:
         specifier: ^0.24.2
         version: 0.24.2
 
+  packages/clip-webm:
+    dependencies:
+      '@openuji/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/core: {}
 
   packages/engine:
@@ -237,6 +243,9 @@ importers:
 
   packages/sinks:
     dependencies:
+      '@openuji/clip-webm':
+        specifier: workspace:*
+        version: link:../clip-webm
       '@openuji/core':
         specifier: workspace:*
         version: link:../core

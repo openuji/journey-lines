@@ -1,11 +1,13 @@
 import type { CdpTransport } from '@openuji/cdp';
 import {
-  drainAll,
+  drainInStages,
   enqueueAll,
+  noClips,
   type CaptureSink,
+  type ClipSink,
   type PushStreamStats,
 } from '@openuji/core';
-import { RulesEngine, type MilestoneRule } from '@openuji/engine';
+import { RulesEngine, type EngineOutput, type MilestoneRule } from '@openuji/engine';
 import { defaultRules } from './default-rules.js';
 import { createFusedStream, type FusedStreamOptions } from './fused.js';
 
@@ -14,6 +16,11 @@ export interface RecordingOptions extends FusedStreamOptions {
   rules?: readonly MilestoneRule[];
   /** Where captures go. */
   sinks: readonly CaptureSink[];
+  /**
+   * Where the rules' clip writes go: the recording makes videos only if one is
+   * given. Default `noClips`.
+   */
+  clips?: ClipSink;
 }
 
 export interface RecordingHandle {
@@ -29,13 +36,21 @@ export interface RecordingHandle {
  * The whole recording pipeline over a transport: fused stream → rules engine →
  * sinks. Host-agnostic — the CLI, an Electron main process and an extension
  * service worker all run exactly this.
+ *
+ * The engine only decides; this delivers what it decided: captures to the
+ * capture sinks, clip writes to the clip sink.
  */
 export async function startRecording(
   cdp: CdpTransport,
   options: RecordingOptions,
 ): Promise<RecordingHandle> {
-  const { rules = defaultRules, sinks, ...fusedOptions } = options;
+  const { rules = defaultRules, sinks, clips = noClips, ...fusedOptions } = options;
   const engine = new RulesEngine(rules);
+
+  const deliver = ({ captures, clipWrites }: EngineOutput): void => {
+    for (const capture of captures) enqueueAll(sinks, capture);
+    for (const write of clipWrites) clips.enqueue(write);
+  };
 
   const fused = await createFusedStream(cdp, fusedOptions);
   let isStopping = false;
@@ -43,9 +58,7 @@ export async function startRecording(
   const consumer = (async () => {
     for await (const event of fused.events) {
       if (isStopping) break;
-      for (const capture of engine.processEvent(event)) {
-        enqueueAll(sinks, capture);
-      }
+      deliver(engine.processEvent(event));
     }
   })();
 
@@ -56,14 +69,13 @@ export async function startRecording(
       isStopping = true;
 
       // Flush the final resting state (99-before-navigation) before teardown.
-      for (const capture of engine.processEvent({ type: 'stop' })) {
-        enqueueAll(sinks, capture);
-      }
+      deliver(engine.processEvent({ type: 'stop' }));
 
       await fused.stop().catch(() => {});
       await consumer.catch(() => {});
 
-      await drainAll(sinks);
+      // Clips first: a finished clip may still hand a file to a capture sink.
+      await drainInStages([[clips], sinks]);
     })());
 
   return { stop, stats: fused.stats };

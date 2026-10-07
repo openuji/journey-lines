@@ -8,6 +8,7 @@
     { "path": "./packages/rules-document" },
     { "path": "./packages/rules-interaction" },
     { "path": "./packages/stream-compositor" },
+    { "path": "./packages/clip-webm" },
     { "path": "./packages/stream-lifecycle" },
     { "path": "./packages/stream-interaction" },
     { "path": "./packages/fused" },

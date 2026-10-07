@@ -8,7 +8,11 @@ runMain(async () => {
   await session.start();
 
   console.log('\nReady! Full UXR recording is active:');
-  console.log('  • Scroll the page               -> 03-pre-scroll + 04-post-scroll + path');
+  console.log(
+    session.recordsVideo
+      ? '  • Scroll the page               -> 03-pre-scroll + 04-post-scroll + path + .webm with its trace'
+      : '  • Scroll the page               -> 03-pre-scroll + 04-post-scroll + path (UXR_VIDEO=1 adds a video)',
+  );
   console.log('  • Click any element             -> 10-pre-click + 11-post-click + DOM metadata');
   console.log('  • Navigate or press Ctrl+C      -> 99-before-navigation');
   console.log(`  • Logs recorded in real time to -> ${session.ndjsonPath}\n`);

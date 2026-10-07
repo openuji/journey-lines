@@ -1,6 +1,11 @@
-import type { DomainEvent, MilestoneCapture } from '@openuji/core';
+import type { DomainEvent } from '@openuji/core';
 import type { MilestoneRule } from './rule.js';
-import { initialEngineState, reduce, type EngineState } from './reduce.js';
+import {
+  initialEngineState,
+  reduce,
+  type EngineOutput,
+  type EngineState,
+} from './reduce.js';
 import { pathOrHashRoute, type RoutePolicy } from './view.js';
 
 export interface RulesEngineOptions {
@@ -28,15 +33,16 @@ export class RulesEngine {
     return this.state;
   }
 
-  public processEvent(event: DomainEvent): readonly MilestoneCapture[] {
-    const { state, captures } = reduce(
+  /** The captures and clip writes `event` produced, for the pipeline to deliver. */
+  public processEvent(event: DomainEvent): EngineOutput {
+    const { state, captures, clipWrites } = reduce(
       this.state,
       event,
       this.rules,
       this.routePolicy,
     );
     this.state = state;
-    return captures;
+    return { captures, clipWrites };
   }
 
   public reset(): void {

@@ -21,6 +21,7 @@
  * `quiet`, and the scroll rule's `stillMs`), both on `receivedAtMs`.
  */
 
+import type { ClipTraceSample } from './clip.js';
 import type { InteractionAction, TargetElementMeta } from './wire.js';
 
 export type CompositorFrame = Readonly<{
@@ -187,17 +188,16 @@ export type ScrollSample = Readonly<{
   y: number;
 }>;
 
-/** One scroll of the page, from the frame before it moved to the frame it landed on. */
+/**
+ * One scroll of the page, from the frame before it moved to the frame it
+ * landed on. Recorded only once the page stayed there for `QUIET_AFTER_MS`.
+ */
 export type ScrollEpisode = Readonly<{
   /**
-   * The offset stayed put for `QUIET_AFTER_MS` afterwards. False when the view
-   * ended first (a navigation, or Stop), so whether the page had stopped is
-   * unknown.
-   */
-  settled: boolean;
-  /**
-   * The pre-scroll frame, then every frame that moved; the last one is the
-   * post-scroll frame. Distance, direction and speed all derive from it.
+   * From the pre-scroll frame, then every frame that moved; the last is the
+   * post-scroll frame.
+   * Offsets as the frames reported them. Distance, direction and speed all
+   * derive from it.
    */
   path: readonly ScrollSample[];
 }>;
@@ -237,4 +237,27 @@ export type InteractionLogRecord = Readonly<{
   detail: string;
   domTarget?: TargetElementMeta;
   scrollEpisode?: ScrollEpisode;
+}>;
+
+/**
+ * The log line of a kept clip: a video of the span its capture ended (today a
+ * scroll, filed under its `04`). Told from a capture's line by `videoFile`.
+ */
+export type ClipLogRecord = Readonly<{
+  sequence: number;
+  timestamp: string; // ISO 8601
+  epochMs: number;
+  viewId: number;
+  entry: ViewEntry;
+  documentId: number;
+  loaderId: string;
+  url: string;
+  /** The capture the clip belongs to, e.g. `04-post-scroll-01`. */
+  label: string;
+  videoFile: string;
+  videoPath: string;
+  mimeType: string;
+  byteLength: number;
+  /** One sample per frame of the video, in order: where the page was, and when. */
+  trace: readonly ClipTraceSample[];
 }>;

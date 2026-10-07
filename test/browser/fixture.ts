@@ -70,12 +70,20 @@ const SECOND = `<!doctype html>
   <body><p>Second page.</p></body>
 </html>`;
 
-/** Where the SPA fixture puts its controls, in CSS pixels. */
+/**
+ * Where the SPA fixture puts its controls, in CSS pixels. The router links are
+ * fixed to the window, so they can be clicked from anywhere down the page.
+ */
 export const SPA = {
-  /** A router link: `pushState('/spa/b')`, then re-render. */
+  /** A router link: `pushState('/spa/b')`, then render route B at the top. */
   link: { x: 100, y: 100, width: 200, height: 60 },
   /** Rewrites the query string only: `replaceState('?q=x')`. */
   filter: { x: 100, y: 200, width: 200, height: 60 },
+  /**
+   * A router link that renders route B at the top first and pushes its URL a
+   * moment later, as some frameworks do.
+   */
+  lateLink: { x: 100, y: 300, width: 200, height: 60 },
 } as const;
 
 const box = ({ x, y, width, height }: { x: number; y: number; width: number; height: number }) =>
@@ -93,7 +101,8 @@ const SPA_PAGE = `<!doctype html>
     <title>uxr fixture, spa</title>
     <style>
       body { margin: 0; height: 4000px; font: 16px sans-serif; }
-      #to-b { ${box(SPA.link)} display: block; }
+      #to-b { ${box(SPA.link)} position: fixed; display: block; }
+      #to-b-late { ${box(SPA.lateLink)} position: fixed; display: block; }
       #filter { ${box(SPA.filter)} }
       #route { position: fixed; left: 8px; bottom: 8px; }
       #tick { position: fixed; right: 8px; bottom: 8px; }
@@ -101,6 +110,7 @@ const SPA_PAGE = `<!doctype html>
   </head>
   <body>
     <a id="to-b" href="/spa/b">To route B</a>
+    <a id="to-b-late" href="/spa/b">To route B, URL late</a>
     <button id="filter">Filter</button>
     <span id="route"></span>
     <span id="tick">0</span>
@@ -114,15 +124,24 @@ const SPA_PAGE = `<!doctype html>
       requestAnimationFrame(loop);
 
       const route = document.getElementById('route');
-      const render = () => {
-        route.textContent = location.pathname + location.search;
-        document.body.style.background =
-          location.pathname === '/spa/b' ? '#eef' : '#fff';
+      const render = (path = location.pathname) => {
+        route.textContent = path + location.search;
+        document.body.style.background = path === '/spa/b' ? '#eef' : '#fff';
+      };
+      // A router shows a new route at the top.
+      const showRouteB = () => {
+        render('/spa/b');
+        scrollTo(0, 0);
       };
       document.getElementById('to-b').addEventListener('click', (event) => {
         event.preventDefault();
         history.pushState(null, '', '/spa/b');
-        render();
+        showRouteB();
+      });
+      document.getElementById('to-b-late').addEventListener('click', (event) => {
+        event.preventDefault();
+        showRouteB();
+        setTimeout(() => history.pushState(null, '', '/spa/b'), 30);
       });
       document.getElementById('filter').addEventListener('click', () => {
         history.replaceState(null, '', location.pathname + '?q=x');

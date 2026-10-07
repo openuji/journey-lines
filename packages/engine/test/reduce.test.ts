@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DomainEvent, MilestoneCapture } from '@openuji/core';
+import type { ClipWrite, DomainEvent, MilestoneCapture } from '@openuji/core';
 import {
   RulesEngine,
   captureFor,
@@ -40,7 +40,7 @@ function run(
   rules: readonly MilestoneRule[],
 ): MilestoneCapture[] {
   const engine = new RulesEngine(rules);
-  return events.flatMap((event) => [...engine.processEvent(event)]);
+  return events.flatMap((event) => [...engine.processEvent(event).captures]);
 }
 
 const page = (path: string): string => `https://example.com${path}`;
@@ -81,7 +81,7 @@ describe('reduce', () => {
     const engine = new RulesEngine(defaultDocumentRules);
 
     engine.processEvent(navigated('loader-a', page('/one')));
-    const first = engine.processEvent(frameEvent());
+    const first = engine.processEvent(frameEvent()).captures;
     expect(first.map((c) => c.label)).toEqual(['00-first']);
 
     // Same loaderId: a URL update, not a new view.
@@ -90,7 +90,7 @@ describe('reduce', () => {
     expect(engine.currentState.currentView?.url).toBe(page('/two'));
 
     // first-frame already fired for this view and must not fire again.
-    expect(engine.processEvent(frameEvent())).toEqual([]);
+    expect(engine.processEvent(frameEvent()).captures).toEqual([]);
   });
 
   it('updates the URL in place when a same-document change is not a route', () => {
@@ -100,7 +100,7 @@ describe('reduce', () => {
     engine.processEvent(navigated('loader-a', page('/list')));
     engine.processEvent(frameEvent());
     engine.processEvent(withinDocument(page('/list?q=shoes')));
-    const captures = engine.processEvent({ type: 'stop' });
+    const captures = engine.processEvent({ type: 'stop' }).captures;
 
     expect(engine.currentState.currentView).toMatchObject({ id: 1, url: page('/list?q=shoes') });
     // No boundary: one view, and the URL update reaches the rules as is.
@@ -138,12 +138,12 @@ describe('reduce', () => {
     const engine = new RulesEngine(defaultDocumentRules);
 
     engine.processEvent(navigated('loader-a'));
-    expect(engine.processEvent(frameEvent()).map((c) => c.label)).toEqual([
+    expect(engine.processEvent(frameEvent()).captures.map((c) => c.label)).toEqual([
       '00-first',
     ]);
 
     engine.processEvent(navigated('loader-b'));
-    const captures = engine.processEvent(frameEvent());
+    const captures = engine.processEvent(frameEvent()).captures;
     expect(captures.map((c) => c.label)).toEqual(['00-first']);
     expect(captures[0]?.viewId).toBe(2);
     expect(captures[0]?.documentId).toBe(2);
@@ -244,7 +244,7 @@ describe('reduce', () => {
     engine.processEvent(navigated('loader-a'));
     engine.processEvent(frameEvent());
 
-    const captures = engine.processEvent(navigated('loader-b'));
+    const captures = engine.processEvent(navigated('loader-b')).captures;
 
     expect(exitEvaluations).toBe(1);
     // Captures from the departing view are returned by the navigation that
@@ -379,5 +379,35 @@ describe('document lifecycle rules', () => {
     expect(dcl).toHaveLength(1);
     // The first frame after it, which the new view is showing.
     expect(dcl[0]).toMatchObject({ viewId: 2, url: page('/b'), frame: { scrollY: 7 } });
+  });
+
+  it("returns every rule's clip writes in rule order, the departing view's included", () => {
+    /** Writes one `drop` per event, its id naming the rule and the event. */
+    const writer = (id: string): MilestoneRule<null> => ({
+      id,
+      init: () => null,
+      evaluate: (state, event) => ({
+        nextState: state,
+        captures: [],
+        clipWrites: [{ type: 'drop', id: `${id} ${event.type}` }],
+      }),
+    });
+    const engine = new RulesEngine([writer('a'), writer('b')]);
+    const ids = (writes: readonly ClipWrite[]): string[] => writes.map((w) => w.id);
+
+    engine.processEvent(navigated('loader-a'));
+    expect(ids(engine.processEvent(frameEvent()).clipWrites)).toEqual(['a frame', 'b frame']);
+    // The navigation that replaces the view returns what its view-exit wrote.
+    expect(ids(engine.processEvent(navigated('loader-b')).clipWrites)).toEqual([
+      'a view-exit',
+      'b view-exit',
+    ]);
+  });
+
+  it('returns no clip writes from rules that have none', () => {
+    const engine = new RulesEngine(defaultDocumentRules);
+    engine.processEvent(navigated('loader-a'));
+
+    expect(engine.processEvent(frameEvent()).clipWrites).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  ClipWrite,
   DomainEvent,
   MilestoneCapture,
   ViewEntry,
@@ -23,9 +24,14 @@ export type EngineState = Readonly<{
   ruleStates: Readonly<Record<string, unknown>>;
 }>;
 
-export interface ReduceResult {
-  readonly state: EngineState;
+/** What one event produced: captures and clip writes, each in rule order. */
+export interface EngineOutput {
   readonly captures: readonly MilestoneCapture[];
+  readonly clipWrites: readonly ClipWrite[];
+}
+
+export interface ReduceResult extends EngineOutput {
+  readonly state: EngineState;
 }
 
 export const initialEngineState: EngineState = Object.freeze({
@@ -41,20 +47,22 @@ function evaluateRules(
   ruleStates: Readonly<Record<string, unknown>>,
   event: DomainEvent,
   ctx: RuleContext,
-): { ruleStates: Record<string, unknown>; captures: MilestoneCapture[] } {
+): EngineOutput & { ruleStates: Record<string, unknown> } {
   const nextStates: Record<string, unknown> = { ...ruleStates };
   const captures: MilestoneCapture[] = [];
+  const clipWrites: ClipWrite[] = [];
 
   for (const rule of rules) {
     const result = rule.evaluate(nextStates[rule.id], event, ctx);
     nextStates[rule.id] = result.nextState;
-    if (result.captures.length > 0) {
-      captures.push(...result.captures);
-    }
+    captures.push(...result.captures);
+    clipWrites.push(...(result.clipWrites ?? []));
   }
 
-  return { ruleStates: nextStates, captures };
+  return { ruleStates: nextStates, captures, clipWrites };
 }
+
+const NOTHING: EngineOutput = Object.freeze({ captures: [], clipWrites: [] });
 
 /**
  * The view boundary — the same for a document load and a route change.
@@ -72,7 +80,7 @@ function enter(
 ): ReduceResult {
   const departing = state.currentView;
   let ruleStates = state.ruleStates;
-  let captures: MilestoneCapture[] = [];
+  let output = NOTHING;
 
   if (departing) {
     const exit = evaluateRules(
@@ -93,7 +101,7 @@ function enter(
       },
     );
     ruleStates = exit.ruleStates;
-    captures = exit.captures;
+    output = exit;
   }
 
   const view = enterView(departing, event, entry, {
@@ -113,7 +121,8 @@ function enter(
       currentView: view,
       ruleStates: initialized,
     },
-    captures,
+    captures: output.captures,
+    clipWrites: output.clipWrites,
   };
 }
 
@@ -149,7 +158,7 @@ export function reduce(
   }
 
   if (!currentView) {
-    return { state, captures: [] };
+    return { state, ...NOTHING };
   }
 
   const currentFrame = event.type === 'frame' ? event.frame : null;
@@ -169,5 +178,6 @@ export function reduce(
       ruleStates: evaluated.ruleStates,
     },
     captures: evaluated.captures,
+    clipWrites: evaluated.clipWrites,
   };
 }

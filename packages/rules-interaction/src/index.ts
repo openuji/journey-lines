@@ -3,6 +3,7 @@ import { ClickEpisodeRule } from './click.js';
 import { ScrollEpisodeRule } from './scroll.js';
 
 export * from './episode.js';
+export * from './rest.js';
 export * from './scroll.js';
 export * from './click.js';
 

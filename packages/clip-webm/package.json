@@ -1,0 +1,23 @@
+{
+  "name": "@openuji/clip-webm",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scroll video: a clip sink whose encoder side turns screencast PNGs into WebM with a vendored libav.js build, all in WebAssembly. Isomorphic.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "vendor"],
+  "scripts": {
+    "typecheck": "tsc --build",
+    "build-libav": "./build-libav.sh"
+  },
+  "dependencies": {
+    "@openuji/core": "workspace:*"
+  }
+}

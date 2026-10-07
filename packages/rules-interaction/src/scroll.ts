@@ -1,23 +1,25 @@
 import {
   arrivedAtMs,
-  QUIET_AFTER_MS,
   type CompositorFrame,
+  type DomainEvent,
   type ScrollSample,
   type ViewState,
 } from '@openuji/core';
 import {
   captureFor,
-  unchanged,
   type MilestoneRule,
+  type RuleContext,
   type RuleResult,
 } from '@openuji/engine';
 import { episodeLabel, InteractionLabel } from './episode.js';
+import { elapse, hold, isProven, NOTHING_PROVEN, restart, type Rest } from './rest.js';
+import { scrollClipWrites } from './scroll-clip.js';
 
 type Offset = Readonly<{ x: number; y: number }>;
 
 /** A scroll of the page that has not ended yet. */
 export type OpenScroll = Readonly<{
-  /** The latest frame at rest before the page moved: the pre-scroll image. */
+  /** The page proven at rest before it moved: the pre-scroll image. */
   start: CompositorFrame;
   /** The last frame that moved: where the offset landed, so far the post-scroll image. */
   lastMoving: CompositorFrame;
@@ -33,6 +35,8 @@ export type ScrollEpisodeState = Readonly<{
    * Null until this view's first frame.
    */
   offset: Offset | null;
+  /** Which frame shows the page at rest. */
+  rest: Rest;
   open: OpenScroll | null;
 }>;
 
@@ -49,7 +53,12 @@ export const SCROLL_DEFAULTS = {
   movementEpsilonPx: 1,
 } as const;
 
-const INITIAL: ScrollEpisodeState = { episodeCount: 0, offset: null, open: null };
+const INITIAL: ScrollEpisodeState = {
+  episodeCount: 0,
+  offset: null,
+  rest: NOTHING_PROVEN,
+  open: null,
+};
 
 const offsetOf = (frame: CompositorFrame): Offset => ({
   x: frame.scrollX,
@@ -82,18 +91,22 @@ const where = ({ x, y }: Offset): string => `(${Math.round(x)}, ${Math.round(y)}
  * Captures the frame before and the frame after each scroll of the page, from
  * compositor frames alone: each frame's metadata carries the page's offset.
  *
- * Only the offset decides. A scroll opens on the first frame whose offset
- * moved from where the page was, and has ended once any event arrives
- * `QUIET_AFTER_MS` after the last motion: a frame on a page that keeps
- * painting, `quiet` on one that stopped. When the view ends first (a
- * navigation, or Stop), what is open is flushed, unsettled: no later frame of
- * this view will come.
+ * Only the offset decides, and only within one page:
+ *  1. A scroll starts from a frame of this page proven at rest (see `Rest`),
+ *     the `03` image. Before one is proven, in a page's first moments, what
+ *     moves is the page arriving: possibly the previous page's last frame,
+ *     delivered after the switch.
+ *  2. When a new page reports `firstPaint`, tracking starts over from the
+ *     frame on screen: frames before it may still be the previous page's.
+ *  3. A scroll is recorded once the frame it landed on, the `04` image, is
+ *     proven at rest. One still open when the page changes or the recording
+ *     stops is not: its last frame may already be the next page's.
  *
- * Both images are fixed by the offset: the latest frame at rest before it
- * moved, and the last frame that moved. When the end is noticed changes
- * nothing. Both captures are decided once, at the end, and never revised.
+ * Both images are decided once, at the end, and never revised. Who scrolled
+ * is not known here. Every scroll of the page is `03`/`04`.
  *
- * Who scrolled is not known here. Every scroll of the page is `03`/`04`.
+ * Next to its captures the rule returns the scroll's frames as clip writes
+ * (`scroll-clip.ts`), for a video if the recording makes them.
  */
 export function scrollEpisodeRule(
   options: ScrollEpisodeOptions = {},
@@ -109,7 +122,6 @@ export function scrollEpisodeRule(
     state: ScrollEpisodeState,
     open: OpenScroll,
     view: ViewState,
-    settled: boolean,
   ): RuleResult<ScrollEpisodeState> => {
     const travelledPx = lengthOf(open.path);
     if (travelledPx < minScrollPx) {
@@ -133,70 +145,115 @@ export function scrollEpisodeRule(
           frame: open.lastMoving,
           detail:
             `Post-scroll #${episode} of the page: ${where(from)} → ${where(to)}, ` +
-            `travelled ${Math.round(travelledPx)}px` +
-            (settled ? '' : ', cut short by the view ending'),
-          scrollEpisode: { settled, path: open.path },
+            `travelled ${Math.round(travelledPx)}px`,
+          scrollEpisode: { path: open.path },
         }),
       ],
     };
   };
 
   /** Where `frame` puts the page: it may open or extend a scroll. */
-  const track = (
-    state: ScrollEpisodeState,
-    previous: CompositorFrame | null,
-    frame: CompositorFrame,
-  ): ScrollEpisodeState => {
+  const track = (state: ScrollEpisodeState, frame: CompositorFrame): ScrollEpisodeState => {
     const here = offsetOf(frame);
 
-    // This view's first frame: where the page rests. A route's scroll reset
-    // painted together with the new route is the view change, not a scroll.
-    if (!state.offset || !previous) return { ...state, offset: here };
+    // This view's first frame: where the page rests, once proven.
+    if (!state.offset) return { ...state, offset: here, rest: hold(state.rest, frame) };
 
     const moved =
       Math.abs(here.x - state.offset.x) >= movementEpsilonPx ||
       Math.abs(here.y - state.offset.y) >= movementEpsilonPx;
-    if (!moved) return state;
+    if (!moved) return { ...state, rest: hold(state.rest, frame) };
 
+    const next = { ...state, offset: here, rest: restart(state.rest, frame) };
     const open = state.open;
+    if (open) {
+      return {
+        ...next,
+        open: { ...open, lastMoving: frame, path: [...open.path, sampleOf(frame)] },
+      };
+    }
+
+    // A scroll starts from a frame of this page proven at rest. Before one is,
+    // what moves is the page arriving.
+    const start = state.rest.proven;
+    if (!start) return next;
     return {
-      ...state,
-      offset: here,
-      open: open
-        ? { ...open, lastMoving: frame, path: [...open.path, sampleOf(frame)] }
-        : {
-            start: previous,
-            lastMoving: frame,
-            path: [sampleOf(previous), sampleOf(frame)],
-          },
+      ...next,
+      open: { start, lastMoving: frame, path: [sampleOf(start), sampleOf(frame)] },
+    };
+  };
+
+  /** What `event` does to the scroll: today's whole rule. */
+  const follow = (
+    state: ScrollEpisodeState,
+    event: DomainEvent,
+    { currentView, lastFrame, currentFrame }: RuleContext,
+  ): RuleResult<ScrollEpisodeState> => {
+    // The page changes, or the recording stops, before the scroll has
+    // settled: its last frame may already be the next page's. Not recorded.
+    if (event.type === 'view-exit' || event.type === 'stop') {
+      return { nextState: { ...state, open: null }, captures: [] };
+    }
+
+    // A new page says it has drawn. Frames before this may still be the
+    // previous page's, arriving late: start over from the one on screen.
+    if (isFirstPaintOf(currentView, event)) {
+      return { nextState: startOver(state, lastFrame, event.receivedAtMs), captures: [] };
+    }
+
+    // Time has passed, whatever the event.
+    const elapsed = { ...state, rest: elapse(state.rest, arrivedAtMs(event)) };
+
+    // The page has stayed where the scroll landed: it is over.
+    const result =
+      elapsed.open && isProven(elapsed.rest, elapsed.open.lastMoving)
+        ? end(elapsed, elapsed.open, currentView)
+        : { nextState: elapsed, captures: [] };
+
+    // A frame may open the next scroll, in the same event.
+    if (!currentFrame) return result;
+    return {
+      nextState: track(result.nextState, currentFrame),
+      captures: result.captures,
     };
   };
 
   return {
     id,
-    // `view-exit` already flushed whatever was open; numbering starts over.
+    // `view-exit` already ended whatever was open; numbering starts over.
     init: () => INITIAL,
-    evaluate: (state, event, { currentView, lastFrame, currentFrame }) => {
-      const open = state.open;
-      let result = unchanged(state);
-
-      if (open) {
-        if (event.type === 'view-exit' || event.type === 'stop') {
-          // The view ends: no later frame of it will come, so file what is open.
-          result = end(state, open, currentView, false);
-        } else if (arrivedAtMs(event) - open.lastMoving.receivedAtMs >= QUIET_AFTER_MS) {
-          // The offset has not changed for that long, whichever event says so.
-          result = end(state, open, currentView, true);
-        }
-      }
-
-      // A frame may open the next scroll, in the same event.
-      if (!currentFrame) return result;
-      return {
-        nextState: track(result.nextState, lastFrame, currentFrame),
-        captures: result.captures,
-      };
+    evaluate: (state, event, ctx) => {
+      const result = follow(state, event, ctx);
+      return { ...result, clipWrites: scrollClipWrites(id, state, result, ctx.currentFrame) };
     },
+  };
+}
+
+/** The page's own document, in its main frame, saying it has drawn its first picture. */
+function isFirstPaintOf(view: ViewState, event: DomainEvent): event is Extract<DomainEvent, { type: 'milestone' }> {
+  return (
+    event.type === 'milestone' &&
+    event.name === 'firstPaint' &&
+    event.isMainFrame &&
+    event.loaderId === view.loaderId
+  );
+}
+
+/**
+ * Start over from `frame`, the frame on screen at `atMs`. Nothing before it
+ * counts, and its stillness counts from `atMs`: it may be the previous page's
+ * late frame, and only a new page's frame can come within `QUIET_AFTER_MS`.
+ */
+function startOver(
+  state: ScrollEpisodeState,
+  frame: CompositorFrame | null,
+  atMs: number,
+): ScrollEpisodeState {
+  return {
+    ...state,
+    offset: frame ? offsetOf(frame) : null,
+    rest: frame ? hold(NOTHING_PROVEN, frame, atMs) : NOTHING_PROVEN,
+    open: null,
   };
 }
 
