@@ -35,7 +35,7 @@ export function Idle({
         disabled={pending}
         onClick={() => void record()}
       >
-        <span className="record-dot" aria-hidden />
+        <span className="record-icon" aria-hidden />
         Record
       </Button>
       <p className="hint">Records the active tab</p>

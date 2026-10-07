@@ -26,15 +26,12 @@
   font-size: 15px;
 }
 
-.record-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.record-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: currentColor;
+.record-icon {
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid currentColor;
 }
 
 /* Recording and finished headers */
