@@ -3,7 +3,7 @@
  * capture, labelled as the rules named it, with a divider where a view starts.
  */
 
-import type { MilestoneCapture, ViewEntry } from '@openuji/core';
+import type { Clip, MilestoneCapture, ViewEntry } from '@openuji/core';
 import { DocumentLabel } from '@openuji/rules-document';
 import { InteractionLabel } from '@openuji/rules-interaction';
 
@@ -19,6 +19,8 @@ export type JourneyRow =
       captureKind: CaptureKind;
       /** Since the recording started. */
       atMs: number;
+      /** The video of what this capture ended (a scroll's `04`), once it is ready. */
+      clip?: Clip;
     }>;
 
 export function captureKind(label: string): CaptureKind {
@@ -36,21 +38,26 @@ export function captureKind(label: string): CaptureKind {
 export function journeyRows(
   captures: readonly MilestoneCapture[],
   startedAtMs: number,
+  clips: readonly Clip[] = [],
 ): JourneyRow[] {
   const rows: JourneyRow[] = [];
   let viewId: number | undefined;
+  // A clip is filed like its capture: `viewId` and `label` name it in a recording.
+  const clipOf = new Map(clips.map((clip) => [`${clip.viewId} ${clip.label}`, clip]));
 
   captures.forEach((capture, index) => {
     if (capture.viewId !== viewId) {
       viewId = capture.viewId;
       rows.push({ kind: 'view', key: `view-${index}`, entry: capture.entry, url: capture.url });
     }
+    const clip = clipOf.get(`${capture.viewId} ${capture.label}`);
     rows.push({
       kind: 'capture',
       key: `capture-${index}`,
       capture,
       captureKind: captureKind(capture.label),
       atMs: capture.frame.receivedAtMs - startedAtMs,
+      ...(clip ? { clip } : {}),
     });
   });
 

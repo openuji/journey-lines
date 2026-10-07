@@ -26,15 +26,31 @@ export function enqueueAll(
   }
 }
 
-/** Drain every sink, surfacing all failures rather than just the first. */
-export async function drainAll(sinks: readonly CaptureSink[]): Promise<void> {
-  const results = await Promise.allSettled(sinks.map((sink) => sink.drain()));
+/** Anything that settles deferred work: capture sinks and clip sinks alike. */
+export type Drainable = Readonly<{ name: string; drain(): Promise<void> }>;
 
-  const failures = results.flatMap((result, i) =>
-    result.status === 'rejected'
-      ? [`${sinks[i]?.name ?? 'sink'}: ${String(result.reason)}`]
-      : [],
-  );
+/** Drain every sink, surfacing all failures rather than just the first. */
+export function drainAll(sinks: readonly Drainable[]): Promise<void> {
+  return drainInStages([sinks]);
+}
+
+/**
+ * Drain stage after stage, the sinks of one stage together: a later stage may
+ * still receive work while an earlier one settles. Every failure of every
+ * stage is reported, once all are done.
+ */
+export async function drainInStages(
+  stages: readonly (readonly Drainable[])[],
+): Promise<void> {
+  const failures: string[] = [];
+  for (const sinks of stages) {
+    const results = await Promise.allSettled(sinks.map((sink) => sink.drain()));
+    results.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        failures.push(`${sinks[i]?.name ?? 'sink'}: ${String(result.reason)}`);
+      }
+    });
+  }
 
   if (failures.length > 0) {
     throw new Error(`Sink drain failed:\n  ${failures.join('\n  ')}`);

@@ -34,6 +34,13 @@
   border-left: 8px solid currentColor;
 }
 
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  color: var(--ds-color-ink-muted);
+}
+
 /* Recording and finished headers */
 
 .recording-header,
@@ -235,6 +242,21 @@
   object-position: top;
 }
 
+.capture-row__play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: start;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border: var(--ds-border-thin) solid var(--ds-color-line);
+  border-radius: var(--ds-radius-pill);
+  background: transparent;
+  color: var(--ds-color-accent-text);
+  font: inherit;
+}
+
+.capture-row__video,
 .capture-row__frame {
   display: block;
   grid-column: 1 / -1;

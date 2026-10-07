@@ -53,14 +53,14 @@ export function withinDocument(
   };
 }
 
-export function milestone(name: string, loaderId: string): DomainEvent {
+export function milestone(name: string, loaderId: string, receivedAtMs = 0): DomainEvent {
   return {
     type: 'milestone',
     frameId: 'main',
     isMainFrame: true,
     loaderId,
     name,
-    receivedAtMs: 0,
+    receivedAtMs,
     monotonicTime: 0,
   };
 }
@@ -88,4 +88,36 @@ export function click(selector?: string, receivedAtMs = 0): DomainEvent {
 /** The fused stream saying nothing has arrived for a while. */
 export function quiet(receivedAtMs = 0): DomainEvent {
   return { type: 'quiet', receivedAtMs };
+}
+
+/** The page reporting where it scrolled to; `ended` is its `scrollend`. */
+export function pageScroll(
+  y: number,
+  receivedAtMs: number,
+  { ended = false, x = 0 }: { ended?: boolean; x?: number } = {},
+): DomainEvent {
+  return { type: 'page-scroll', ended, x, y, receivedAtMs, pageTimeMs: receivedAtMs };
+}
+
+/** The page saying where it is when the probe starts in it. */
+export function pageAt(y: number, receivedAtMs = 0, x = 0): DomainEvent {
+  return { type: 'page-position', x, y, receivedAtMs, pageTimeMs: receivedAtMs };
+}
+
+/** Something that starts a scroll: the person's wheel, a key…, or the page's own code. */
+export function scrollCause(
+  kind: 'wheel' | 'touch' | 'key' | 'scrollbar' | 'link' | 'script',
+  receivedAtMs: number,
+  detail?: string,
+): DomainEvent {
+  return { type: 'scroll-cause', kind, ...(detail ? { detail } : {}), receivedAtMs, pageTimeMs: receivedAtMs };
+}
+
+/** The person's wheel moving the page to `y`: its cause, then the page's report. */
+export function moved(
+  y: number,
+  receivedAtMs: number,
+  options: { x?: number } = {},
+): DomainEvent[] {
+  return [scrollCause('wheel', receivedAtMs), pageScroll(y, receivedAtMs, options)];
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Square } from 'lucide-react';
-import type { MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@openuji/core';
 import { formatClock, shortUrl } from '../../lib/journey';
 import type { RecorderStatus } from '../../lib/protocol';
 import { Button } from '../../ui/Button';
@@ -12,10 +12,12 @@ type Live = Extract<RecorderStatus, { state: 'recording' | 'stopping' }>;
 export function Recording({
   status,
   captures,
+  clips,
   onStop,
 }: {
   status: Live;
   captures: readonly MilestoneCapture[];
+  clips: readonly Clip[];
   onStop: () => void;
 }) {
   const stopping = status.state === 'stopping';
@@ -38,7 +40,7 @@ export function Recording({
         {status.tab.title || shortUrl(status.tab.url)}
       </div>
 
-      <Journey captures={captures} startedAtMs={status.startedAtMs} follow />
+      <Journey captures={captures} clips={clips} startedAtMs={status.startedAtMs} follow />
     </>
   );
 }

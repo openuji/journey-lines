@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Button } from '../../ui/Button';
+import type { RecordOptions } from '../../lib/protocol';
 
-/** Before a recording: one button, for the tab in front of the person. */
+/** Before a recording: one button, for the tab in front of the person, and how to record it. */
 export function Idle({
   failed,
   onRecord,
 }: {
   /** The last attempt failed; the button is usable again. */
   failed: boolean;
-  onRecord: (tabId: number) => void;
+  onRecord: (tabId: number, options: RecordOptions) => void;
 }) {
+  // Off by default: each scroll is its before and after screenshots.
+  const [video, setVideo] = useState(false);
   // Between the click and the worker's answer, a second click would only
   // collide with the first.
   const [pending, setPending] = useState(false);
@@ -24,7 +27,7 @@ export function Idle({
       setPending(false);
       return;
     }
-    onRecord(tab.id);
+    onRecord(tab.id, { video });
   };
 
   return (
@@ -39,6 +42,10 @@ export function Idle({
         Record
       </Button>
       <p className="hint">Records the active tab</p>
+      <label className="option">
+        <input type="checkbox" checked={video} onChange={(event) => setVideo(event.target.checked)} />
+        Video of each scroll
+      </label>
     </section>
   );
 }

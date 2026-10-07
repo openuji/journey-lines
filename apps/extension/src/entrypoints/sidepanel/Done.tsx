@@ -1,4 +1,4 @@
-import type { MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@openuji/core';
 import { formatClock, shortUrl } from '../../lib/journey';
 import type { EndedBy, RecorderStatus } from '../../lib/protocol';
 import { Button } from '../../ui/Button';
@@ -15,10 +15,12 @@ const endedNote: Record<EndedBy, string | null> = {
 export function Done({
   status,
   captures,
+  clips,
   onReset,
 }: {
   status: Finished;
   captures: readonly MilestoneCapture[];
+  clips: readonly Clip[];
   onReset: () => void;
 }) {
   const views = new Set(captures.map((capture) => capture.viewId)).size;
@@ -58,7 +60,7 @@ export function Done({
 
       {note && <p className="note">{note}</p>}
 
-      <Journey captures={captures} startedAtMs={status.startedAtMs} />
+      <Journey captures={captures} clips={clips} startedAtMs={status.startedAtMs} />
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
-import type { MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@openuji/core';
 import { journeyRows } from '../../lib/journey';
 import { CaptureRow, ViewRow } from './JourneyRow';
 
@@ -8,17 +8,23 @@ const FOLLOW_SLACK_PX = 80;
 
 export function Journey({
   captures,
+  clips,
   startedAtMs,
   follow = false,
 }: {
   captures: readonly MilestoneCapture[];
+  /** Videos, each shown on the row of the capture it belongs to. */
+  clips: readonly Clip[];
   startedAtMs: number;
   /** Keep the newest row in sight while the person hasn't scrolled away. */
   follow?: boolean;
 }) {
   const list = useRef<HTMLOListElement>(null);
   const atBottom = useRef(true);
-  const rows = useMemo(() => journeyRows(captures, startedAtMs), [captures, startedAtMs]);
+  const rows = useMemo(
+    () => journeyRows(captures, startedAtMs, clips),
+    [captures, clips, startedAtMs],
+  );
 
   useLayoutEffect(() => {
     const element = list.current;
@@ -47,6 +53,7 @@ export function Journey({
             capture={row.capture}
             captureKind={row.captureKind}
             atMs={row.atMs}
+            clip={row.clip}
           />
         ),
       )}

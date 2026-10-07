@@ -28,6 +28,7 @@ export const idlePanelState: PanelState = {
   connected: true,
   status: { state: 'idle' },
   captures: [],
+  clips: [],
   error: null,
 };
 
@@ -35,6 +36,7 @@ export const recordingPanelState: PanelState = {
   connected: true,
   status: { state: 'recording', tab: storyTab, startedAtMs: LIVE_STARTED_AT_MS },
   captures: liveStoryCaptures,
+  clips: [],
   error: null,
 };
 
@@ -49,6 +51,7 @@ export const donePanelState: PanelState = {
     droppedFrames: 0,
   },
   captures: storyCaptures,
+  clips: [],
   error: null,
 };
 

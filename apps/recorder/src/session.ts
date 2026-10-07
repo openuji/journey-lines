@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { headlessFromEnv } from '@openuji/cli-kit';
+import { headlessFromEnv, videoFromEnv } from '@openuji/cli-kit';
 import type { CaptureSink } from '@openuji/core';
 import type { MilestoneRule } from '@openuji/engine';
 import { startRecording, type RecordingHandle } from '@openuji/fused';
@@ -9,7 +9,12 @@ import {
   launchPuppeteerTarget,
   type PuppeteerTarget,
 } from '@openuji/host-puppeteer';
-import { ConsoleSink, PersistenceSink } from '@openuji/sinks';
+import {
+  ConsoleSink,
+  PersistenceSink,
+  startClipWorker,
+  type ClipWorker,
+} from '@openuji/sinks';
 
 export interface StreamWatchOptions {
   url: string;
@@ -23,6 +28,11 @@ export interface StreamWatchOptions {
    * your own `CaptureSink`.
    */
   sinks?: readonly CaptureSink[];
+  /**
+   * Also record a video of each scroll, written next to its `04`. Defaults to
+   * `UXR_VIDEO`; off unless set. Needs the default sinks, which write it.
+   */
+  video?: boolean;
 }
 
 /**
@@ -33,12 +43,18 @@ export interface StreamWatchOptions {
 export class StreamWatchSession {
   private target: PuppeteerTarget | null = null;
   private recording: RecordingHandle | null = null;
+  private clipWorker: ClipWorker | null = null;
   private isStopping = false;
 
   private sinks: readonly CaptureSink[] = [];
 
   public sessionDir = '';
   public ndjsonPath = '';
+
+  /** Whether this session records a video of each scroll. */
+  public get recordsVideo(): boolean {
+    return this.clipWorker !== null;
+  }
 
   constructor(private readonly options: StreamWatchOptions) {}
 
@@ -49,13 +65,16 @@ export class StreamWatchSession {
     await mkdir(this.sessionDir, { recursive: true });
     this.ndjsonPath = join(this.sessionDir, 'interactions.ndjson');
 
-    this.sinks = this.options.sinks ?? [
-      new ConsoleSink(),
-      new PersistenceSink({
-        outDir: this.sessionDir,
-        logFile: this.ndjsonPath,
-      }),
-    ];
+    const persistence = new PersistenceSink({
+      outDir: this.sessionDir,
+      logFile: this.ndjsonPath,
+    });
+    this.sinks = this.options.sinks ?? [new ConsoleSink(), persistence];
+
+    // The one place the video setting is read: whether there is a clip sink.
+    if (this.options.video ?? videoFromEnv()) {
+      this.clipWorker = await startClipWorker((clip) => persistence.enqueueClip(clip));
+    }
 
     console.log('Launching browser session...');
     this.target = await launchPuppeteerTarget({
@@ -67,6 +86,7 @@ export class StreamWatchSession {
     this.recording = await startRecording(this.target.cdp, {
       ...(this.options.rules ? { rules: this.options.rules } : {}),
       sinks: this.sinks,
+      ...(this.clipWorker ? { clips: this.clipWorker.sink } : {}),
       screencast: { viewport: this.target.viewport },
     });
 
@@ -88,6 +108,7 @@ export class StreamWatchSession {
     } catch (err) {
       drainError = err;
     }
+    await this.clipWorker?.close();
 
     await this.target?.close();
 

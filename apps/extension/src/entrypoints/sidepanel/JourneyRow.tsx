@@ -1,14 +1,15 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
   ArrowDownUp,
   Camera,
   Globe,
   LogOut,
   MousePointerClick,
+  Play,
   Route,
   type LucideIcon,
 } from 'lucide-react';
-import type { MilestoneCapture, ViewEntry } from '@openuji/core';
+import { decodeBase64, type Clip, type MilestoneCapture, type ViewEntry } from '@openuji/core';
 import { formatClock, frameSrc, shortUrl, type CaptureKind } from '../../lib/journey';
 
 const captureIcon: Record<CaptureKind, LucideIcon> = {
@@ -30,17 +31,20 @@ export function ViewRow({ entry, url }: { entry: ViewEntry; url: string }) {
   );
 }
 
-/** One capture: when, what kind, what the rules called it, and the frame itself. */
+/** One capture: when, what kind, what the rules called it, the frame itself, and its video if any. */
 export function CaptureRow({
   capture,
   captureKind,
   atMs,
+  clip,
 }: {
   capture: MilestoneCapture;
   captureKind: CaptureKind;
   atMs: number;
+  clip?: Clip | undefined;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const Icon = captureIcon[captureKind];
   const frameId = `capture-frame-${useId().replaceAll(':', '')}`;
 
@@ -51,6 +55,12 @@ export function CaptureRow({
       <div className="capture-row__text">
         <span className="capture-row__label">{capture.label}</span>
         <span className="capture-row__detail">{capture.detail}</span>
+        {clip && (
+          <button className="capture-row__play" onClick={() => setPlaying(!playing)}>
+            <Play size={12} />
+            {playing ? 'Hide video' : 'Play video'}
+          </button>
+        )}
       </div>
       <button
         className="capture-row__thumb"
@@ -70,6 +80,19 @@ export function CaptureRow({
           loading="lazy"
         />
       )}
+      {clip && playing && <ClipVideo clip={clip} />}
     </li>
   );
+}
+
+/** A clip, played from a Blob URL that lives as long as the player. */
+function ClipVideo({ clip }: { clip: Clip }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    const url = URL.createObjectURL(new Blob([decodeBase64(clip.base64)], { type: clip.mimeType }));
+    setSrc(url);
+    return () => URL.revokeObjectURL(url);
+  }, [clip]);
+
+  return src && <video className="capture-row__video" src={src} controls autoPlay muted playsInline />;
 }

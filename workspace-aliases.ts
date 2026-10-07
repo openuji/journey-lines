@@ -14,6 +14,7 @@ const pkg = (relative: string): string =>
 export const workspaceAliases: Record<string, string> = {
   '@openuji/cdp/testing': pkg('./packages/cdp/src/testing.ts'),
   '@openuji/cdp': pkg('./packages/cdp/src/index.ts'),
+  '@openuji/clip-webm': pkg('./packages/clip-webm/src/index.ts'),
   '@openuji/client-probe': pkg('./packages/client/probe/src/index.ts'),
   '@openuji/core/wire': pkg('./packages/core/src/wire.ts'),
   '@openuji/core': pkg('./packages/core/src/index.ts'),

@@ -11,7 +11,7 @@ export * from './click.js';
  *
  * Unlike the document rules these repeat within a view, numbering each episode
  * from 01 in every view. Click captures carry the DOM metadata of what was
- * clicked; a post-scroll capture carries the path the page took.
+ * clicked; a post-scroll capture carries the path the page reported.
  */
 export const defaultInteractionRules: readonly MilestoneRule[] = [
   ScrollEpisodeRule,

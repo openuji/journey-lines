@@ -1,4 +1,5 @@
 import type {
+  ClipWrite,
   CompositorFrame,
   DomainEvent,
   MilestoneCapture,
@@ -16,9 +17,16 @@ export interface RuleContext {
   readonly currentFrame: CompositorFrame | null;
 }
 
+/**
+ * What a rule decided about one event. Everything that should happen outside
+ * the engine is in here, as data: the pipeline delivers captures to the
+ * capture sinks and clip writes to the clip sink. A rule never calls a sink.
+ */
 export interface RuleResult<TState> {
   readonly nextState: TState;
   readonly captures: readonly MilestoneCapture[];
+  /** Frames of a span this rule follows, for a video of it. Most rules have none. */
+  readonly clipWrites?: readonly ClipWrite[];
 }
 
 /**
@@ -57,11 +65,13 @@ export function unchanged<TState>(state: TState): RuleResult<TState> {
 export type CaptureFields = Pick<
   MilestoneCapture,
   'label' | 'frame' | 'detail' | 'domTarget' | 'scrollEpisode'
->;
+> &
+  /** Only where it differs from the page's position now: a `03` shows the page before it moved. */
+  Partial<Pick<MilestoneCapture, 'position'>>;
 
 /**
  * A capture belonging to `view`. Rules say what they saw; which view it is
- * filed under is decided here alone.
+ * filed under, and where the page said it was, is decided here alone.
  */
 export function captureFor(
   view: ViewState,
@@ -73,6 +83,7 @@ export function captureFor(
     documentId: view.documentId,
     loaderId: view.loaderId,
     url: view.url,
+    ...(view.position ? { position: view.position } : {}),
     ...fields,
   };
 }

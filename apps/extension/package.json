@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@openuji/cdp": "workspace:*",
+    "@openuji/clip-webm": "workspace:*",
     "@openuji/core": "workspace:*",
     "@openuji/fused": "workspace:*",
     "@openuji/host-extension": "workspace:*",

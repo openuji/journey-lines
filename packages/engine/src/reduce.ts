@@ -1,4 +1,6 @@
 import type {
+  ClipWrite,
+  CompositorFrame,
   DomainEvent,
   MilestoneCapture,
   ViewEntry,
@@ -23,9 +25,14 @@ export type EngineState = Readonly<{
   ruleStates: Readonly<Record<string, unknown>>;
 }>;
 
-export interface ReduceResult {
-  readonly state: EngineState;
+/** What one event produced: captures and clip writes, each in rule order. */
+export interface EngineOutput {
   readonly captures: readonly MilestoneCapture[];
+  readonly clipWrites: readonly ClipWrite[];
+}
+
+export interface ReduceResult extends EngineOutput {
+  readonly state: EngineState;
 }
 
 export const initialEngineState: EngineState = Object.freeze({
@@ -41,20 +48,22 @@ function evaluateRules(
   ruleStates: Readonly<Record<string, unknown>>,
   event: DomainEvent,
   ctx: RuleContext,
-): { ruleStates: Record<string, unknown>; captures: MilestoneCapture[] } {
+): EngineOutput & { ruleStates: Record<string, unknown> } {
   const nextStates: Record<string, unknown> = { ...ruleStates };
   const captures: MilestoneCapture[] = [];
+  const clipWrites: ClipWrite[] = [];
 
   for (const rule of rules) {
     const result = rule.evaluate(nextStates[rule.id], event, ctx);
     nextStates[rule.id] = result.nextState;
-    if (result.captures.length > 0) {
-      captures.push(...result.captures);
-    }
+    captures.push(...result.captures);
+    clipWrites.push(...(result.clipWrites ?? []));
   }
 
-  return { ruleStates: nextStates, captures };
+  return { ruleStates: nextStates, captures, clipWrites };
 }
+
+const NOTHING: EngineOutput = Object.freeze({ captures: [], clipWrites: [] });
 
 /**
  * The view boundary — the same for a document load and a route change.
@@ -72,7 +81,7 @@ function enter(
 ): ReduceResult {
   const departing = state.currentView;
   let ruleStates = state.ruleStates;
-  let captures: MilestoneCapture[] = [];
+  let output = NOTHING;
 
   if (departing) {
     const exit = evaluateRules(
@@ -93,7 +102,7 @@ function enter(
       },
     );
     ruleStates = exit.ruleStates;
-    captures = exit.captures;
+    output = exit;
   }
 
   const view = enterView(departing, event, entry, {
@@ -113,7 +122,8 @@ function enter(
       currentView: view,
       ruleStates: initialized,
     },
-    captures,
+    captures: output.captures,
+    clipWrites: output.clipWrites,
   };
 }
 
@@ -125,7 +135,8 @@ function enter(
  *     there. One that only changes the URL showing updates it in place, so the
  *     rules below already see the new URL.
  *  2. Rules then evaluate against the current view.
- *  3. Only afterwards does `lastFrame` advance to the frame this event carried.
+ *  3. Only afterwards does `lastFrame` advance to the frame this event carried,
+ *     and `position` to where the page's report says it now is.
  *     That gap is what lets one rule capture the resting frame *before* an
  *     event while another captures the frame *after* it.
  */
@@ -149,7 +160,7 @@ export function reduce(
   }
 
   if (!currentView) {
-    return { state, captures: [] };
+    return { state, ...NOTHING };
   }
 
   const currentFrame = event.type === 'frame' ? event.frame : null;
@@ -163,11 +174,23 @@ export function reduce(
   return {
     state: {
       ...state,
-      currentView: currentFrame
-        ? { ...currentView, firstFrameObserved: true, lastFrame: currentFrame }
-        : currentView,
+      currentView: advance(currentView, event, currentFrame),
       ruleStates: evaluated.ruleStates,
     },
     captures: evaluated.captures,
+    clipWrites: evaluated.clipWrites,
   };
+}
+
+/** The view after an event: its newest frame, and where the page last said it is. */
+function advance(
+  view: ViewState,
+  event: DomainEvent,
+  frame: CompositorFrame | null,
+): ViewState {
+  if (frame) return { ...view, firstFrameObserved: true, lastFrame: frame };
+  if (event.type === 'page-scroll' || event.type === 'page-position') {
+    return { ...view, position: { x: event.x, y: event.y } };
+  }
+  return view;
 }

@@ -14,7 +14,7 @@ function run(
   rules: readonly MilestoneRule[] = [ClickEpisodeRule],
 ): MilestoneCapture[] {
   const engine = new RulesEngine(rules);
-  return events.flatMap((event) => [...engine.processEvent(event)]);
+  return events.flatMap((event) => [...engine.processEvent(event).captures]);
 }
 
 function episodeOf(label: string): string {

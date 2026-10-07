@@ -14,7 +14,7 @@ export function App() {
   return (
     <PanelView
       state={state}
-      onRecord={(tabId) => send({ type: 'record', tabId })}
+      onRecord={(tabId, options) => send({ type: 'record', tabId, options })}
       onStop={() => send({ type: 'stop' })}
       onReset={() => send({ type: 'reset' })}
       onDismissError={() => dispatch({ type: 'dismiss-error' })}
@@ -30,12 +30,12 @@ export function PanelView({
   onDismissError,
 }: {
   state: typeof initialPanelState;
-  onRecord: (tabId: number) => void;
+  onRecord: (tabId: number, options: {video: boolean}) => void;
   onStop: () => void;
   onReset: () => void;
   onDismissError: () => void;
 }) {
-  const { connected, status, captures, error } = state;
+  const { connected, status, captures, error, clips } = state;
 
   return (
     <main className="panel">
@@ -44,13 +44,26 @@ export function PanelView({
       {!connected && !error && <p className="hint">Connecting to the recorder…</p>}
 
       {connected && status.state === 'idle' && (
-        <Idle failed={error !== null} onRecord={onRecord} />
+        <Idle
+          failed={error !== null}
+          onRecord={onRecord}
+        />
       )}
       {connected && (status.state === 'recording' || status.state === 'stopping') && (
-        <Recording status={status} captures={captures} onStop={onStop} />
+        <Recording
+          status={status}
+          captures={captures}
+          clips={clips}
+          onStop={onStop}
+        />
       )}
       {connected && status.state === 'done' && (
-        <Done status={status} captures={captures} onReset={onReset} />
+        <Done
+          status={status}
+          captures={captures}
+          clips={clips}
+          onReset={onReset}
+        />
       )}
     </main>
   );

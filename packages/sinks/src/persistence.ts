@@ -3,6 +3,9 @@ import { join } from 'node:path';
 import {
   base64ByteLength,
   type CaptureSink,
+  type Clip,
+  type ClipFiling,
+  type ClipLogRecord,
   type InteractionLogRecord,
   type MilestoneCapture,
 } from '@openuji/core';
@@ -20,7 +23,8 @@ export interface PersistenceFailure {
 }
 
 /**
- * Writes each capture as a PNG plus one NDJSON record.
+ * Writes each capture as a PNG plus one NDJSON record, and each kept clip
+ * (`enqueueClip`) as a WebM plus one record, in the same log and sequence.
  *
  * `enqueue` is non-blocking because it runs inside the fused-stream consumer
  * loop, which must keep draining. Work is chained onto a single promise so a
@@ -43,44 +47,73 @@ export class PersistenceSink implements CaptureSink {
   }
 
   public enqueue(capture: MilestoneCapture): void {
-    const sequence = ++this.sequence;
-    // One number per view: a page load and an SPA route change each start one.
-    const filename = `nav-${String(capture.viewId).padStart(5, '0')}-${capture.label}.png`;
-    const screenshotPath = join(this.outDir, filename);
-
-    const record: InteractionLogRecord = {
-      sequence,
-      timestamp: new Date().toISOString(),
-      epochMs: Date.now(),
-      viewId: capture.viewId,
-      entry: capture.entry,
-      documentId: capture.documentId,
-      loaderId: capture.loaderId,
-      url: capture.url,
-      label: capture.label,
-      screenshotFile: filename,
-      screenshotPath,
+    const file = this.fileFor(capture, 'png');
+    this.persist(file, capture.frame.base64, (sequence): InteractionLogRecord => ({
+      ...this.header(sequence, capture),
+      screenshotFile: file.name,
+      screenshotPath: file.path,
       byteLength: base64ByteLength(capture.frame.base64),
-      scroll: {
-        x: capture.frame.scrollX,
-        y: capture.frame.scrollY,
-      },
+      ...(capture.position ? { scroll: capture.position } : {}),
       detail: capture.detail,
       ...(capture.domTarget ? { domTarget: capture.domTarget } : {}),
       ...(capture.scrollEpisode ? { scrollEpisode: capture.scrollEpisode } : {}),
-    };
+    }));
+  }
 
-    const line = `${JSON.stringify(record)}\n`;
+  /** A kept clip: its video next to the capture it belongs to, and its trace in the log. */
+  public enqueueClip(clip: Clip): void {
+    const file = this.fileFor(clip, 'webm');
+    this.persist(file, clip.base64, (sequence): ClipLogRecord => ({
+      ...this.header(sequence, clip),
+      videoFile: file.name,
+      videoPath: file.path,
+      mimeType: clip.mimeType,
+      byteLength: base64ByteLength(clip.base64),
+      trace: clip.trace,
+    }));
+  }
+
+  /** One number per view: a page load and an SPA route change each start one. */
+  private fileFor(filing: ClipFiling, extension: string): { name: string; path: string } {
+    const name = `nav-${String(filing.viewId).padStart(5, '0')}-${filing.label}.${extension}`;
+    return { name, path: join(this.outDir, name) };
+  }
+
+  private header(sequence: number, filing: ClipFiling) {
+    return {
+      sequence,
+      timestamp: new Date().toISOString(),
+      epochMs: Date.now(),
+      viewId: filing.viewId,
+      entry: filing.entry,
+      documentId: filing.documentId,
+      loaderId: filing.loaderId,
+      url: filing.url,
+      label: filing.label,
+    };
+  }
+
+  /**
+   * Writes `base64` to `file`, then appends its record, after everything
+   * enqueued before: a file and its line are never interleaved with another's,
+   * and records land in order.
+   */
+  private persist(
+    file: { name: string; path: string },
+    base64: string,
+    record: (sequence: number) => InteractionLogRecord | ClipLogRecord,
+  ): void {
+    const line = `${JSON.stringify(record(++this.sequence))}\n`;
 
     this.writeQueue = this.writeQueue
       .then(async () => {
         // Node decodes base64 natively here; no intermediate copy.
-        await writeFile(screenshotPath, capture.frame.base64, 'base64');
+        await writeFile(file.path, base64, 'base64');
         await appendFile(this.logFile, line, 'utf8');
       })
       .catch((error: unknown) => {
-        console.error(`[Sink] Failed to write ${filename}:`, error);
-        this.failures.push({ file: filename, error });
+        console.error(`[Sink] Failed to write ${file.name}:`, error);
+        this.failures.push({ file: file.name, error });
       });
   }
 

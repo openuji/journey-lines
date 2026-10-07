@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Optional capture destinations: console reporting and NDJSON + PNG persistence.",
+  "description": "Optional capture destinations: console reporting, NDJSON + PNG persistence, and the Node host's scroll-video worker.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -17,6 +17,7 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
+    "@openuji/clip-webm": "workspace:*",
     "@openuji/core": "workspace:*"
   }
 }

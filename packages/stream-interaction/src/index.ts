@@ -2,13 +2,20 @@ import type { CdpTransport, Detach } from '@openuji/cdp';
 import {
   createPushStream,
   type InteractionEvent,
-  type InteractionWirePayload,
+  type PagePositionEvent,
+  type PageScrollEvent,
+  type ProbeWirePayload,
   type PushStreamStats,
+  type ScrollCauseEvent,
+  type ScrollWirePayload,
 } from '@openuji/core';
 import { PROBE_BINDING_NAME, PROBE_SOURCE } from '@openuji/client-probe';
 
+/** What the interaction source emits: what the person did to an element, and the page's own scrolling. */
+export type ProbeEvent = InteractionEvent | PageScrollEvent | PagePositionEvent | ScrollCauseEvent;
+
 export interface InteractionStreamHandle {
-  events: AsyncIterable<InteractionEvent>;
+  events: AsyncIterable<ProbeEvent>;
   stop: () => Promise<void>;
   readonly stats: PushStreamStats;
 }
@@ -23,14 +30,34 @@ export interface InteractionStreamHandle {
 export function decodeProbePayload(
   json: string,
   receivedAtMs: number,
-): InteractionEvent | null {
-  let payload: InteractionWirePayload;
+): ProbeEvent | null {
+  let payload: ProbeWirePayload;
   try {
-    payload = JSON.parse(json) as InteractionWirePayload;
+    payload = JSON.parse(json) as ProbeWirePayload;
   } catch {
     return null;
   }
   if (typeof payload !== 'object' || payload === null) return null;
+
+  if (payload.action === 'scroll-cause') {
+    const { kind, detail, pageTimeMs } = payload;
+    return { type: 'scroll-cause', kind, ...(detail ? { detail } : {}), receivedAtMs, pageTimeMs };
+  }
+
+  if (isScroll(payload)) {
+    const { x, y, pageTimeMs } = payload;
+    if (payload.action === 'position') {
+      return { type: 'page-position', x, y, receivedAtMs, pageTimeMs };
+    }
+    return {
+      type: 'page-scroll',
+      ended: payload.action === 'scrollend',
+      x: payload.x,
+      y: payload.y,
+      receivedAtMs,
+      pageTimeMs: payload.pageTimeMs,
+    };
+  }
 
   return {
     type: 'interaction',
@@ -39,6 +66,10 @@ export function decodeProbePayload(
     receivedAtMs,
     pageTimeMs: payload.pageTimeMs,
   };
+}
+
+function isScroll(payload: Exclude<ProbeWirePayload, { action: 'scroll-cause' }>): payload is ScrollWirePayload {
+  return payload.action === 'position' || payload.action === 'scroll' || payload.action === 'scrollend';
 }
 
 /**
@@ -53,7 +84,7 @@ export function decodeProbePayload(
  */
 export async function attachInteraction(
   cdp: CdpTransport,
-  emit: (event: InteractionEvent) => void,
+  emit: (event: ProbeEvent) => void,
 ): Promise<Detach> {
   const unsubscribe = cdp.on('Runtime.bindingCalled', (raw, { receivedAtMs }) => {
     if (raw.name !== PROBE_BINDING_NAME) return;
@@ -120,7 +151,7 @@ export async function attachInteraction(
 export async function createInteractionStream(
   cdp: CdpTransport,
 ): Promise<InteractionStreamHandle> {
-  const stream = createPushStream<InteractionEvent>();
+  const stream = createPushStream<ProbeEvent>();
 
   const detach = await attachInteraction(cdp, (event) => stream.push(event));
 

@@ -77,8 +77,8 @@ export type ViewCounts = Readonly<{ views: number; documents: number }>;
  * The view a navigation starts. Pure.
  *
  * The only difference between the two entries: a load starts from nothing,
- * while a route keeps its document — and the frames already seen, because the
- * compositor never stopped painting it.
+ * while a route keeps its document — the frames already seen, because the
+ * compositor never stopped painting it, and where the page last said it was.
  */
 export function enterView(
   current: ViewState | null,
@@ -100,5 +100,6 @@ export function enterView(
     entry: 'load',
     firstFrameObserved: false,
     lastFrame: null,
+    position: null,
   };
 }
