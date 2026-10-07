@@ -7,8 +7,10 @@ import {
   frame,
   navigated,
   pageAt,
+  moved,
   pageScroll,
   quiet,
+  scrollCause,
   withinDocument,
 } from '../../engine/test/helpers.js';
 
@@ -41,9 +43,9 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(100, 300),
+      ...moved(100, 300),
       shown('moving', 316),
-      pageScroll(200, 332),
+      ...moved(200, 332),
       pageScroll(200, 340, { ended: true }),
       shown('landed', 360),
       quiet(340 + QUIET_AFTER_MS),
@@ -53,7 +55,7 @@ describe('ScrollEpisodeRule', () => {
     expect(captures[1]?.scrollEpisode?.path.map((s) => s.y)).toEqual([100, 200, 200]);
     expect(captures.map((c) => c.detail)).toEqual([
       'Pre-scroll #1 of the page at (0, 0)',
-      'Post-scroll #1 of the page: (0, 0) → (0, 200), travelled 200px',
+      'Post-scroll #1 of the page: (0, 0) → (0, 200), travelled 200px, by wheel',
     ]);
     // Each record's position is the page's own: where it was, where it landed.
     expect(captures.map((c) => c.position)).toEqual([{ x: 0, y: 0 }, { x: 0, y: 200 }]);
@@ -70,7 +72,7 @@ describe('ScrollEpisodeRule', () => {
     const events: DomainEvent[] = [navigated('loader-a'), pageAt(0, 0), shown('rest', 10, 0)];
     for (let i = 0; i < 20; i++) {
       const at = 300 + i * 25;
-      events.push(pageScroll(18 * (i + 1), at), shown(`f${i}`, at + 10, 54));
+      events.push(...moved(18 * (i + 1), at), shown(`f${i}`, at + 10, 54));
     }
     events.push(pageScroll(360, 800, { ended: true }), shown('landed', 820, 54), quiet(1_050));
 
@@ -84,7 +86,7 @@ describe('ScrollEpisodeRule', () => {
     const events: DomainEvent[] = [navigated('loader-a'), pageAt(0, 0), shown('rest', 10)];
     for (let i = 0; i < 4; i++) {
       const at = 300 + i * 100;
-      events.push(pageScroll(100 * (i + 1), at), pageScroll(100 * (i + 1), at, { ended: true }), shown(`notch-${i}`, at + 20));
+      events.push(...moved(100 * (i + 1), at), pageScroll(100 * (i + 1), at, { ended: true }), shown(`notch-${i}`, at + 20));
     }
     events.push(quiet(600 + QUIET_AFTER_MS));
 
@@ -97,7 +99,7 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(800, 300),
+      ...moved(800, 300),
       pageScroll(800, 300, { ended: true }),
       shown('jumped', 330),
       quiet(550),
@@ -113,11 +115,11 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(200, 300),
+      ...moved(200, 300),
       pageScroll(200, 310, { ended: true }),
       shown('first-landed', 330),
       shown('still', 600),
-      pageScroll(400, 700),
+      ...moved(400, 700),
       pageScroll(400, 710, { ended: true }),
       shown('second-landed', 730),
       quiet(960),
@@ -138,11 +140,11 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(100, 300),
+      ...moved(100, 300),
       shown('moving', 310),
       // 600 ms without a report and without scrollend: the finger rests.
       shown('resting', 700),
-      pageScroll(300, 910),
+      ...moved(300, 910),
       pageScroll(300, 920, { ended: true }),
       shown('landed', 940),
       quiet(1_170),
@@ -157,7 +159,7 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(300, 300),
+      ...moved(300, 300),
       shown('landed', 320),
       quiet(550), // not yet: no scrollend
       quiet(1_300),
@@ -172,7 +174,7 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(500, 300),
+      ...moved(500, 300),
       pageScroll(500, 310, { ended: true }),
       shown('arriving', 320),
       shown('landed', 350),
@@ -189,7 +191,7 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(500, 300),
+      ...moved(500, 300),
       pageScroll(500, 300, { ended: true }),
       quiet(550), // 250 ms on, but nothing painted since the report
       shown('painted-late', 900),
@@ -206,7 +208,7 @@ describe('ScrollEpisodeRule', () => {
       pageAt(0, 0),
       shown('rest', 10),
       shown('jumped', 294),
-      pageScroll(600, 300),
+      ...moved(600, 300),
       pageScroll(600, 300, { ended: true }),
       quiet(550),
     ]);
@@ -220,14 +222,14 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(0, 300, { x: 500 }),
+      ...moved(0, 300, { x: 500 }),
       pageScroll(0, 300, { x: 500, ended: true }),
       shown('landed', 320),
       quiet(550),
     ]);
 
     expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 landed']);
-    expect(captures[1]?.detail).toBe('Post-scroll #1 of the page: (0, 0) → (500, 0), travelled 500px');
+    expect(captures[1]?.detail).toBe('Post-scroll #1 of the page: (0, 0) → (500, 0), travelled 500px, by wheel');
   });
 
   it('keeps a scroll down and back up, though it ends where it started', () => {
@@ -236,8 +238,8 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(400, 300),
-      pageScroll(0, 320),
+      ...moved(400, 300),
+      ...moved(0, 320),
       pageScroll(0, 330, { ended: true }),
       shown('back', 340),
       quiet(580),
@@ -253,7 +255,7 @@ describe('ScrollEpisodeRule', () => {
         navigated('loader-a'),
         pageAt(0, 0),
         shown('rest', 10),
-        pageScroll(3, 300),
+        ...moved(3, 300),
         pageScroll(3, 310, { ended: true }),
         shown('jitter', 320),
         quiet(560),
@@ -266,8 +268,8 @@ describe('ScrollEpisodeRule', () => {
     const captures = run([
       navigated('loader-a'),
       shown('rest', 10),
-      pageScroll(100, 300),
-      pageScroll(300, 320),
+      ...moved(100, 300),
+      ...moved(300, 320),
       pageScroll(300, 330, { ended: true }),
       shown('landed', 340),
       quiet(580),
@@ -275,7 +277,7 @@ describe('ScrollEpisodeRule', () => {
 
     expect(captures.map((c) => c.detail)).toEqual([
       'Pre-scroll #1 of the page',
-      'Post-scroll #1 of the page: to (0, 300), travelled 200px',
+      'Post-scroll #1 of the page: to (0, 300), travelled 200px, by wheel',
     ]);
     expect(captures[0]?.position).toBeUndefined();
   });
@@ -287,7 +289,7 @@ describe('ScrollEpisodeRule', () => {
         navigated('loader-a'),
         pageAt(0, 0),
         shown('rest', 10),
-        pageScroll(600, 300),
+        ...moved(600, 300),
         pageScroll(600, 300, { ended: true }),
         shown('landed', 320),
         click('button#menu', 400),
@@ -308,7 +310,7 @@ describe('ScrollEpisodeRule', () => {
 
   it('does not record a scroll still open when the page changes, or when the recording stops', () => {
     const { shown, run } = script();
-    const open = [navigated('loader-a'), pageAt(0, 0), shown('rest', 10), pageScroll(600, 300), shown('moving', 320)];
+    const open = [navigated('loader-a'), pageAt(0, 0), shown('rest', 10), ...moved(600, 300), shown('moving', 320)];
 
     expect(run([...open, navigated('loader-b')])).toEqual([]);
     expect(run([...open, { type: 'stop' }])).toEqual([]);
@@ -320,7 +322,7 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(600, 300),
+      ...moved(600, 300),
       pageScroll(600, 300, { ended: true }),
       shown('landed', 320),
       quiet(550),
@@ -336,7 +338,7 @@ describe('ScrollEpisodeRule', () => {
       run([
         navigated('loader-a'),
         pageAt(0, 0),
-        pageScroll(900, 50), // restored before anything of this page was painted
+        ...moved(900, 50), // restored before anything of this page was painted
         pageScroll(900, 50, { ended: true }),
         shown('restored', 80),
         quiet(330),
@@ -353,7 +355,7 @@ describe('ScrollEpisodeRule', () => {
       quiet(260),
       withinDocument('https://app.example/inbox'),
       shown('home-late', 600, 2000), // the previous route's last picture, delivered late
-      pageScroll(0, 620), // the router puts the new route at the top
+      ...moved(0, 620), // the router puts the new route at the top
       pageScroll(0, 620, { ended: true }),
       shown('inbox', 640),
       quiet(890),
@@ -368,17 +370,17 @@ describe('ScrollEpisodeRule', () => {
       navigated('loader-a', 'https://app.example/'),
       pageAt(0, 0),
       shown('home', 10),
-      pageScroll(2000, 300),
+      ...moved(2000, 300),
       pageScroll(2000, 300, { ended: true }),
       shown('home-down', 320),
       quiet(550),
       withinDocument('https://app.example/inbox'),
       // The router resets the scroll before the new route paints.
-      pageScroll(0, 700),
+      ...moved(0, 700),
       pageScroll(0, 700, { ended: true }),
       shown('inbox', 720),
       quiet(970),
-      pageScroll(500, 1_000),
+      ...moved(500, 1_000),
       pageScroll(500, 1_000, { ended: true }),
       shown('inbox-down', 1_020),
       quiet(1_250),
@@ -391,6 +393,88 @@ describe('ScrollEpisodeRule', () => {
       '2 04-post-scroll-01',
     ]);
     // The second view's scroll starts where the router left the page.
-    expect(captures[3]?.detail).toBe('Post-scroll #1 of the page: (0, 0) → (0, 500), travelled 500px');
+    expect(captures[3]?.detail).toBe('Post-scroll #1 of the page: (0, 0) → (0, 500), travelled 500px, by wheel');
+  });
+
+  describe('a scroll needs a cause', () => {
+    /**
+     * Measured on fu-berlin.de (Chrome 154): resizing the window while scrolled
+     * down sent 32 position reports, no cause and no scrollend. Chrome kept the
+     * content in place; nothing scrolled.
+     */
+    it('takes moves without a cause for the page re-laid out: no scroll, the position updates', () => {
+      const { shown, run } = script();
+      const engine = new RulesEngine([ScrollEpisodeRule]);
+      const events: DomainEvent[] = [navigated('loader-a'), pageAt(1_400, 0), shown('rest', 10)];
+      for (let i = 0; i < 32; i++) events.push(pageScroll(1_400 + i, 300 + i * 8));
+      events.push(shown('resized', 560), quiet(1_800));
+
+      expect(run(events)).toEqual([]);
+      for (const event of events) engine.processEvent(event);
+      expect(engine.currentState.currentView?.position).toEqual({ x: 0, y: 1_431 });
+    });
+
+    it('takes a cause older than 250 ms for nothing', () => {
+      const { shown, run } = script();
+      expect(
+        run([
+          navigated('loader-a'),
+          pageAt(0, 0),
+          shown('rest', 10),
+          scrollCause('key', 300, 'PageDown'), // at the end of the page: nothing moved
+          pageScroll(40, 700), // later, the layout shifts
+          pageScroll(40, 700, { ended: true }),
+          shown('shifted', 720),
+          quiet(1_000),
+        ]),
+      ).toEqual([]);
+    });
+
+    it('opens nothing for a layout drift after a scroll ended', () => {
+      const { shown, run, read } = script();
+      const captures = run([
+        navigated('loader-a'),
+        pageAt(0, 0),
+        shown('rest', 10),
+        ...moved(600, 300),
+        pageScroll(600, 300, { ended: true }),
+        shown('landed', 320),
+        quiet(550),
+        pageScroll(620, 900), // images loading above: no cause
+        shown('drifted', 920),
+        quiet(2_000),
+      ]);
+
+      expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 landed']);
+    });
+
+    it('says what started it: the person, how, or the page', () => {
+      const { shown, run } = script();
+      const captures = run([
+        navigated('loader-a'),
+        pageAt(0, 0),
+        shown('rest', 10),
+        scrollCause('script', 300, 'scrollIntoView'),
+        pageScroll(800, 302),
+        pageScroll(800, 302, { ended: true }),
+        shown('there', 320),
+        quiet(560),
+        scrollCause('key', 900, 'PageDown'),
+        pageScroll(1_500, 910),
+        pageScroll(1_500, 950, { ended: true }),
+        shown('further', 970),
+        quiet(1_200),
+      ]);
+
+      const posts = captures.filter((c) => c.scrollEpisode);
+      expect(posts.map((c) => c.scrollEpisode?.cause)).toEqual([
+        { kind: 'script', detail: 'scrollIntoView' },
+        { kind: 'key', detail: 'PageDown' },
+      ]);
+      expect(posts.map((c) => c.detail)).toEqual([
+        "Post-scroll #1 of the page: (0, 0) → (0, 800), travelled 800px, by the page's scrollIntoView",
+        'Post-scroll #2 of the page: (0, 800) → (0, 1500), travelled 700px, by the PageDown key',
+      ]);
+    });
   });
 });

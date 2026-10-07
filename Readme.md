@@ -133,7 +133,22 @@ different pictures arrived and the page reported 72 … 312, and after a scroll
 it often never caught up. Timing scrolls from it recorded one gesture as two
 or three scrolls.
 
-- A scroll starts at the page's first report. Its `03-pre-scroll` is the
+- **A scroll needs a cause.** The probe also reports what starts one, before
+  the page moves:
+  - a person: a wheel, touch, a scroll key (PageUp/PageDown, Space, the
+    arrows, Home/End, Tab), a press on the page's scrollbar, a click on a
+    link to a place on the page;
+  - the page's own code: `scrollTo`, `scrollBy`, `scroll`, `scrollIntoView`,
+    setting the page's `scrollTop`/`scrollLeft`, `focus()`, a new
+    `location.hash`.
+
+  Each came 0–21 ms before the page's first report (Chrome 154). Reports with
+  no cause in the 250 ms before them only say where the page now is. Chrome
+  sends those when it moves the offset to keep what is on screen in place: a
+  window resize, images or fonts loading above. A maximize on fu-berlin.de
+  sent 42 `scroll` reports, no `scrollend` and no cause, and was once recorded
+  as a scroll.
+- A scroll starts at the page's first report after a cause. Its `03-pre-scroll` is the
   newest frame that arrived at least 100 ms before that report: a picture and
   the page's report about it arrive within 100 ms of each other, either way
   round (headed, the report came first by 17–50 ms; in headless-shell the
@@ -153,7 +168,11 @@ or three scrolls.
   scroll still open when the page or route changes, or the recording stops,
   is not recorded.
 - The `04` record carries `scrollEpisode.path`: every position the page
-  reported (`receivedAtMs`, `pageTimeMs`, `x`, `y`). Every record's `scroll`
+  reported (`receivedAtMs`, `pageTimeMs`, `x`, `y`). Its `scrollEpisode.cause`
+  says what started it: `kind` (`wheel`, `touch`, `key`, `scrollbar`, `link`,
+  `script`) and a `detail` such as `PageDown`, `#section` or `scrollIntoView`.
+  Its detail says it in words: "… travelled 600px, by the PageDown key".
+  Every record's `scroll`
   is where the page last said it was; a `03`'s is where it was before the
   scroll. It is left out until the page has said.
 - Scrolls under 8 px of travel are dropped as jitter.
@@ -172,13 +191,17 @@ or three scrolls.
   its real spacing, and the `04` stays 250 ms. The file is `….webm` next to
   the `04`, and its own NDJSON line carries `trace`, one sample (`frameIndex`,
   `atMs` in the video, `x`, `y`) per frame of it.
-- Known limit: a page busy with its own JavaScript delays its reports (by up
-  to 181 ms measured) and can paint a jump late (once 912 ms); a `04` then
-  shows the first picture that came.
+- Known limits:
+  - A page busy with its own JavaScript delays its reports (by up to 181 ms
+    measured) and can paint a jump late (once 912 ms); a `04` then shows the
+    first picture that came.
+  - These scroll the page with no cause the probe sees, so they are recorded
+    as where the page is, not as scrolls: find in page, middle-click
+    autoscroll, dragging a text selection past the edge, and an overlay
+    scrollbar (macOS) dragged outside its right-most 16 px.
 
-Not yet: who scrolled (every page scroll is `03`/`04`, a page's own
-`scrollTo` included), scroll depth, and elements with their own scrollbar. The
-steps are in `changes/scroll-rebuild.md`.
+Not yet: scroll depth, and elements with their own scrollbar. The steps are in
+`changes/scroll-rebuild.md`.
 
 ### Attaching to a page that already has a document
 

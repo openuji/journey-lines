@@ -83,12 +83,12 @@ describe('extension host against a real browser', () => {
   const hasEncoderDocument = (): Promise<boolean> =>
     extension.worker.evaluate(() => chrome.offscreen.hasDocument());
 
-  /** A wheel scroll of 600 px on a page that had time to rest, through to its 04. */
-  const scrollOnce = async (): Promise<void> => {
+  /** A wheel scroll on a page that had time to rest, through to its 04. */
+  const scrollOnce = async (deltaY = 600): Promise<void> => {
     await waitForLabel(DocumentLabel.first);
     // Long enough for a frame to be proven at rest: the scroll's "before".
     await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
-    await wheel(recordedTab, SCROLL_POINT.x, SCROLL_POINT.y, 600);
+    await wheel(recordedTab, SCROLL_POINT.x, SCROLL_POINT.y, deltaY);
     await waitForLabel(postScroll);
   };
 
@@ -202,6 +202,40 @@ describe('extension host against a real browser', () => {
     expect(await scrollYOf(postScroll)).toBe(600);
     expect(await scrollYOf(postClick)).toBe(600);
     expect(await scaleOfIdleTab(tabId)).toBe(2);
+  });
+
+  // As a person found it: maximizing the window recorded a scroll. Chrome
+  // moves the page's offset to keep what is on screen in place, and reports
+  // that as the page scrolling, but nothing started a scroll.
+  it('a window resize that moves the page is no scroll', async () => {
+    const tabId = await openTab(fixture.url('/fluid'));
+    await record(tabId);
+    await scrollOnce(1500);
+
+    const scrollY = async (): Promise<number> =>
+      (await recordedTab.send('Runtime.evaluate', { expression: 'scrollY', returnByValue: true })).result.value as number;
+    const before = await scrollY();
+    const widen = (by: number): Promise<void> =>
+      extension.worker.evaluate(
+        async (tabId, by) => {
+          const { windowId } = await chrome.tabs.get(tabId);
+          const { width = 0 } = await chrome.windows.get(windowId);
+          await chrome.windows.update(windowId, { width: width + by });
+        },
+        tabId,
+        by,
+      );
+    await widen(400);
+    try {
+      await vi.waitFor(async () => expect(await scrollY()).toBeGreaterThan(before), WAIT);
+      // Longer than a scroll with no scrollend takes to end.
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await stop();
+
+      expect((await labels()).filter((label) => label.includes('-scroll-'))).toEqual([preScroll, postScroll]);
+    } finally {
+      await widen(-400);
+    }
   });
 
   it('ends the recording when the tab closes, keeping the resting state', async () => {

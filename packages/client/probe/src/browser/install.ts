@@ -22,6 +22,7 @@ import {
   MAX_TEXT_SNIPPET_LENGTH,
   PROBE_INJECTED_FLAG,
 } from '../constants.js';
+import { observeScrollCauses } from './scroll-causes.js';
 
 /** Receives each observed interaction and scroll. Must not throw into the page. */
 export type ProbeReporter = (payload: ProbeWirePayload) => void;
@@ -157,6 +158,9 @@ export function installProbe(report: ProbeReporter): () => void {
   window.addEventListener('scroll', onScroll, scrollOptions);
   window.addEventListener('scrollend', onScroll, scrollOptions);
 
+  // What starts a scroll of the page, before the page reports moving.
+  const stopCauses = window === window.top ? observeScrollCauses(report) : () => {};
+
   // Where the page is now: the top of a new document, or wherever a page that
   // was already open has been scrolled to. A scroll's first report is where
   // it went; this is where it came from.
@@ -168,6 +172,7 @@ export function installProbe(report: ProbeReporter): () => void {
     window.removeEventListener('click', onClick, true);
     window.removeEventListener('scroll', onScroll, scrollOptions);
     window.removeEventListener('scrollend', onScroll, scrollOptions);
+    stopCauses();
     window[PROBE_INJECTED_FLAG] = false;
   };
 }

@@ -8,6 +8,7 @@ import { PROBE_BINDING_NAME } from '@openuji/stream-interaction';
 import {
   bindingCalled,
   clickPayload,
+  causePayload,
   frameNavigated,
   positionPayload,
   scrollPayload,
@@ -163,6 +164,7 @@ describe('startRecording', () => {
     bindingCalled(cdp, PROBE_BINDING_NAME, positionPayload(0)); // where the page is
     screencastFrame(cdp, { data: 'dG9w' });
     cdp.advance(300);
+    bindingCalled(cdp, PROBE_BINDING_NAME, causePayload('wheel'));
     bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600));
     bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600, true));
     cdp.advance(16);
@@ -193,6 +195,7 @@ describe('startRecording', () => {
     frameNavigated(cdp, 'loader-a');
     screencastFrame(cdp);
     cdp.advance(300);
+    bindingCalled(cdp, PROBE_BINDING_NAME, causePayload('wheel'));
     bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600)); // no scrollend yet
     screencastFrame(cdp);
     await settle();
@@ -246,6 +249,7 @@ describe('startRecording', () => {
       bindingCalled(cdp, PROBE_BINDING_NAME, positionPayload(0)); // the probe starting
       screencastFrame(cdp, { data: 'dG9w' });
       cdp.advance(300);
+      bindingCalled(cdp, PROBE_BINDING_NAME, causePayload('wheel'));
       bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600));
       bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600, true));
       cdp.advance(16);

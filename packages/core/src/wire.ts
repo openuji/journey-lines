@@ -54,5 +54,26 @@ export type ScrollWirePayload = Readonly<{
   pageTimeMs: number;
 }>;
 
+/**
+ * What starts a scroll of the page. The person: a wheel or trackpad, touch, a
+ * scroll key, the scrollbar, a link to a place on the page. Or the page's own
+ * code (`script`): `scrollTo`, `scrollIntoView`, `focus()`, `location.hash`…
+ */
+export type ScrollCause = 'wheel' | 'touch' | 'key' | 'scrollbar' | 'link' | 'script';
+
+/**
+ * Something that starts a scroll happened, before the page reports moving. A
+ * position change without one is the page re-laid out (a resize, content
+ * loading above), not a scroll.
+ */
+export type ScrollCauseWirePayload = Readonly<{
+  action: 'scroll-cause';
+  kind: ScrollCause;
+  /** The key, the API called, the link's target. */
+  detail?: string;
+  /** The page's `Date.now()` at the DOM event — Unix epoch ms, page clock. */
+  pageTimeMs: number;
+}>;
+
 /** Everything the probe sends. */
-export type ProbeWirePayload = InteractionWirePayload | ScrollWirePayload;
+export type ProbeWirePayload = InteractionWirePayload | ScrollWirePayload | ScrollCauseWirePayload;

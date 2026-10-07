@@ -27,7 +27,7 @@ const post: MilestoneCapture = {
     receivedAtMs: 300,
   },
   detail: 'Post-scroll #1',
-  scrollEpisode: { path: [] },
+  scrollEpisode: { path: [], cause: { kind: 'wheel' } },
 };
 
 const clip: Clip = {

@@ -22,7 +22,7 @@
  */
 
 import type { ClipTraceSample } from './clip.js';
-import type { InteractionAction, TargetElementMeta } from './wire.js';
+import type { InteractionAction, ScrollCause, TargetElementMeta } from './wire.js';
 
 export type CompositorFrame = Readonly<{
   index: number;
@@ -129,6 +129,23 @@ export type PagePositionEvent = Readonly<{
   pageTimeMs: number;
 }>;
 
+/**
+ * Something that starts a scroll happened: the person (wheel, touch, a key,
+ * the scrollbar, a link to a place on the page) or the page's own code. A
+ * change of position without one is the page re-laid out, not a scroll.
+ */
+export type ScrollCauseEvent = Readonly<{
+  type: 'scroll-cause';
+  kind: ScrollCause;
+  /** The key, the API called, the link's target. */
+  detail?: string;
+  receivedAtMs: number;
+  pageTimeMs: number;
+}>;
+
+/** What started a scroll. */
+export type ScrollStart = Readonly<{ kind: ScrollCause; detail?: string }>;
+
 /** Where the page is, CSS px, as it reported it. */
 export type PagePosition = Readonly<{ x: number; y: number }>;
 
@@ -176,6 +193,7 @@ export type DomainEvent =
   | InteractionEvent
   | PageScrollEvent
   | PagePositionEvent
+  | ScrollCauseEvent
   | Readonly<{
       type: 'frame';
       frame: CompositorFrame;
@@ -239,6 +257,8 @@ export type ScrollEpisode = Readonly<{
    * where it landed. Distance, direction and speed all derive from it.
    */
   path: readonly ScrollSample[];
+  /** What started it: the person, how, or the page's own code. */
+  cause: ScrollStart;
 }>;
 
 export type MilestoneCapture = Readonly<{

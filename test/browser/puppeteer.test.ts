@@ -11,6 +11,7 @@ import { startFixtureServer } from './fixture.js';
 import { wheel } from './input.js';
 
 const env = process.env;
+const WAIT = { timeout: 15_000, interval: 50 };
 const headless = env['UXR_HEADLESS'] === '1' || env['UXR_HEADLESS'] === 'true';
 const executablePath = env['UXR_CHROME_EXECUTABLE'];
 
@@ -56,6 +57,47 @@ describe.skipIf(headless)('puppeteer host, headed', () => {
       expect(await layoutOf(target.cdp)).toBe('900x600@1');
     } finally {
       await target.close();
+    }
+  });
+
+  // Chrome moves the page's offset to keep what is on screen in place, and
+  // reports that as the page scrolling, but nothing started a scroll.
+  it('a window resize that moves the page is no scroll', async () => {
+    const fixture = await startFixtureServer();
+    const target = await launchPuppeteerTarget({
+      headless: false,
+      executablePath,
+      viewport: { width: 1000, height: 700 },
+    });
+    const captures: MilestoneCapture[] = [];
+    const sink: CaptureSink = { name: 'memory', enqueue: (c) => captures.push(c), drain: async () => {} };
+    const labels = () => captures.map((c) => c.label);
+    const scrollY = async (): Promise<number> =>
+      (await target.cdp.send('Runtime.evaluate', { expression: 'scrollY', returnByValue: true })).result.value as number;
+    try {
+      await target.cdp.send('Page.bringToFront');
+      const recording = await startRecording(target.cdp, { sinks: [sink], screencast: { viewport: target.viewport } });
+      await target.navigate(fixture.url('/fluid'));
+      await vi.waitFor(() => expect(labels()).toContain(DocumentLabel.first), WAIT);
+      await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+      await wheel(target.cdp, 400, 400, 1500);
+      await vi.waitFor(() => expect(labels()).toContain(episodeLabel(InteractionLabel.postScroll, 1)), WAIT);
+
+      const before = await scrollY();
+      await target.page.resize({ contentWidth: 1400, contentHeight: 700 });
+      await vi.waitFor(async () => expect(await scrollY()).toBeGreaterThan(before), WAIT);
+      // Longer than a scroll with no scrollend takes to end.
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      await recording.stop();
+
+      expect(labels().filter((label) => label.includes('-scroll-'))).toEqual([
+        episodeLabel(InteractionLabel.preScroll, 1),
+        episodeLabel(InteractionLabel.postScroll, 1),
+      ]);
+      expect(captures.at(-1)?.position?.y).toBe(await scrollY());
+    } finally {
+      await target.close();
+      await fixture.close();
     }
   });
 });
@@ -111,7 +153,6 @@ describe('puppeteer host, scroll video (UXR_VIDEO)', () => {
     const worker = await startClipWorker((clip) => clips.push(clip));
     const captures: MilestoneCapture[] = [];
     const sink: CaptureSink = { name: 'memory', enqueue: (c) => captures.push(c), drain: async () => {} };
-    const WAIT = { timeout: 15_000, interval: 50 };
     try {
       await target.cdp.send('Page.bringToFront');
       const recording = await startRecording(target.cdp, {

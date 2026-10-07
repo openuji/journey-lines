@@ -7,7 +7,7 @@ import {
 } from '@openuji/core';
 import { RulesEngine } from '@openuji/engine';
 import { ScrollEpisodeRule } from '@openuji/rules-interaction';
-import { frame, navigated, pageAt, pageScroll, quiet } from '../../engine/test/helpers.js';
+import { frame, moved, navigated, pageAt, pageScroll, quiet } from '../../engine/test/helpers.js';
 
 /** A scroll told event by event, with named frames so the writes can be read. */
 function script() {
@@ -47,9 +47,9 @@ describe('scroll clip writes', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(100, 300),
+      ...moved(100, 300),
       shown('moving', 316),
-      pageScroll(200, 332),
+      ...moved(200, 332),
       pageScroll(200, 340, { ended: true }),
       shown('landed', 360),
       quiet(340 + QUIET_AFTER_MS),
@@ -70,7 +70,7 @@ describe('scroll clip writes', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       rest,
-      pageScroll(600, 300),
+      ...moved(600, 300),
       pageScroll(600, 300, { ended: true }),
       shown('landed', 320),
       quiet(550),
@@ -87,7 +87,7 @@ describe('scroll clip writes', () => {
       pageAt(0, 0),
       shown('rest', 10),
       shown('jumped', 294),
-      pageScroll(600, 300),
+      ...moved(600, 300),
       pageScroll(600, 300, { ended: true }),
       quiet(550),
     ]);
@@ -101,7 +101,7 @@ describe('scroll clip writes', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(500, 300),
+      ...moved(500, 300),
       pageScroll(500, 300, { ended: true }),
       shown('landed', 330),
       shown('image-loaded', 480),
@@ -117,11 +117,11 @@ describe('scroll clip writes', () => {
       navigated('loader-a'),
       pageAt(0, 0),
       shown('rest', 10),
-      pageScroll(100, 300),
+      ...moved(100, 300),
       shown('paused-1', 320),
       shown('paused-2', 500),
       shown('paused-3', 650),
-      pageScroll(300, 700),
+      ...moved(300, 700),
       pageScroll(300, 710, { ended: true }),
       shown('landed', 730),
       quiet(960),
@@ -144,7 +144,7 @@ describe('scroll clip writes', () => {
         navigated('loader-a'),
         pageAt(0, 0),
         shown('rest', 10),
-        pageScroll(3, 300),
+        ...moved(3, 300),
         pageScroll(3, 300, { ended: true }),
         shown('jitter', 320),
         quiet(550),
@@ -159,7 +159,7 @@ describe('scroll clip writes', () => {
         navigated('loader-a'),
         pageAt(0, 0),
         shown('rest', 10),
-        pageScroll(600, 300),
+        ...moved(600, 300),
         shown('moving', 316),
         navigated('loader-b'),
       ]);
@@ -173,7 +173,7 @@ describe('scroll clip writes', () => {
         navigated('loader-a'),
         pageAt(0, 0),
         shown('rest', 10),
-        pageScroll(600, 300),
+        ...moved(600, 300),
         { type: 'stop' },
       ]);
 

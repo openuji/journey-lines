@@ -14,6 +14,10 @@ runMain(async () => {
 
       const consumed = (async () => {
         for await (const event of events) {
+          if (event.type === 'scroll-cause') {
+            console.log(`\x1b[36m[SCROLL CAUSE]\x1b[0m ${event.kind}${event.detail ? ` ${event.detail}` : ''}`);
+            continue;
+          }
           if (event.type === 'page-scroll' || event.type === 'page-position') {
             const kind = event.type === 'page-position' ? 'PAGE AT' : event.ended ? 'PAGE SCROLL END' : 'PAGE SCROLL';
             console.log(`\x1b[36m[${kind}]\x1b[0m (${Math.round(event.x)}, ${Math.round(event.y)})`);

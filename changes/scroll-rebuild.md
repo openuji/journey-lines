@@ -2,7 +2,7 @@
 
 Scroll capture was removed on 2026-10-05 (`roadmap-scroll.md`). It comes back in steps, each with its own plan. **S1 was built on 2026-10-06.**
 
-One rule runs through every step: **frames alone choose images.** Since 2026-10-07 the page's own reports decide *when* a scroll starts and ends (see "S1 revised" below), reversing the earlier "the probe never decides when a scroll ends". They still never choose a picture.
+One rule runs through every step: **frames alone choose images.** Since 2026-10-07 the page's own reports decide *when* a scroll starts and ends (see "S1 revised" below), reversing the earlier "the probe never decides when a scroll ends". They still never choose a picture. And a scroll needs a cause the page reports, a person's or the page's own code; without one, the page's reports only say where it is (see "S1 revised again").
 
 ## Why scroll was removed
 
@@ -133,6 +133,36 @@ The browser suite checks it for page loads and for both SPA router orders.
 
 **Known limit:** on a busy page, reports can lag (181 ms measured) and a jump can be painted late (912 ms once); its `04` is then the first picture that came.
 
+## S1 revised again: a scroll needs a cause (2026-10-07)
+
+Plan: `~/.claude/plans/scroll-causes.md`.
+
+**Why.** You resized the window in `dev:extension` (default size to full), and it recorded a scroll (1422 → 1459) whose video showed a still page. Chrome moves the page's offset to keep what is on screen in place (scroll anchoring), and reports that as `scroll` events: a maximize on fu-berlin.de sent 42, no `scrollend`, no cause. With no `scrollend`, the 1 s fallback ended it, and the rule recorded it. **Your point: nothing was scrolling, so the fallback must not apply.**
+
+**Measured (extension host, fu-berlin.de, Chrome 154):** every cause tried came before the page's first report.
+
+| Cause | Seen as | Before the first report |
+|---|---|---|
+| wheel | `wheel` | 0–7 ms |
+| touch gesture | `touchstart` | 11 ms |
+| PageDown | `keydown` | 9–10 ms |
+| `scrollTo` / `scrollBy` / `scrollIntoView` / `scrollTop =` | the call | 0–3 ms; smooth 20 ms |
+| `location.hash = …` | `hashchange` | the same moment |
+| click on an in-page `#…` link | the click (its `hashchange` comes after the scroll) | 21 ms |
+
+**What changed (your decisions in bold):**
+- **A scroll is active from a cause until it ends;** reports without a cause only say where the page is.
+  - The probe reports causes (`scroll-cause`) and decides nothing (`client/probe/src/browser/scroll-causes.ts`). Its hooks call the page's originals unchanged and never throw into the page.
+  - The scroll rule alone decides: a cause arms it for 250 ms, and the next report opens a scroll. While open, reports extend it as before, and the 1 s fallback now applies only to an open scroll.
+- **The cause is a data field, labels stay `03`/`04`:** `scrollEpisode.cause` (`kind`, `detail`), and the `04` detail says it in words. This is part of S2, done.
+
+**Checked (browser suite, headed and headless):**
+- A wheel, a touch gesture, PageDown, a link, `scrollTo` and a smooth `scrollIntoView` each give one scroll with its cause.
+- Content changing size above the screen is no scroll, and the page's position follows it.
+- A window resize that moves the page is no scroll: Puppeteer headed and the extension.
+
+**Limits:** no cause the probe sees, so they are recorded as positions, not as scrolls: find in page, middle-click autoscroll, dragging a selection past the edge, and an overlay scrollbar dragged outside its 16 px strip.
+
 ## S1b: a video of each scroll, as a setting
 
 Plan: `~/.claude/plans/ok-plan-s1b-in-validated-anchor.md`.
@@ -167,6 +197,7 @@ Plan: `~/.claude/plans/ok-plan-s1b-in-validated-anchor.md`.
   - An offscreen document starts the encoder's worker; the service worker reaches it over a `BroadcastChannel` (measured 4× cheaper per frame than a relayed `chrome.runtime` port).
   - "Play video" on the `04` row.
   - Pitfall: WXT sets `'wasm-unsafe-eval'` only in dev, so a production build silently fell back to libav's missing asm.js. The manifest now sets the CSP.
+  - Pitfall: in `dev:extension`, WXT serves a page's scripts from its dev server (`localhost:3000`), and Chrome refuses a worker from another origin than the page. So the encoder worker is its own unlisted script, `/clip-worker.js`, built into the extension in dev and production alike. A failure to start now rejects Record, with a 15 s limit, instead of hanging.
 
 **Found while building Phase E (2026-10-07):** in the extension host, a still page's scroll is never reported in the screencast's offsets. It is fixed by "S1 revised" above: scrolls are timed by the page, and the extension's tests use the still page again.
 
@@ -176,9 +207,11 @@ Plan: `~/.claude/plans/ok-plan-s1b-in-validated-anchor.md`.
 
 ## S2: who scrolled
 
-Probe scroll input (wheel, touch, keys, scrollbar) is attached to a scroll that the page's reports already opened and ended. It is decided once, at the end, and never picks a frame.
-- **Earlier decision:** programmatic scrolls get their own labels `05`/`06`. Revisit whether origin should be a data field instead.
-- **Measured on 2026-10-05:** by the time the `wheel` DOM event fires, an element has already moved. Note resting positions on `pointerover`, `touchstart` or the scroll key's `keydown`.
+**Done with "a scroll needs a cause" (2026-10-07):** the cause is a data field, `scrollEpisode.cause`. The earlier `05`/`06` labels for programmatic scrolls are dropped: **your decision, labels stay `03`/`04`.**
+
+What remains:
+- The causes in the limits above, if they matter.
+- **Measured on 2026-10-05:** by the time the `wheel` DOM event fires, an element has already moved. That matters for S4: note an element's resting position on `pointerover`, `touchstart` or the scroll key's `keydown`.
 - **The probe runs before `document.documentElement` exists.** One exception there silently stopped all its reporting.
 
 ## S3: scroll depth

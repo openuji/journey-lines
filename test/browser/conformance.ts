@@ -27,8 +27,8 @@ import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import { createCompositorStream } from '@openuji/stream-compositor';
 import { createInteractionStream } from '@openuji/stream-interaction';
 import { createLifecycleStream } from '@openuji/stream-lifecycle';
-import { BUTTON, SPA, startFixtureServer, type FixtureServer } from './fixture.js';
-import { click, wheel } from './input.js';
+import { ANCHOR, BUTTON, SPA, startFixtureServer, type FixtureServer } from './fixture.js';
+import { click, press, wheel } from './input.js';
 
 export interface HostUnderTest {
   /** A fresh target, not yet navigated anywhere. */
@@ -51,6 +51,7 @@ type Rect = Readonly<{ x: number; y: number; width: number; height: number }>;
 const center = ({ x, y, width, height }: Rect) => ({ x: x + width / 2, y: y + height / 2 });
 
 const BUTTON_CENTER = center(BUTTON);
+const ANCHOR_CENTER = center(ANCHOR);
 
 /** Clear of the button, inside any viewport the hosts use. */
 const SCROLL_POINT = { x: 400, y: 400 };
@@ -72,16 +73,23 @@ class MemorySink implements CaptureSink {
       .map((capture) => capture.label);
   }
 
-  /** The scroll captures of one URL, each with where the page said it was. */
-  public scrolls(url: string): string[] {
+  /** The scroll captures, optionally of one URL, each with where the page said it was. */
+  public scrolls(url?: string): string[] {
     return this.captures
       .filter(
         (capture) =>
-          capture.url === url &&
+          (url === undefined || capture.url === url) &&
           (capture.label.startsWith(InteractionLabel.preScroll) ||
             capture.label.startsWith(InteractionLabel.postScroll)),
       )
       .map(({ label, position }) => `${label} ${position?.y ?? '?'}`);
+  }
+
+  /** What started each scroll, as its 04 says: `key PageDown`. */
+  public causes(): string[] {
+    return this.captures.flatMap(({ scrollEpisode }) =>
+      scrollEpisode ? [[scrollEpisode.cause.kind, scrollEpisode.cause.detail].filter(Boolean).join(' ')] : [],
+    );
   }
 }
 
@@ -453,27 +461,71 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
       return { url, sink, recording };
     };
 
-    // The fu-berlin.de bug: one gesture recorded as two or three scrolls while
-    // the frames' offsets stalled. The page's reports keep it one.
-    it('pipeline: a touchpad gesture is one scroll, however long the frames take to report it', () =>
+    const evaluate = (cdp: CdpTransport, expression: string) =>
+      cdp.send('Runtime.evaluate', { expression, returnByValue: true });
+
+    // Each way a person or the page starts a scroll. The touchpad gesture is
+    // also the fu-berlin.de bug: one gesture recorded as two or three scrolls
+    // while the frames' offsets stalled. The page's reports keep it one.
+    for (const { by, cause, scroll } of [
+      { by: 'a wheel', cause: 'wheel', scroll: (cdp: CdpTransport) => wheel(cdp, SCROLL_POINT.x, SCROLL_POINT.y, 600) },
+      {
+        by: 'a touchpad gesture',
+        cause: 'touch',
+        scroll: (cdp: CdpTransport) =>
+          cdp.send('Input.synthesizeScrollGesture', {
+            x: SCROLL_POINT.x,
+            y: SCROLL_POINT.y,
+            yDistance: -900,
+            speed: 1200,
+            gestureSourceType: 'touch',
+          }),
+      },
+      { by: 'the PageDown key', cause: 'key PageDown', scroll: (cdp: CdpTransport) => press(cdp, 'PageDown') },
+      { by: 'a link to a place on the page', cause: 'link #at-1800', scroll: (cdp: CdpTransport) => click(cdp, ANCHOR_CENTER.x, ANCHOR_CENTER.y) },
+      { by: 'the page calling scrollTo', cause: 'script scrollTo', scroll: (cdp: CdpTransport) => evaluate(cdp, 'scrollTo(0, 1400)') },
+      {
+        by: 'the page scrolling an element into view, smoothly',
+        cause: 'script scrollIntoView',
+        scroll: (cdp: CdpTransport) =>
+          evaluate(cdp, `document.getElementById('at-1800').scrollIntoView({ behavior: 'smooth' })`),
+      },
+    ]) {
+      it(`pipeline: a scroll by ${by} is one scroll, and says what started it`, () =>
+        withTarget(async (target) => {
+          const { sink, recording } = await recordStill(target);
+
+          await scroll(target.cdp);
+          await vi.waitFor(() => expect(sink.labels()).toContain(postScroll), WAIT);
+          await new Promise((resolve) => setTimeout(resolve, 1_000));
+          await recording.stop();
+
+          // Of every URL: a link's scroll is filed under the URL with its
+          // fragment, which Chrome shows before the page moves.
+          const scrolls = sink.scrolls();
+          expect(scrolls).toHaveLength(2);
+          expect(scrolls[0]).toBe('03-pre-scroll-01 0');
+          expect(Number(scrolls[1]?.split(' ')[1])).toBeGreaterThan(0);
+          expect(sink.causes()).toEqual([cause]);
+        }));
+    }
+
+    // Chrome keeps what is on screen in place when content above it changes
+    // size (scroll anchoring), and reports that as the page scrolling.
+    it('pipeline: content changing size above what is on screen is no scroll; the page is where it says', () =>
       withTarget(async (target) => {
         const { url, sink, recording } = await recordStill(target);
 
-        await target.cdp.send('Input.synthesizeScrollGesture', {
-          x: SCROLL_POINT.x,
-          y: SCROLL_POINT.y,
-          yDistance: -900,
-          speed: 1200,
-          gestureSourceType: 'touch',
-        });
+        await wheel(target.cdp, SCROLL_POINT.x, SCROLL_POINT.y, 1800);
         await vi.waitFor(() => expect(sink.labels(url)).toContain(postScroll), WAIT);
-        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        await evaluate(target.cdp, `document.querySelector('section').style.height = '900px'`);
+        await vi.waitFor(async () => expect((await evaluate(target.cdp, 'scrollY')).result.value).toBe(2100), WAIT);
+        // Longer than a scroll with no scrollend takes to end.
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
         await recording.stop();
 
-        const scrolls = sink.scrolls(url);
-        expect(scrolls).toHaveLength(2);
-        expect(scrolls[0]).toBe('03-pre-scroll-01 0');
-        expect(Number(scrolls[1]?.split(' ')[1])).toBeGreaterThan(600);
+        expect(sink.scrolls(url)).toEqual(['03-pre-scroll-01 0', '04-post-scroll-01 1800']);
+        expect(sink.captures.at(-1)).toMatchObject({ label: DocumentLabel.beforeNavigation, position: { y: 2100 } });
       }));
 
     it('pipeline: a spin of wheel notches is one scroll', () =>

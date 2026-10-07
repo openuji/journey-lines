@@ -42,3 +42,13 @@ export async function wheel(
     deltaY,
   });
 }
+
+/** Windows virtual key codes, which Chrome needs to act on a key. */
+const KEY_CODES = { PageDown: 34 } as const;
+
+/** A key pressed and released, as on a keyboard. */
+export async function press(cdp: CommandSender, key: keyof typeof KEY_CODES): Promise<void> {
+  const keyEvent = { key, code: key, windowsVirtualKeyCode: KEY_CODES[key] };
+  await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...keyEvent });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...keyEvent });
+}

@@ -1,4 +1,4 @@
-import type { InteractionWirePayload, ScrollWirePayload } from '@openuji/core';
+import type { InteractionWirePayload, ScrollCauseWirePayload, ScrollWirePayload } from '@openuji/core';
 import type { FakeCdpTransport } from '@openuji/cdp/testing';
 
 /**
@@ -123,6 +123,17 @@ export function scrollPayload(y: number, ended = false, x = 0): string {
     action: ended ? 'scrollend' : 'scroll',
     x,
     y,
+    pageTimeMs: 1_700_000_000_000,
+  };
+  return JSON.stringify(payload);
+}
+
+/** Something that starts a scroll, as the probe reports it before the page moves. */
+export function causePayload(kind: ScrollCauseWirePayload['kind'] = 'wheel', detail?: string): string {
+  const payload: ScrollCauseWirePayload = {
+    action: 'scroll-cause',
+    kind,
+    ...(detail ? { detail } : {}),
     pageTimeMs: 1_700_000_000_000,
   };
   return JSON.stringify(payload);

@@ -103,3 +103,21 @@ export function pageScroll(
 export function pageAt(y: number, receivedAtMs = 0, x = 0): DomainEvent {
   return { type: 'page-position', x, y, receivedAtMs, pageTimeMs: receivedAtMs };
 }
+
+/** Something that starts a scroll: the person's wheel, a key…, or the page's own code. */
+export function scrollCause(
+  kind: 'wheel' | 'touch' | 'key' | 'scrollbar' | 'link' | 'script',
+  receivedAtMs: number,
+  detail?: string,
+): DomainEvent {
+  return { type: 'scroll-cause', kind, ...(detail ? { detail } : {}), receivedAtMs, pageTimeMs: receivedAtMs };
+}
+
+/** The person's wheel moving the page to `y`: its cause, then the page's report. */
+export function moved(
+  y: number,
+  receivedAtMs: number,
+  options: { x?: number } = {},
+): DomainEvent[] {
+  return [scrollCause('wheel', receivedAtMs), pageScroll(y, receivedAtMs, options)];
+}

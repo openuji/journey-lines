@@ -80,12 +80,17 @@ async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorker> {
   if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
 
   const ready = new Promise<void>((resolve, reject) => {
-    const listener = (message: ClipsReady): void => {
-      if (message?.type !== CLIPS_READY) return;
+    const settle = (error?: string): void => {
       chrome.runtime.onMessage.removeListener(listener);
-      if (message.error) reject(new Error(message.error));
+      clearTimeout(timer);
+      if (error) reject(new Error(error));
       else resolve();
     };
+    const listener = (message: ClipsReady): void => {
+      if (message?.type === CLIPS_READY) settle(message.error);
+    };
+    // Never wait forever: a recording that cannot make videos says so.
+    const timer = setTimeout(() => settle('The video encoder did not start within 15 s'), 15_000);
     chrome.runtime.onMessage.addListener(listener);
   });
   await chrome.offscreen.createDocument({

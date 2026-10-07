@@ -6,6 +6,7 @@ import type { DetachReason, ExtensionTarget } from '@openuji/host-extension';
 import { PROBE_BINDING_NAME } from '@openuji/stream-interaction';
 import {
   bindingCalled,
+  causePayload,
   frameNavigated,
   positionPayload,
   screencastFrame,
@@ -86,6 +87,7 @@ function scroll(cdp: FakeCdpTransport): void {
   bindingCalled(cdp, PROBE_BINDING_NAME, positionPayload(0)); // the probe starting
   screencastFrame(cdp);
   cdp.advance(300);
+  bindingCalled(cdp, PROBE_BINDING_NAME, causePayload('wheel'));
   bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600));
   bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600, true));
   cdp.advance(16);

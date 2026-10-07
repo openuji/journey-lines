@@ -106,5 +106,12 @@ describe('decodeProbePayload: the page scrolling', () => {
     expect(decodeProbePayload(at('position', 0), 5)).toEqual({ type: 'page-position', x: 0, y: 0, receivedAtMs: 5, pageTimeMs: 1_000 });
     expect(decodeProbePayload(at('scroll', 120), 6)).toEqual({ type: 'page-scroll', ended: false, x: 0, y: 120, receivedAtMs: 6, pageTimeMs: 1_000 });
     expect(decodeProbePayload(at('scrollend', 300), 7)).toEqual({ type: 'page-scroll', ended: true, x: 0, y: 300, receivedAtMs: 7, pageTimeMs: 1_000 });
+    expect(decodeProbePayload(JSON.stringify({ action: 'scroll-cause', kind: 'key', detail: 'PageDown', pageTimeMs: 1_000 }), 8)).toEqual({
+      type: 'scroll-cause',
+      kind: 'key',
+      detail: 'PageDown',
+      receivedAtMs: 8,
+      pageTimeMs: 1_000,
+    });
   });
 });

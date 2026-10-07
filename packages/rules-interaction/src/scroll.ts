@@ -6,6 +6,7 @@ import {
   type PagePosition,
   type PageScrollEvent,
   type ScrollSample,
+  type ScrollStart,
   type ViewState,
 } from '@openuji/core';
 import {
@@ -27,6 +28,8 @@ export const REPORT_SLACK_MS = 100;
 
 /** A scroll of the page that has not ended yet. */
 export type OpenScroll = Readonly<{
+  /** What started it. */
+  cause: ScrollStart;
   /** The page at rest: the newest frame `REPORT_SLACK_MS` before its first report, the `03`. */
   start: CompositorFrame;
   /** Where the page was before, if it had said in this view. */
@@ -48,6 +51,8 @@ export type ScrollEpisodeState = Readonly<{
   episodeCount: number;
   /** When this view's first event arrived; its first `QUIET_AFTER_MS` are the page arriving. */
   beganMs: number | null;
+  /** The latest thing that starts a scroll, and when it came. */
+  cause: (ScrollStart & Readonly<{ atMs: number }>) | null;
   /** The newest frame of this view older than `REPORT_SLACK_MS`: a scroll starts from it. */
   rest: CompositorFrame | null;
   /** This view's frames since, oldest first. */
@@ -68,7 +73,14 @@ export const SCROLL_DEFAULTS = {
   silentEndMs: 1_000,
 } as const;
 
-const INITIAL: ScrollEpisodeState = { episodeCount: 0, beganMs: null, rest: null, recent: [], open: null };
+const INITIAL: ScrollEpisodeState = {
+  episodeCount: 0,
+  beganMs: null,
+  cause: null,
+  rest: null,
+  recent: [],
+  open: null,
+};
 
 /**
  * Where `frame` belongs in `open`: in the scroll, up to `REPORT_SLACK_MS`
@@ -110,6 +122,24 @@ function travelOf({ from, path }: OpenScroll): number {
 
 const where = ({ x, y }: PagePosition): string => `(${Math.round(x)}, ${Math.round(y)})`;
 
+/** What started a scroll, in words: `by wheel`, `by the PageDown key`, `by the page's scrollIntoView`. */
+function by({ kind, detail }: ScrollStart): string {
+  switch (kind) {
+    case 'wheel':
+      return 'by wheel';
+    case 'touch':
+      return 'by touch';
+    case 'key':
+      return detail ? `by the ${detail} key` : 'by a key';
+    case 'scrollbar':
+      return 'by the scrollbar';
+    case 'link':
+      return detail ? `by a link to ${detail}` : 'by a link';
+    case 'script':
+      return `by the page's ${detail ?? 'code'}`;
+  }
+}
+
 /** `state` with `frame` on screen: recent while young, then the rest; and in the open scroll. */
 function seen(state: ScrollEpisodeState, frame: CompositorFrame): ScrollEpisodeState {
   const { start, lead } = startAt({ ...state, recent: [...state.recent, frame] }, frame.receivedAtMs);
@@ -134,8 +164,13 @@ function seen(state: ScrollEpisodeState, frame: CompositorFrame): ScrollEpisodeS
  * seen. The offset stamped on a frame cannot say when: on a real page it
  * stops changing for up to 660 ms while the page scrolls (Chrome 154).
  *
- *  1. A scroll starts at the page's first report, from the page at rest: the
- *     newest frame `REPORT_SLACK_MS` before it, the `03` image (`startAt`).
+ *  1. A scroll starts when something scrolls the page — the person's wheel,
+ *     touch, key, scrollbar or link, or the page's own code, each reported as
+ *     a cause — and the page then reports moving, within `QUIET_AFTER_MS`.
+ *     A move without a cause is the page re-laid out (a resize, images
+ *     loading above): the page's position updates, no scroll opens. It starts
+ *     from the page at rest: the newest frame `REPORT_SLACK_MS` before the
+ *     first report, the `03` image (`startAt`).
  *     Reports in a view's first `QUIET_AFTER_MS` are the page arriving, not a
  *     scroll: a router putting the new route at the top, a restored scroll
  *     position. The frame on screen then may still be the previous page's.
@@ -143,7 +178,7 @@ function seen(state: ScrollEpisodeState, frame: CompositorFrame): ScrollEpisodeS
  *     up again: a notch spin, or a gesture that moves again, is one scroll.
  *  3. It is over once the page has said `scrollend` and then reported nothing
  *     for `QUIET_AFTER_MS`, or, should `scrollend` never come, has been silent
- *     for `silentEndMs`. Its newest frame, up to `REPORT_SLACK_MS` after the
+ *     for `silentEndMs` (only ever an active scroll, one that had a cause). Its newest frame, up to `REPORT_SLACK_MS` after the
  *     page's last report, is the `04` image: where it landed. It is fixed by
  *     that report, not by when the end is noticed, so a click soon after does
  *     not show in it.
@@ -194,13 +229,17 @@ export function scrollEpisodeRule(
       };
     }
 
-    // The page arriving, or no picture of this view at rest: not a scroll.
+    // Nothing started a scroll (the page re-laid out), the page is arriving,
+    // or there is no picture of this view at rest: not a scroll.
+    const cause = state.cause;
+    const caused = cause !== null && event.receivedAtMs - cause.atMs <= QUIET_AFTER_MS;
     const arriving = state.beganMs === null || event.receivedAtMs - state.beganMs < QUIET_AFTER_MS;
     const { start, lead } = startAt(state, event.receivedAtMs);
-    if (arriving || !start) return state;
+    if (!caused || arriving || !start) return state;
     return {
       ...state,
       open: {
+        cause: { kind: cause.kind, ...(cause.detail ? { detail: cause.detail } : {}) },
         start,
         from,
         path: [sample],
@@ -249,8 +288,8 @@ export function scrollEpisodeRule(
           frame: open.last,
           detail:
             `Post-scroll #${episode} of the page: ${from ? `${where(from)} → ` : 'to '}${where(to)}, ` +
-            `travelled ${Math.round(travelledPx)}px`,
-          scrollEpisode: { path: open.path },
+            `travelled ${Math.round(travelledPx)}px, ${by(open.cause)}`,
+          scrollEpisode: { path: open.path, cause: open.cause },
         }),
       ],
     };
@@ -269,6 +308,12 @@ export function scrollEpisodeRule(
     }
 
     let next = state.beganMs === null ? { ...state, beganMs: arrivedAtMs(event) } : state;
+    if (event.type === 'scroll-cause') {
+      next = {
+        ...next,
+        cause: { kind: event.kind, ...(event.detail ? { detail: event.detail } : {}), atMs: event.receivedAtMs },
+      };
+    }
     if (currentFrame) next = seen(next, currentFrame);
     if (event.type === 'page-scroll') next = report(next, event, currentView.position);
 
