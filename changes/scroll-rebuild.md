@@ -127,6 +127,17 @@ Plan: `~/.claude/plans/ok-plan-s1b-in-validated-anchor.md`.
   - `@openuji/clip-webm`, with the vendored build (`build-libav.sh` reproduces it byte for byte) and a timeline that decides every video time on the recorder side.
   - The Node worker (`startClipWorker`), the `.webm` and its NDJSON line with the trace, and `UXR_VIDEO=1`.
   - A browser test decodes the video in Chrome and compares its first and last pictures with the `03` and `04`.
+- **Protocol:** encoder words only (`add` / `finish` / `abort`); `clipSinkOver` is the one place the domain's `ClipWrite` meets them.
+- **Phase E, the extension:**
+  - A panel switch before Record, off by default.
+  - An offscreen document starts the encoder's worker; the service worker reaches it over a `BroadcastChannel` (measured 4× cheaper per frame than a relayed `chrome.runtime` port).
+  - "Play video" on the `04` row.
+  - Pitfall: WXT sets `'wasm-unsafe-eval'` only in dev, so a production build silently fell back to libav's missing asm.js. The manifest now sets the CSP.
+
+**Found while building Phase E (2026-10-07), separate from S1b:**
+- In the extension host, a wheel scroll on a page that doesn't repaint by itself is never reported in the screencast's offsets: they stay 0 at scale factor 1 and 2, with or without the pin. The Puppeteer host reports the same scroll on the same page.
+- So the extension records no scroll on still pages. Its tests use the animated fixture page.
+- Needs its own investigation.
 
 ## S1c: `quiet` for `01`/`02`
 

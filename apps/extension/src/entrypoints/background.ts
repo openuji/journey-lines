@@ -1,5 +1,8 @@
+import type { Clip } from '@openuji/core';
+import { clipSinkOver, type ClipWorker, type FromEncoder, type ToEncoder } from '@openuji/clip-webm';
 import { attachTab } from '@openuji/host-extension';
 import { defineBackground } from 'wxt/utils/define-background';
+import { CLIPS_READY, clipChannel, type ClipsReady } from '../lib/clips';
 import {
   JOURNEY_PORT,
   type PanelMessage,
@@ -25,7 +28,11 @@ export default defineBackground(() => {
     for (const port of panels) port.postMessage(message);
   };
 
-  const recorder = new Recorder((tabId) => attachTab(chrome.debugger, tabId), broadcast);
+  const recorder = new Recorder(
+    (tabId) => attachTab(chrome.debugger, tabId),
+    broadcast,
+    openClips,
+  );
 
   // Debug handle: chrome://extensions → "Inspect views: service worker", then
   // `recorder.status`, `recorder.captures`, `await recorder.cdp.send(...)`.
@@ -35,7 +42,7 @@ export default defineBackground(() => {
   const handle = async (message: PanelMessage): Promise<void> => {
     switch (message.type) {
       case 'record':
-        return recorder.record(await describeTab(message.tabId));
+        return recorder.record(await describeTab(message.tabId), message.options);
       case 'stop':
         return recorder.stop();
       case 'reset':
@@ -62,6 +69,41 @@ export default defineBackground(() => {
     });
   });
 });
+
+/**
+ * The video encoder for one recording: an offscreen document starts it in a
+ * worker, and the clip sink's recorder side talks to it over the clip channel.
+ * `close` ends both.
+ */
+async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorker> {
+  // A document left over from a recording the worker did not see end.
+  if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
+
+  const ready = new Promise<void>((resolve, reject) => {
+    const listener = (message: ClipsReady): void => {
+      if (message?.type !== CLIPS_READY) return;
+      chrome.runtime.onMessage.removeListener(listener);
+      if (message.error) reject(new Error(message.error));
+      else resolve();
+    };
+    chrome.runtime.onMessage.addListener(listener);
+  });
+  await chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: [chrome.offscreen.Reason.WORKERS],
+    justification: 'Encodes a video of each scroll in a worker.',
+  });
+  await ready;
+
+  const channel = clipChannel<FromEncoder, ToEncoder>();
+  return {
+    sink: clipSinkOver(channel, onClip),
+    close: async () => {
+      channel.close();
+      await chrome.offscreen.closeDocument();
+    },
+  };
+}
 
 async function describeTab(tabId: number): Promise<TabSummary> {
   const tab = await chrome.tabs.get(tabId);

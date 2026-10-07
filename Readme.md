@@ -209,7 +209,7 @@ page yields `00-first`, not a stale `01-domcontentloaded`.
 | `@openuji/cli-kit` | Shared launch, navigation and shutdown scaffolding for the Node CLIs. |
 | `@openuji/stream-cli` | Dev runners: each source on its own, and the fused detection pipeline. |
 | `@openuji/recorder` | The end-to-end session and its CLI. |
-| `@openuji/extension` | The Chrome extension (WXT): the pipeline in its service worker, the journey live in its side panel. |
+| `@openuji/extension` | The Chrome extension (WXT): the pipeline in its service worker, the journey live in its side panel, scroll videos encoded in an offscreen document's worker. |
 
 ### Sources run alone or fused — same code
 
@@ -268,6 +268,22 @@ own included — Chrome reports screencast scroll offsets as 0 too.
 The extension attaches to a tab the person already has open and keeps after
 the recording. It pins the scale factor to 1 for the recording's length, so
 the tab renders at 1x on a HiDPI screen until Stop gives it its own back.
+
+Its panel has a "Video of each scroll" switch before Record, off by default.
+On, the service worker opens an offscreen document whose only job is to start
+the encoder in a dedicated worker (a service worker cannot start one), and
+reaches that worker over a `BroadcastChannel`: no relay, and a send blocks the
+service worker 0.2–0.3 ms per frame against 0.9–1.2 ms over a `chrome.runtime`
+port (measured with real 460 KB frames at 60 fps). Each video shows as "Play
+video" on its scroll's `04` row; Stop closes the document. The manifest's CSP
+adds `'wasm-unsafe-eval'`, without which Chrome refuses to compile the encoder.
+
+Known gap, measured on Chrome 154 (2026-10-07): in this host, on a page that
+does not repaint by itself, the screencast keeps reporting scroll offset 0
+after a wheel scroll, at scale factor 1 or 2 and with or without the pin, so
+no scroll is recorded there. The Puppeteer host records the same scroll on the
+same page. Pages that repaint (animations, tickers) are recorded in both. Not
+yet understood.
 
 Puppeteer and `devtools-protocol` (the CDP types in `@openuji/cdp`) move
 together, in one change, to the versions Puppeteer pins. The streams still

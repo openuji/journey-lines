@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@openuji/core';
 import { captureKind, formatClock, journeyRows } from '../src/lib/journey';
 
 function capture(viewId: number, label: string, receivedAtMs: number): MilestoneCapture {
@@ -43,6 +43,25 @@ describe('journey rows', () => {
       '2000 99-before-navigation',
       'view https://app.example/2',
       '2100 00-first',
+    ]);
+  });
+
+  it("puts a video on the row of the capture it belongs to, by view and label", () => {
+    const video = { viewId: 2, label: '04-post-scroll-01' } as Clip;
+    const rows = journeyRows(
+      [
+        capture(1, '04-post-scroll-01', 1_100),
+        capture(2, '03-pre-scroll-01', 1_200),
+        capture(2, '04-post-scroll-01', 1_300),
+      ],
+      1_000,
+      [video],
+    );
+
+    expect(rows.flatMap((row) => (row.kind === 'capture' ? [`${row.capture.viewId} ${row.capture.label} ${row.clip ? 'video' : '-'}`] : []))).toEqual([
+      '1 04-post-scroll-01 -',
+      '2 03-pre-scroll-01 -',
+      '2 04-post-scroll-01 video',
     ]);
   });
 

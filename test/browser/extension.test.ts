@@ -70,11 +70,27 @@ describe('extension host against a real browser', () => {
       return tab.id!;
     }, url);
 
-  const record = (tabId: number): Promise<void> =>
-    extension.worker.evaluate(async (tabId) => {
-      const tab = await chrome.tabs.get(tabId);
-      await recorder.record({ id: tabId, title: tab.title ?? '', url: tab.url ?? '' });
-    }, tabId);
+  const record = (tabId: number, options = { video: false }): Promise<void> =>
+    extension.worker.evaluate(
+      async (tabId, options) => {
+        const tab = await chrome.tabs.get(tabId);
+        await recorder.record({ id: tabId, title: tab.title ?? '', url: tab.url ?? '' }, options);
+      },
+      tabId,
+      options,
+    );
+
+  const hasEncoderDocument = (): Promise<boolean> =>
+    extension.worker.evaluate(() => chrome.offscreen.hasDocument());
+
+  /** A wheel scroll of 600 px on a page that had time to rest, through to its 04. */
+  const scrollOnce = async (): Promise<void> => {
+    await waitForLabel(DocumentLabel.first);
+    // Long enough for a frame to be proven at rest: the scroll's "before".
+    await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+    await wheel(recordedTab, SCROLL_POINT.x, SCROLL_POINT.y, 600);
+    await waitForLabel(postScroll);
+  };
 
   const stop = (): Promise<void> => extension.worker.evaluate(() => recorder.stop());
 
@@ -232,5 +248,87 @@ describe('extension host against a real browser', () => {
     await press('.secondary-button');
     await vi.waitFor(async () => expect(await panel.$('.record-button')).not.toBeNull(), WAIT);
     await panel.close();
+  });
+
+  // On the fixture's animated page: in this host, on a page that does not
+  // repaint by itself, the screencast never reports a wheel scroll's offset
+  // (measured on Chrome 154, 2026-10-07), so no scroll is recorded there.
+  describe('video of each scroll', () => {
+    it('makes none unless asked: no encoder document is opened', async () => {
+      const tabId = await openTab(fixture.url('/'));
+      await record(tabId);
+      await scrollOnce();
+
+      expect(await hasEncoderDocument()).toBe(false);
+      await stop();
+      expect(await extension.worker.evaluate(() => recorder.clips.length)).toBe(0);
+    });
+
+    it('asked for, files the scroll\'s WebM under its 04 with its trace, and closes the encoder at Stop', async () => {
+      const tabId = await openTab(fixture.url('/'));
+      await record(tabId, { video: true });
+      expect(await hasEncoderDocument()).toBe(true);
+      await scrollOnce();
+      await stop();
+
+      const result = await extension.worker.evaluate((pre, post) => {
+        const frameOf = (label: string) => recorder.captures.find((c) => c.label === label)?.frame.index;
+        return {
+          clips: recorder.clips.map(({ viewId, label, mimeType, base64, trace }) => ({
+            viewId,
+            label,
+            mimeType,
+            magic: base64.slice(0, 5),
+            trace: trace.map((s) => [s.frameIndex, s.atMs, s.y]),
+          })),
+          pre: frameOf(pre),
+          post: frameOf(post),
+        };
+      }, preScroll, postScroll);
+
+      expect(result.clips).toHaveLength(1);
+      const [clip] = result.clips;
+      expect(clip).toMatchObject({ label: postScroll, mimeType: 'video/webm', magic: 'GkXfo' }); // EBML
+      // Every frame from the 03 to the 04, in order.
+      const indices = clip?.trace.map(([index]) => index) ?? [];
+      expect(indices[0]).toBe(result.pre);
+      expect(indices.at(-1)).toBe(result.post);
+      expect(indices).toEqual(indices.map((_, i) => (result.pre ?? NaN) + i));
+      expect(clip?.trace.at(-1)?.[2]).toBe(600);
+      expect(await hasEncoderDocument()).toBe(false);
+    });
+
+    it('plays in the panel: the toggle before Record, then a play button on the 04 row', async () => {
+      await openTab(fixture.url('/'));
+      const panel = await extension.openPanel();
+      const press = async (selector: string): Promise<void> => {
+        await panel.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+      };
+
+      await vi.waitFor(async () => expect(await panel.$('.record-button')).not.toBeNull(), WAIT);
+      await press('.option input');
+      await press('.record-button');
+      await scrollOnce();
+      await press('.stop-button');
+      await vi.waitFor(async () => expect(await panel.$('.capture-row__play')).not.toBeNull(), WAIT);
+
+      // Chrome defers loading media in a background tab; the recording is over,
+      // so the panel may come to the front, as when a person watches it.
+      await panel.bringToFront();
+      await press('.capture-row__play');
+      const duration = await vi.waitFor(async () => {
+        const seconds = await panel.$eval('.capture-row__video', (video) => (video as unknown as { duration: number }).duration);
+        expect(seconds).toBeGreaterThan(0);
+        return seconds;
+      }, WAIT);
+      const end = await extension.worker.evaluate(() => {
+        const last = recorder.clips[0]?.trace.at(-1);
+        return last ? (last.atMs + 250) / 1000 : NaN;
+      });
+      expect(duration).toBeCloseTo(end, 2);
+
+      await press('.secondary-button');
+      await panel.close();
+    });
   });
 });

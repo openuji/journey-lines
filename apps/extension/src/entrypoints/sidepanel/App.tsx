@@ -10,7 +10,7 @@ import { Recording } from './Recording';
 export function App() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
   const send = useJourneyPort(dispatch);
-  const { connected, status, captures, error } = state;
+  const { connected, status, captures, clips, error } = state;
 
   return (
     <main className="panel">
@@ -30,13 +30,26 @@ export function App() {
       {!connected && !error && <p className="hint">Connecting to the recorder…</p>}
 
       {connected && status.state === 'idle' && (
-        <Idle failed={error !== null} onRecord={(tabId) => send({ type: 'record', tabId })} />
+        <Idle
+          failed={error !== null}
+          onRecord={(tabId, options) => send({ type: 'record', tabId, options })}
+        />
       )}
       {connected && (status.state === 'recording' || status.state === 'stopping') && (
-        <Recording status={status} captures={captures} onStop={() => send({ type: 'stop' })} />
+        <Recording
+          status={status}
+          captures={captures}
+          clips={clips}
+          onStop={() => send({ type: 'stop' })}
+        />
       )}
       {connected && status.state === 'done' && (
-        <Done status={status} captures={captures} onReset={() => send({ type: 'reset' })} />
+        <Done
+          status={status}
+          captures={captures}
+          clips={clips}
+          onReset={() => send({ type: 'reset' })}
+        />
       )}
     </main>
   );

@@ -35,6 +35,9 @@ importers:
       '@openuji/cdp':
         specifier: workspace:*
         version: link:../../packages/cdp
+      '@openuji/clip-webm':
+        specifier: workspace:*
+        version: link:../../packages/clip-webm
       '@openuji/core':
         specifier: workspace:*
         version: link:../../packages/core

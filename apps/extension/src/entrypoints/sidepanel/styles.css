@@ -139,6 +139,13 @@ button:disabled {
   color: var(--muted);
 }
 
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+}
+
 /* Recording header */
 
 .recording-header,
@@ -370,6 +377,21 @@ button:disabled {
   object-position: top;
 }
 
+.capture-row__play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: start;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+}
+
+.capture-row__video,
 .capture-row__frame {
   grid-column: 1 / -1;
   width: 100%;

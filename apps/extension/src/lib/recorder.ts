@@ -1,8 +1,16 @@
 import type { CdpTransport } from '@openuji/cdp';
-import type { CaptureSink, MilestoneCapture } from '@openuji/core';
+import type { CaptureSink, Clip, MilestoneCapture } from '@openuji/core';
+import type { ClipWorker } from '@openuji/clip-webm';
 import { startRecording, type RecordingHandle } from '@openuji/fused';
 import type { DetachReason, ExtensionTarget } from '@openuji/host-extension';
-import type { EndedBy, RecorderStatus, TabSummary, WorkerMessage } from './protocol';
+import type { OpenClips } from './clips';
+import type {
+  EndedBy,
+  RecorderStatus,
+  RecordOptions,
+  TabSummary,
+  WorkerMessage,
+} from './protocol';
 
 export type AttachTab = (tabId: number) => Promise<ExtensionTarget>;
 
@@ -15,24 +23,28 @@ const endedByChrome: Record<DetachReason, EndedBy> = {
  * Records one tab at a time: idle → recording → stopping → done.
  *
  * Runs the same pipeline as every other host (`startRecording`) over the
- * attached tab, and keeps the journey — every capture so far — in memory.
- * Each change goes out through `emit` as a `WorkerMessage`. Failures reject the
- * call that caused them and leave the state as it was.
+ * attached tab, and keeps the journey — every capture so far, and the video of
+ * each scroll when asked for — in memory. Each change goes out through `emit`
+ * as a `WorkerMessage`. Failures reject the call that caused them and leave the
+ * state as it was.
  *
- * No `chrome.*` in here: the tab comes from the injected `attach`, so this runs
- * unchanged in tests.
+ * No `chrome.*` in here: the tab comes from the injected `attach`, the video
+ * encoder from `openClips`, so this runs unchanged in tests.
  */
 export class Recorder {
   private current: RecorderStatus = { state: 'idle' };
   private journey: MilestoneCapture[] = [];
+  private videos: Clip[] = [];
   private target: ExtensionTarget | null = null;
   private recording: RecordingHandle | null = null;
+  private clipWorker: ClipWorker | null = null;
   /** Set while a tab is being attached, so a second Record waits its turn. */
   private starting = false;
 
   constructor(
     private readonly attach: AttachTab,
     private readonly emit: (message: WorkerMessage) => void,
+    private readonly openClips?: OpenClips,
   ) {}
 
   get status(): RecorderStatus {
@@ -43,6 +55,11 @@ export class Recorder {
     return this.journey;
   }
 
+  /** The videos made so far, each filed like the capture it belongs to. */
+  get clips(): readonly Clip[] {
+    return this.videos;
+  }
+
   /** The recorded tab's CDP connection, null when nothing is recorded. */
   get cdp(): CdpTransport | null {
     return this.target?.cdp ?? null;
@@ -50,10 +67,15 @@ export class Recorder {
 
   /** Everything a newly opened panel needs to show. */
   snapshot(): WorkerMessage {
-    return { type: 'snapshot', status: this.current, captures: [...this.journey] };
+    return {
+      type: 'snapshot',
+      status: this.current,
+      captures: [...this.journey],
+      clips: [...this.videos],
+    };
   }
 
-  async record(tab: TabSummary): Promise<void> {
+  async record(tab: TabSummary, options: RecordOptions = { video: false }): Promise<void> {
     const { state } = this.current;
     if (this.starting || state === 'recording' || state === 'stopping') {
       throw new Error('Already recording. Stop the current recording first.');
@@ -65,6 +87,7 @@ export class Recorder {
 
       this.target = target;
       this.journey = [];
+      this.videos = [];
       this.current = { state: 'recording', tab, startedAtMs: target.cdp.clock.now() };
       // A snapshot, not a status: panels drop the previous journey with it.
       this.emit(this.snapshot());
@@ -72,8 +95,15 @@ export class Recorder {
       target.onClosed((reason) => void this.stop(endedByChrome[reason]));
 
       try {
-        this.recording = await startRecording(target.cdp, { sinks: [this.sink()] });
+        // The one place the video setting is read: whether there is a clip sink.
+        this.clipWorker = options.video ? await this.startClips() : null;
+        this.recording = await startRecording(target.cdp, {
+          sinks: [this.sink()],
+          ...(this.clipWorker ? { clips: this.clipWorker.sink } : {}),
+        });
       } catch (error) {
+        await this.clipWorker?.close();
+        this.clipWorker = null;
         await target.close();
         this.target = null;
         this.current = { state: 'idle' };
@@ -99,9 +129,12 @@ export class Recorder {
     this.setStatus({ state: 'stopping', tab, startedAtMs });
 
     try {
+      // Drains the clip sink too: the last scroll's video is in by now.
       await this.recording?.stop();
     } finally {
       const droppedFrames = this.recording?.stats.dropped ?? 0;
+      await this.clipWorker?.close();
+      this.clipWorker = null;
       await target.close();
       this.target = null;
       this.recording = null;
@@ -113,6 +146,7 @@ export class Recorder {
   reset(): void {
     if (this.current.state !== 'done') return;
     this.journey = [];
+    this.videos = [];
     this.current = { state: 'idle' };
     this.emit(this.snapshot());
   }
@@ -127,6 +161,15 @@ export class Recorder {
       },
       drain: async () => {},
     };
+  }
+
+  /** The video encoder, its clips going onto the journey and out to the panels. */
+  private startClips(): Promise<ClipWorker> {
+    if (!this.openClips) throw new Error('This recorder cannot make videos.');
+    return this.openClips((clip) => {
+      this.videos.push(clip);
+      this.emit({ type: 'clip', clip });
+    });
   }
 
   private setStatus(status: RecorderStatus): void {

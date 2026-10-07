@@ -1,12 +1,12 @@
 /**
- * Base64 helpers for compositor frames.
+ * Base64 helpers for compositor frames and the videos made of them.
  *
  * Frames arrive at up to 60fps but only a handful are ever captured, so they
- * stay base64 until a sink needs the bytes. Both helpers avoid `Buffer`: `atob`
- * exists in Node, browsers and extension service workers alike.
+ * stay base64 until a sink needs the bytes. No helper uses `Buffer`: `atob`
+ * and `btoa` exist in Node, browsers and extension service workers alike.
  */
 
-export function decodeBase64(base64: string): Uint8Array {
+export function decodeBase64(base64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
