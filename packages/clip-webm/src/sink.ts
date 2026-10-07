@@ -44,10 +44,10 @@ export function clipSinkOver(
     clip.settle();
   });
 
-  const frame = ({ id, frame }: Extract<ClipWrite, { type: 'frame' }>): void => {
+  const frame = ({ id, frame, position }: Extract<ClipWrite, { type: 'frame' }>): void => {
     const clip = filming.get(id);
     const [atMs, timeline] = place(clip?.timeline ?? null, frame.receivedAtMs);
-    const sample = { frameIndex: frame.index, atMs, x: frame.scrollX, y: frame.scrollY };
+    const sample = { frameIndex: frame.index, atMs, ...(position ?? {}) };
     if (clip) {
       clip.timeline = timeline;
       clip.trace.push(sample);

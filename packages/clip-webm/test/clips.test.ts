@@ -84,10 +84,10 @@ describe('clip sink over a channel', () => {
   it("translates the rule's writes into encoder calls, which carry only pictures and times", () => {
     const sent: ToEncoder[] = [];
     const sink = clipSinkOver({ post: (m) => sent.push(m), listen: () => () => {} }, () => {});
-    sink.enqueue({ type: 'frame', id: 'scroll-episode-1', frame: frame('rest', 0, 0, 1) });
-    sink.enqueue({ type: 'frame', id: 'scroll-episode-1', frame: frame('landed', 300, 600, 2) });
+    sink.enqueue({ type: 'frame', id: 'scroll-episode-1', frame: frame('rest', 0, 0, 1), position: null });
+    sink.enqueue({ type: 'frame', id: 'scroll-episode-1', frame: frame('landed', 300, 600, 2), position: null });
     sink.enqueue({ type: 'keep', id: 'scroll-episode-1', capture: post });
-    sink.enqueue({ type: 'frame', id: 'scroll-episode-2', frame: frame('jitter', 900, 3, 3) });
+    sink.enqueue({ type: 'frame', id: 'scroll-episode-2', frame: frame('jitter', 900, 3, 3), position: null });
     sink.enqueue({ type: 'drop', id: 'scroll-episode-2' });
 
     expect(sent).toEqual([
@@ -102,9 +102,10 @@ describe('clip sink over a channel', () => {
   it('stamps each frame with its video time, and files the clip with its trace under the capture it belongs to', async () => {
     const { sink, clips, write } = setUp();
     write(
-      { type: 'frame', id: 'a', frame: frame('rest', 0, 0, 1) },
-      { type: 'frame', id: 'a', frame: frame('moved', 4_000, 300, 2) },
-      { type: 'frame', id: 'a', frame: frame('landed', 4_016, 600, 3) },
+      // Positions are the page's, not the frames' (whose offsets are stale here).
+      { type: 'frame', id: 'a', frame: frame('rest', 0, 54, 1), position: { x: 0, y: 0 } },
+      { type: 'frame', id: 'a', frame: frame('moved', 4_000, 54, 2), position: { x: 0, y: 300 } },
+      { type: 'frame', id: 'a', frame: frame('landed', 4_016, 54, 3), position: { x: 0, y: 600 } },
       { type: 'keep', id: 'a', capture: post },
     );
     await sink.drain();
@@ -132,8 +133,8 @@ describe('clip sink over a channel', () => {
   it('aborts the encoder of a dropped clip, and files nothing', async () => {
     const { sink, clips, log, write } = setUp();
     write(
-      { type: 'frame', id: 'a', frame: frame('rest', 0, 0, 1) },
-      { type: 'frame', id: 'a', frame: frame('moving', 300, 600, 2) },
+      { type: 'frame', id: 'a', frame: frame('rest', 0, 0, 1), position: null },
+      { type: 'frame', id: 'a', frame: frame('moving', 300, 600, 2), position: null },
       { type: 'drop', id: 'a' },
     );
     await sink.drain();
@@ -146,11 +147,11 @@ describe('clip sink over a channel', () => {
   it('gives every clip its own encoder, one finishing while the next is filmed', async () => {
     const { sink, clips, log, write } = setUp();
     write(
-      { type: 'frame', id: 'a', frame: frame('a1', 0, 0, 1) },
-      { type: 'frame', id: 'a', frame: frame('a2', 300, 300, 2) },
+      { type: 'frame', id: 'a', frame: frame('a1', 0, 0, 1), position: null },
+      { type: 'frame', id: 'a', frame: frame('a2', 300, 300, 2), position: null },
       { type: 'keep', id: 'a', capture: post },
-      { type: 'frame', id: 'b', frame: frame('a2', 300, 300, 2) },
-      { type: 'frame', id: 'b', frame: frame('b2', 900, 700, 3) },
+      { type: 'frame', id: 'b', frame: frame('a2', 300, 300, 2), position: null },
+      { type: 'frame', id: 'b', frame: frame('b2', 900, 700, 3), position: null },
       { type: 'keep', id: 'b', capture: { ...post, label: '04-post-scroll-02' } },
     );
     await sink.drain();
@@ -165,14 +166,29 @@ describe('clip sink over a channel', () => {
   it('rejects drain when a clip fails to encode, naming it, after freeing its encoder', async () => {
     const { sink, clips, log, write } = setUp('broken');
     write(
-      { type: 'frame', id: 'a', frame: frame('rest', 0, 0, 1) },
-      { type: 'frame', id: 'a', frame: frame('broken', 300, 600, 2) },
+      { type: 'frame', id: 'a', frame: frame('rest', 0, 0, 1), position: null },
+      { type: 'frame', id: 'a', frame: frame('broken', 300, 600, 2), position: null },
       { type: 'keep', id: 'a', capture: post },
     );
 
     await expect(sink.drain()).rejects.toThrow(/04-post-scroll-01: Error: cannot decode broken/);
     expect(clips).toEqual([]);
     expect(log).toEqual(['encoder 1 aborted']);
+  });
+
+  it('leaves the position out of a trace sample when the page had not said one', async () => {
+    const { sink, clips, write } = setUp();
+    write(
+      { type: 'frame', id: 'a', frame: frame('rest', 0, 0, 1), position: null },
+      { type: 'frame', id: 'a', frame: frame('landed', 300, 0, 2), position: { x: 0, y: 600 } },
+      { type: 'keep', id: 'a', capture: post },
+    );
+    await sink.drain();
+
+    expect(clips[0]?.trace).toEqual([
+      { frameIndex: 1, atMs: 0 },
+      { frameIndex: 2, atMs: 250, x: 0, y: 600 },
+    ]);
   });
 
   it('ignores a keep for a clip it never saw a frame of', async () => {

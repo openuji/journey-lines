@@ -410,4 +410,26 @@ describe('document lifecycle rules', () => {
 
     expect(engine.processEvent(frameEvent()).clipWrites).toEqual([]);
   });
+
+  it("moves where the page said it is after the rules ran: they see where it was", () => {
+    const seen: (string | null)[] = [];
+    const watcher: MilestoneRule<null> = {
+      id: 'watcher',
+      init: () => null,
+      evaluate: (state, event, { currentView }) => {
+        seen.push(`${event.type} ${currentView.position ? currentView.position.y : 'unknown'}`);
+        return unchanged(state);
+      },
+    };
+    const engine = new RulesEngine([watcher]);
+    engine.processEvent(navigated('loader-a'));
+    engine.processEvent({ type: 'page-position', x: 0, y: 0, receivedAtMs: 1, pageTimeMs: 1 });
+    engine.processEvent({ type: 'page-scroll', ended: false, x: 0, y: 300, receivedAtMs: 2, pageTimeMs: 2 });
+    engine.processEvent(frameEvent());
+
+    expect(seen).toEqual(['page-position unknown', 'page-scroll 0', 'frame 300']);
+    // A new document starts from not knowing.
+    engine.processEvent(navigated('loader-b'));
+    expect(engine.currentState.currentView?.position).toBeNull();
+  });
 });

@@ -1,8 +1,9 @@
 /**
  * In-page DOM interaction probe — the observation core.
  *
- * Observes user interactions in the capture phase and hands each one, as a
- * wire payload, to whatever `report` it was installed with. It knows nothing
+ * Observes user interactions in the capture phase, and the page's own
+ * scrolling, and hands each one, as a wire payload, to whatever `report` it
+ * was installed with. It reports; it decides nothing. It knows nothing
  * about how the payload leaves the page: the CDP binding entry
  * (`cdp-binding.ts`) is one delivery channel, an extension content script
  * relaying over `chrome.runtime` would be another.
@@ -13,7 +14,7 @@
 
 import type {
   InteractionAction,
-  InteractionWirePayload,
+  ProbeWirePayload,
   TargetElementMeta,
 } from '@openuji/core/wire';
 import {
@@ -22,8 +23,8 @@ import {
   PROBE_INJECTED_FLAG,
 } from '../constants.js';
 
-/** Receives each observed interaction. Must not throw into the page. */
-export type ProbeReporter = (payload: InteractionWirePayload) => void;
+/** Receives each observed interaction and scroll. Must not throw into the page. */
+export type ProbeReporter = (payload: ProbeWirePayload) => void;
 
 const WHITESPACE = /\s+/g;
 
@@ -141,10 +142,32 @@ export function installProbe(report: ProbeReporter): () => void {
     if (target) emit('click', target);
   };
 
+  // The page's own scrolling: its position at every `scroll`, then its
+  // `scrollend`. Only the top document scrolling itself, not an element with
+  // its own scrollbar, nor a frame inside the page. Listened for on `window`,
+  // which exists before `document.documentElement` does.
+  const onScroll = (event: Event): void => {
+    if (window !== window.top || event.target !== document) return;
+    const action = event.type === 'scrollend' ? 'scrollend' : 'scroll';
+    report({ action, x: window.scrollX, y: window.scrollY, pageTimeMs: Date.now() });
+  };
+  const scrollOptions = { capture: true, passive: true };
+
   window.addEventListener('click', onClick, true);
+  window.addEventListener('scroll', onScroll, scrollOptions);
+  window.addEventListener('scrollend', onScroll, scrollOptions);
+
+  // Where the page is now: the top of a new document, or wherever a page that
+  // was already open has been scrolled to. A scroll's first report is where
+  // it went; this is where it came from.
+  if (window === window.top) {
+    report({ action: 'position', x: window.scrollX, y: window.scrollY, pageTimeMs: Date.now() });
+  }
 
   return () => {
     window.removeEventListener('click', onClick, true);
+    window.removeEventListener('scroll', onScroll, scrollOptions);
+    window.removeEventListener('scrollend', onScroll, scrollOptions);
     window[PROBE_INJECTED_FLAG] = false;
   };
 }

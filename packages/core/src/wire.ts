@@ -31,10 +31,28 @@ export type TargetElementMeta = Readonly<{
   }>;
 }>;
 
-/** Exactly what the probe JSON-serializes into the CDP binding call. */
+/** An interaction with an element, as the probe JSON-serializes it into the CDP binding call. */
 export type InteractionWirePayload = Readonly<{
   action: InteractionAction;
   target: TargetElementMeta;
   /** The page's `Date.now()` at the DOM event — Unix epoch ms, page clock. */
   pageTimeMs: number;
 }>;
+
+/**
+ * The page's own scrolling: where it is when the probe starts (`position`),
+ * its position at each `scroll` event, then its `scrollend` once Chrome
+ * considers the scroll complete. The top document's scrolling only; elements
+ * with their own scrollbar are not reported yet.
+ */
+export type ScrollWirePayload = Readonly<{
+  action: 'position' | 'scroll' | 'scrollend';
+  /** `window.scrollX` / `scrollY`, CSS px. */
+  x: number;
+  y: number;
+  /** The page's `Date.now()` at the DOM event — Unix epoch ms, page clock. */
+  pageTimeMs: number;
+}>;
+
+/** Everything the probe sends. */
+export type ProbeWirePayload = InteractionWirePayload | ScrollWirePayload;

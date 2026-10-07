@@ -9,6 +9,8 @@ import {
   bindingCalled,
   clickPayload,
   frameNavigated,
+  positionPayload,
+  scrollPayload,
   lifecycleEvent,
   navigatedWithinDocument,
   replayOnEnable,
@@ -158,9 +160,14 @@ describe('startRecording', () => {
     const recording = await startRecording(cdp, { sinks: [sink], screencast });
 
     frameNavigated(cdp, 'loader-a');
-    screencastFrame(cdp, { scrollY: 0, data: 'dG9w' });
-    cdp.advance(300); // quiet: the page is proven at rest
-    screencastFrame(cdp, { scrollY: 600, data: 'bGFuZGVk' });
+    bindingCalled(cdp, PROBE_BINDING_NAME, positionPayload(0)); // where the page is
+    screencastFrame(cdp, { data: 'dG9w' });
+    cdp.advance(300);
+    bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600));
+    bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600, true));
+    cdp.advance(16);
+    // The frame's own offset stays stale; the page said where it is.
+    screencastFrame(cdp, { scrollY: 0, data: 'bGFuZGVk' });
     // Chrome sends nothing more.
     cdp.advance(300);
     await settle();
@@ -184,9 +191,10 @@ describe('startRecording', () => {
     const recording = await startRecording(cdp, { sinks: [sink], screencast });
 
     frameNavigated(cdp, 'loader-a');
-    screencastFrame(cdp, { scrollY: 0 });
-    cdp.advance(300); // quiet: the page is proven at rest
-    screencastFrame(cdp, { scrollY: 600 });
+    screencastFrame(cdp);
+    cdp.advance(300);
+    bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600)); // no scrollend yet
+    screencastFrame(cdp);
     await settle();
     await recording.stop();
 
@@ -232,12 +240,16 @@ describe('startRecording', () => {
   });
 
   describe('clips', () => {
-    /** A scroll the default rules record: rest, quiet, one move, quiet. */
+    /** A scroll the default rules record: the page at rest, a jump it reports, its landing. */
     const scroll = (cdp: ReturnType<typeof createFakeCdpTransport>): void => {
       frameNavigated(cdp, 'loader-a');
-      screencastFrame(cdp, { scrollY: 0, data: 'dG9w' });
+      bindingCalled(cdp, PROBE_BINDING_NAME, positionPayload(0)); // the probe starting
+      screencastFrame(cdp, { data: 'dG9w' });
       cdp.advance(300);
-      screencastFrame(cdp, { scrollY: 600, data: 'bGFuZGVk' });
+      bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600));
+      bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600, true));
+      cdp.advance(16);
+      screencastFrame(cdp, { data: 'bGFuZGVk' });
       cdp.advance(300);
     };
 

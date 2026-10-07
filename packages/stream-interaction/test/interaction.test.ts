@@ -44,7 +44,7 @@ describe('createInteractionStream (standalone)', () => {
     await stop();
 
     const out = await collect(events);
-    expect(out.map((e) => [e.action, e.target.selector])).toEqual([
+    expect(out.map((e) => (e.type === 'interaction' ? [e.action, e.target.selector] : e.type))).toEqual([
       ['click', 'button#go'],
     ]);
     expect(out[0]).toMatchObject({
@@ -96,5 +96,15 @@ describe('decodeProbePayload', () => {
 
   it.each(['{not json', 'null', '42'])('rejects %s', (json) => {
     expect(decodeProbePayload(json, 0)).toBeNull();
+  });
+});
+
+describe('decodeProbePayload: the page scrolling', () => {
+  it("decodes where the page is, its scrolls and its scrollend", () => {
+    const at = (action: string, y: number) => JSON.stringify({ action, x: 0, y, pageTimeMs: 1_000 });
+
+    expect(decodeProbePayload(at('position', 0), 5)).toEqual({ type: 'page-position', x: 0, y: 0, receivedAtMs: 5, pageTimeMs: 1_000 });
+    expect(decodeProbePayload(at('scroll', 120), 6)).toEqual({ type: 'page-scroll', ended: false, x: 0, y: 120, receivedAtMs: 6, pageTimeMs: 1_000 });
+    expect(decodeProbePayload(at('scrollend', 300), 7)).toEqual({ type: 'page-scroll', ended: true, x: 0, y: 300, receivedAtMs: 7, pageTimeMs: 1_000 });
   });
 });

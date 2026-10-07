@@ -1,45 +1,58 @@
-import type { ClipWrite, CompositorFrame } from '@openuji/core';
+import type { ClipWrite, CompositorFrame, PagePosition } from '@openuji/core';
 import type { RuleResult } from '@openuji/engine';
-import type { OpenScroll, ScrollEpisodeState } from './scroll.js';
+import { placeFrame, type OpenScroll, type ScrollEpisodeState } from './scroll.js';
 
 /**
  * Which frames make a scroll's video, read off the scroll rule's state.
  *
- * The rule's state already holds all a clip needs: the open scroll, and the
- * frames waiting in `rest.pending` to be proven at rest. So nothing here
- * decides about scrolling; it only compares the state before and after one
- * event, and says what changed as clip writes:
- *  - the open scroll ended: `keep` with its `04` if the rule recorded it,
- *    `drop` if not (a jitter, a page change, the recording stopping);
- *  - a scroll opened, or the page moved again: every frame since the last one
- *    written, through this one. A still frame waits until the page moves
- *    after it, because only then is it inside the scroll.
+ * The page's reports say when a scroll is going on; `placeFrame` says where a
+ * frame belongs. Nothing here decides about scrolling; it compares the state
+ * before and after one event and says what changed:
+ *  - a scroll opened: its `03` frame starts the clip, then the frames already
+ *    on screen since (a picture can come before the report about it);
+ *  - a frame arrived in the scroll: the next frame, up to its `04`; one after
+ *    it landed waits, as the rule holds it;
+ *  - the page moved again: the frames that waited were in the scroll;
+ *  - it ended: `keep` with its `04` if the rule recorded it, `drop` if not.
+ *
+ * Each frame carries where the page last said it was when the frame arrived:
+ * the trace's position.
  */
 export function scrollClipWrites(
   ruleId: string,
   before: ScrollEpisodeState,
   after: RuleResult<ScrollEpisodeState>,
   frame: CompositorFrame | null,
+  position: PagePosition | null,
 ): ClipWrite[] {
   const was = before.open;
   const now = after.nextState.open;
+  const same = was !== null && now !== null && was.start === now.start;
   const writes: ClipWrite[] = [];
 
-  if (was && was.start !== now?.start) {
+  if (now && !same) {
+    const id = clipOf(ruleId, now);
+    writes.push({ type: 'frame', id, frame: now.start, position: now.from });
+    for (const early of before.recent.filter((f) => f.index > now.start.index)) {
+      writes.push({ type: 'frame', id, frame: early, position: now.from });
+    }
+  }
+
+  if (was && frame && placeFrame(was, frame) === 'scroll') {
+    writes.push({ type: 'frame', id: clipOf(ruleId, was), frame, position });
+  }
+
+  // The page moved again: the frames after it seemed to land were in the scroll.
+  if (same && was.after.length > 0 && now.after.length === 0) {
+    for (const waited of was.after) {
+      writes.push({ type: 'frame', id: clipOf(ruleId, was), frame: waited, position });
+    }
+  }
+
+  if (was && !same) {
     const post = after.captures.find((capture) => capture.scrollEpisode);
     const id = clipOf(ruleId, was);
     writes.push(post ? { type: 'keep', id, capture: post } : { type: 'drop', id });
-  }
-
-  if (now && now.lastMoving === frame) {
-    // Frames up to this index are in the clip already.
-    const written = was?.start === now.start ? was.lastMoving.index : now.start.index - 1;
-    // `start` is the frame proven at rest, or one that was waiting to be.
-    const known = [before.rest.proven, ...before.rest.pending.map((w) => w.frame), frame];
-    const id = clipOf(ruleId, now);
-    for (const f of known) {
-      if (f && f.index > written) writes.push({ type: 'frame', id, frame: f });
-    }
   }
 
   return writes;

@@ -18,6 +18,7 @@ const view = (overrides: Partial<ViewState> = {}): ViewState => ({
   entry: 'load',
   firstFrameObserved: true,
   lastFrame: frame({ scrollY: 90 }),
+  position: { x: 0, y: 90 },
   ...overrides,
 });
 
@@ -110,6 +111,13 @@ describe('enterView', () => {
       entry: 'load',
       firstFrameObserved: false,
       lastFrame: null,
+      position: null,
     });
+  });
+
+  it('keeps where the page said it was across a route change', () => {
+    const next = enterView(view(), asNavigated(withinDocument(at('/list/42'))), 'route', counts);
+
+    expect(next.position).toEqual({ x: 0, y: 90 });
   });
 });

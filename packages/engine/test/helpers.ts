@@ -89,3 +89,17 @@ export function click(selector?: string, receivedAtMs = 0): DomainEvent {
 export function quiet(receivedAtMs = 0): DomainEvent {
   return { type: 'quiet', receivedAtMs };
 }
+
+/** The page reporting where it scrolled to; `ended` is its `scrollend`. */
+export function pageScroll(
+  y: number,
+  receivedAtMs: number,
+  { ended = false, x = 0 }: { ended?: boolean; x?: number } = {},
+): DomainEvent {
+  return { type: 'page-scroll', ended, x, y, receivedAtMs, pageTimeMs: receivedAtMs };
+}
+
+/** The page saying where it is when the probe starts in it. */
+export function pageAt(y: number, receivedAtMs = 0, x = 0): DomainEvent {
+  return { type: 'page-position', x, y, receivedAtMs, pageTimeMs: receivedAtMs };
+}

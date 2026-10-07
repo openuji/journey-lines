@@ -3,7 +3,14 @@ import { createFakeCdpTransport, type FakeCdpTransport } from '@openuji/cdp/test
 import type { Clip, ClipWrite } from '@openuji/core';
 import type { ClipWorker } from '@openuji/clip-webm';
 import type { DetachReason, ExtensionTarget } from '@openuji/host-extension';
-import { frameNavigated, screencastFrame } from '../../../packages/cdp/test/events.js';
+import { PROBE_BINDING_NAME } from '@openuji/stream-interaction';
+import {
+  bindingCalled,
+  frameNavigated,
+  positionPayload,
+  screencastFrame,
+  scrollPayload,
+} from '../../../packages/cdp/test/events.js';
 import type { OpenClips } from '../src/lib/clips';
 import type { WorkerMessage } from '../src/lib/protocol';
 import { Recorder } from '../src/lib/recorder';
@@ -73,12 +80,16 @@ function setup() {
   return { cdp, tab, messages, recorder, clips: video.clips };
 }
 
-/** A scroll the default rules record: the page at rest, one move, then nothing. */
+/** A scroll the default rules record: the page at rest, a jump it reports, its landing. */
 function scroll(cdp: FakeCdpTransport): void {
   frameNavigated(cdp, 'loader-a', { url: TAB.url });
-  screencastFrame(cdp, { scrollY: 0 });
+  bindingCalled(cdp, PROBE_BINDING_NAME, positionPayload(0)); // the probe starting
+  screencastFrame(cdp);
   cdp.advance(300);
-  screencastFrame(cdp, { scrollY: 600 });
+  bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600));
+  bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600, true));
+  cdp.advance(16);
+  screencastFrame(cdp);
   cdp.advance(300);
 }
 

@@ -72,7 +72,7 @@ class MemorySink implements CaptureSink {
       .map((capture) => capture.label);
   }
 
-  /** The scroll captures of one URL, each with the page offset its frame shows. */
+  /** The scroll captures of one URL, each with where the page said it was. */
   public scrolls(url: string): string[] {
     return this.captures
       .filter(
@@ -81,7 +81,7 @@ class MemorySink implements CaptureSink {
           (capture.label.startsWith(InteractionLabel.preScroll) ||
             capture.label.startsWith(InteractionLabel.postScroll)),
       )
-      .map(({ label, frame }) => `${label} ${frame.scrollY}`);
+      .map(({ label, position }) => `${label} ${position?.y ?? '?'}`);
   }
 }
 
@@ -302,8 +302,8 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
 
         await click(target.cdp, BUTTON_CENTER.x, BUTTON_CENTER.y);
         await vi.waitFor(() => {
-          const clicked = events.find((event) => event.action === 'click');
-          expect(clicked?.target.selector).toBe('button#go');
+          const clicked = events.find((event) => event.type === 'interaction' && event.action === 'click');
+          expect(clicked?.type === 'interaction' && clicked.target.selector).toBe('button#go');
         }, WAIT);
 
         await interaction.stop();
@@ -411,11 +411,13 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           '03-pre-scroll-02 600',
           '04-post-scroll-02 1400',
         ]);
-        // The image itself, not just the offset it reports: a frame's image can
-        // be newer than its offset, so the one before the offset moved may
-        // already show the scroll.
+        // The image itself: the 03 is the page at rest, even where a picture of
+        // the move arrives before the page's report about it (headless), and
+        // the 04 shows something else.
         const pre = sink.captures.find((capture) => capture.label === preScroll);
+        const post = sink.captures.find((capture) => capture.label === postScroll);
         expect(pre?.frame.base64).toBe(atRest);
+        expect(post?.frame.base64).not.toBe(pre?.frame.base64);
 
         // Each scroll's clip: every frame from its 03 to its 04, none missing,
         // none twice. The frames between include those that showed the scroll
@@ -434,6 +436,59 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           const indices = frames.map((f) => f.index);
           expect(indices).toEqual(indices.map((_, k) => (from?.index ?? NaN) + k));
         });
+      }));
+
+    /** A recording of `/still`, at rest, and a way to read its scrolls. */
+    const recordStill = async (target: RecordingTarget) => {
+      const url = fixture.url('/still');
+      const sink = new MemorySink();
+      const recording = await startRecording(target.cdp, {
+        sinks: [sink],
+        screencast: { viewport: target.viewport },
+      });
+      await target.navigate(url);
+      await waitForLoaded(target.cdp, url);
+      await vi.waitFor(() => expect(sink.labels(url)).toContain(DocumentLabel.first), WAIT);
+      await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+      return { url, sink, recording };
+    };
+
+    // The fu-berlin.de bug: one gesture recorded as two or three scrolls while
+    // the frames' offsets stalled. The page's reports keep it one.
+    it('pipeline: a touchpad gesture is one scroll, however long the frames take to report it', () =>
+      withTarget(async (target) => {
+        const { url, sink, recording } = await recordStill(target);
+
+        await target.cdp.send('Input.synthesizeScrollGesture', {
+          x: SCROLL_POINT.x,
+          y: SCROLL_POINT.y,
+          yDistance: -900,
+          speed: 1200,
+          gestureSourceType: 'touch',
+        });
+        await vi.waitFor(() => expect(sink.labels(url)).toContain(postScroll), WAIT);
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        await recording.stop();
+
+        const scrolls = sink.scrolls(url);
+        expect(scrolls).toHaveLength(2);
+        expect(scrolls[0]).toBe('03-pre-scroll-01 0');
+        expect(Number(scrolls[1]?.split(' ')[1])).toBeGreaterThan(600);
+      }));
+
+    it('pipeline: a spin of wheel notches is one scroll', () =>
+      withTarget(async (target) => {
+        const { url, sink, recording } = await recordStill(target);
+
+        for (let notch = 0; notch < 5; notch++) {
+          await wheel(target.cdp, SCROLL_POINT.x, SCROLL_POINT.y, 100);
+          await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+        await vi.waitFor(() => expect(sink.labels(url)).toContain(postScroll), WAIT);
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+        await recording.stop();
+
+        expect(sink.scrolls(url)).toEqual(['03-pre-scroll-01 0', '04-post-scroll-01 500']);
       }));
 
     for (const [kind, link] of [

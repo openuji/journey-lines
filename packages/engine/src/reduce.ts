@@ -1,5 +1,6 @@
 import type {
   ClipWrite,
+  CompositorFrame,
   DomainEvent,
   MilestoneCapture,
   ViewEntry,
@@ -134,7 +135,8 @@ function enter(
  *     there. One that only changes the URL showing updates it in place, so the
  *     rules below already see the new URL.
  *  2. Rules then evaluate against the current view.
- *  3. Only afterwards does `lastFrame` advance to the frame this event carried.
+ *  3. Only afterwards does `lastFrame` advance to the frame this event carried,
+ *     and `position` to where the page's report says it now is.
  *     That gap is what lets one rule capture the resting frame *before* an
  *     event while another captures the frame *after* it.
  */
@@ -172,12 +174,23 @@ export function reduce(
   return {
     state: {
       ...state,
-      currentView: currentFrame
-        ? { ...currentView, firstFrameObserved: true, lastFrame: currentFrame }
-        : currentView,
+      currentView: advance(currentView, event, currentFrame),
       ruleStates: evaluated.ruleStates,
     },
     captures: evaluated.captures,
     clipWrites: evaluated.clipWrites,
   };
+}
+
+/** The view after an event: its newest frame, and where the page last said it is. */
+function advance(
+  view: ViewState,
+  event: DomainEvent,
+  frame: CompositorFrame | null,
+): ViewState {
+  if (frame) return { ...view, firstFrameObserved: true, lastFrame: frame };
+  if (event.type === 'page-scroll' || event.type === 'page-position') {
+    return { ...view, position: { x: event.x, y: event.y } };
+  }
+  return view;
 }

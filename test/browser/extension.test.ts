@@ -195,7 +195,7 @@ describe('extension host against a real browser', () => {
 
     const scrollYOf = (label: string): Promise<number | undefined> =>
       extension.worker.evaluate(
-        (label) => recorder.captures.find((capture) => capture.label === label)?.frame.scrollY,
+        (label) => recorder.captures.find((capture) => capture.label === label)?.position?.y,
         label,
       );
     expect(await scrollYOf(preScroll)).toBe(0);
@@ -250,12 +250,11 @@ describe('extension host against a real browser', () => {
     await panel.close();
   });
 
-  // On the fixture's animated page: in this host, on a page that does not
-  // repaint by itself, the screencast never reports a wheel scroll's offset
-  // (measured on Chrome 154, 2026-10-07), so no scroll is recorded there.
+  // On `/still`: in this host the screencast never reports a still page's
+  // scroll offset (Chrome 154), so only the page's own reports can show it.
   describe('video of each scroll', () => {
     it('makes none unless asked: no encoder document is opened', async () => {
-      const tabId = await openTab(fixture.url('/'));
+      const tabId = await openTab(fixture.url('/still'));
       await record(tabId);
       await scrollOnce();
 
@@ -265,7 +264,7 @@ describe('extension host against a real browser', () => {
     });
 
     it('asked for, files the scroll\'s WebM under its 04 with its trace, and closes the encoder at Stop', async () => {
-      const tabId = await openTab(fixture.url('/'));
+      const tabId = await openTab(fixture.url('/still'));
       await record(tabId, { video: true });
       expect(await hasEncoderDocument()).toBe(true);
       await scrollOnce();
@@ -299,7 +298,7 @@ describe('extension host against a real browser', () => {
     });
 
     it('plays in the panel: the toggle before Record, then a play button on the 04 row', async () => {
-      await openTab(fixture.url('/'));
+      await openTab(fixture.url('/still'));
       const panel = await extension.openPanel();
       const press = async (selector: string): Promise<void> => {
         await panel.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);

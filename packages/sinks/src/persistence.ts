@@ -53,10 +53,7 @@ export class PersistenceSink implements CaptureSink {
       screenshotFile: file.name,
       screenshotPath: file.path,
       byteLength: base64ByteLength(capture.frame.base64),
-      scroll: {
-        x: capture.frame.scrollX,
-        y: capture.frame.scrollY,
-      },
+      ...(capture.position ? { scroll: capture.position } : {}),
       detail: capture.detail,
       ...(capture.domTarget ? { domTarget: capture.domTarget } : {}),
       ...(capture.scrollEpisode ? { scrollEpisode: capture.scrollEpisode } : {}),

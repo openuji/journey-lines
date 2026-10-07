@@ -1,4 +1,4 @@
-import type { CompositorFrame, MilestoneCapture } from './domain.js';
+import type { CompositorFrame, MilestoneCapture, PagePosition } from './domain.js';
 
 /**
  * Clips: a video of a span of the page. Today the span is a scroll.
@@ -20,8 +20,11 @@ export type ClipFiling = Pick<
  * rule knows it belongs; then whether the span is kept. Data, like a capture.
  */
 export type ClipWrite =
-  /** The next frame of clip `id`. The first one opens it. */
-  | Readonly<{ type: 'frame'; id: string; frame: CompositorFrame }>
+  /**
+   * The next frame of clip `id`; the first one opens it. `position` is where
+   * the page last said it was when the frame arrived, null if it hasn't said.
+   */
+  | Readonly<{ type: 'frame'; id: string; frame: CompositorFrame; position: PagePosition | null }>
   /** Clip `id` is complete. `capture` is the capture it belongs to. */
   | Readonly<{ type: 'keep'; id: string; capture: MilestoneCapture }>
   /** Clip `id` is not kept: forget it. */
@@ -50,9 +53,12 @@ export type ClipTraceSample = Readonly<{
   frameIndex: number;
   /** Time in the video, ms from its start. */
   atMs: number;
-  /** The page's offset as the frame reported it; it can trail the picture. */
-  x: number;
-  y: number;
+  /**
+   * Where the page last said it was when the frame arrived; absent before it
+   * said. The picture can lead it by a frame or two.
+   */
+  x?: number;
+  y?: number;
 }>;
 
 /**

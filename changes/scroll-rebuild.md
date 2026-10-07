@@ -2,7 +2,7 @@
 
 Scroll capture was removed on 2026-10-05 (`roadmap-scroll.md`). It comes back in steps, each with its own plan. **S1 was built on 2026-10-06.**
 
-One rule runs through every step: **frames alone choose images.** The in-page probe may add data to a scroll (who scrolled, exact positions), but it never decides which frame is captured or when a scroll ends.
+One rule runs through every step: **frames alone choose images.** Since 2026-10-07 the page's own reports decide *when* a scroll starts and ends (see "S1 revised" below), reversing the earlier "the probe never decides when a scroll ends". They still never choose a picture.
 
 ## Why scroll was removed
 
@@ -99,6 +99,40 @@ The browser suite checks it for page loads and for both SPA router orders.
   - routes: Chrome's soft-navigation report also comes after the old route's late pictures, but only an in-page script receives it, and only for a person's click.
 - **Not fixed:** every fix needed extra view state, because Chrome reports no paint for a route, for the page showing at attach, or for a page restored by Back. That was too much complexity for one picture.
 
+## S1 revised: timing from the page, pictures from the frames (2026-10-07)
+
+**Why.** You tried `dev:extension` on www.fu-berlin.de after S1, and one gesture was recorded as two scrolls (260 → 312): the FU-session bug again. Measured in the extension host (Chrome 154):
+- **Frame offsets stall.** During a trackpad-like flick the offset stamped on frames stayed at 54 for 460 ms while 27 different pictures arrived. The page's own `scroll` events reported 72 … 312 every ~25 ms over the same span.
+- **They also never catch up.** After a scroll the offset often stays wrong (3660 shown, page at 4291). So S1's 250 ms "no motion" rule split one gesture into two or three scrolls, and the same cause made the extension record no scroll at all on still pages.
+- **The page's reports are continuous:** longest pause 61 ms (181 ms on a page busy with its own JavaScript); page → recorder ≤ 20 ms.
+- **`scrollend` fires once per gesture** (touchpad, PageDown, an instant jump; separate wheel events each get one). The landing picture came at most 39 ms after it.
+- **The order differs by Chrome.** Headed, the report came 17–50 ms before the first moving picture; in headless-shell the picture came 6–8 ms first.
+
+**What changed (your decisions in bold):**
+- **The page's reports decide when:**
+  - the probe reports where the page is when it starts, its position at every `scroll`, and its `scrollend`, from the top document only;
+  - a scroll starts at the first report and ends once the page has said `scrollend` and reported nothing for 250 ms (your "the same for 240 ms, then changes");
+  - **it also ends after 1 s of silence without `scrollend`.**
+- **Frames choose every picture.** A picture and its report arrive within 100 ms of each other, either way round (`REPORT_SLACK_MS`):
+  - `03` is the newest frame at least 100 ms before the first report;
+  - `04` is the newest frame up to 100 ms after the last report, fixed by that report and not by when the end is noticed;
+  - the clip is every frame between them.
+- Reports in a view's first 250 ms are the page arriving (a router's reset, a restored scroll position), as in S1.
+- **Positions come only from the page:**
+  - the `04` path is the page's reports;
+  - the video trace carries the page's last reported position per frame;
+  - **every record's `scroll` is where the page last said it was** (the `03`'s: before the scroll), left out until the page has said.
+
+  Frame offsets stay on `CompositorFrame` as raw data.
+- **Removed:** the rest proof (`rest.ts`), the `firstPaint` start-over and offset tracking.
+
+**Checked:**
+- The fu-berlin.de repro gives one scroll, twice, with the page's 128 reports.
+- A touchpad gesture and a notch spin give one scroll each (browser suite).
+- The extension records a scroll on the still fixture page.
+
+**Known limit:** on a busy page, reports can lag (181 ms measured) and a jump can be painted late (912 ms once); its `04` is then the first picture that came.
+
 ## S1b: a video of each scroll, as a setting
 
 Plan: `~/.claude/plans/ok-plan-s1b-in-validated-anchor.md`.
@@ -134,10 +168,7 @@ Plan: `~/.claude/plans/ok-plan-s1b-in-validated-anchor.md`.
   - "Play video" on the `04` row.
   - Pitfall: WXT sets `'wasm-unsafe-eval'` only in dev, so a production build silently fell back to libav's missing asm.js. The manifest now sets the CSP.
 
-**Found while building Phase E (2026-10-07), separate from S1b:**
-- In the extension host, a wheel scroll on a page that doesn't repaint by itself is never reported in the screencast's offsets: they stay 0 at scale factor 1 and 2, with or without the pin. The Puppeteer host reports the same scroll on the same page.
-- So the extension records no scroll on still pages. Its tests use the animated fixture page.
-- Needs its own investigation.
+**Found while building Phase E (2026-10-07):** in the extension host, a still page's scroll is never reported in the screencast's offsets. It is fixed by "S1 revised" above: scrolls are timed by the page, and the extension's tests use the still page again.
 
 ## S1c: `quiet` for `01`/`02`
 
@@ -145,15 +176,15 @@ Plan: `~/.claude/plans/ok-plan-s1b-in-validated-anchor.md`.
 
 ## S2: who scrolled
 
-Probe scroll input (wheel, touch, keys, scrollbar) is attached to a scroll that frames already opened and ended. It is decided once, at the end, and never picks a frame.
+Probe scroll input (wheel, touch, keys, scrollbar) is attached to a scroll that the page's reports already opened and ended. It is decided once, at the end, and never picks a frame.
 - **Earlier decision:** programmatic scrolls get their own labels `05`/`06`. Revisit whether origin should be a data field instead.
 - **Measured on 2026-10-05:** by the time the `wheel` DOM event fires, an element has already moved. Note resting positions on `pointerover`, `touchstart` or the scroll key's `keydown`.
 - **The probe runs before `document.documentElement` exists.** One exception there silently stopped all its reporting.
 
-## S3: exact positions and scroll depth
+## S3: scroll depth
 
-The probe's positions, and `maxY` for scroll depth, are matched to frames **by offset, not by which event arrived first**. A late or early probe event can then change a field, never an image.
+The page's exact positions are in since "S1 revised": the `04` path, every record's `scroll`, the video trace. What remains is scroll depth: the furthest the page has been in a view, derivable from the paths and positions, so it may not need a field of its own.
 
 ## S4: elements with their own scrollbar
 
-Frames carry only the page's offset, so an element's scroll does not show in them. Its images can only be approximate: the frames on either side of the probe's `scrollstart`/`scrollend`. Page and element scroll stay one concept, with the scroller as a data field.
+The probe reports the top document's scrolling only. An element's own `scroll`/`scrollend` can be reported the same way, timed by the page as the page's own are, with the scroller as a data field: page and element scroll stay one concept.

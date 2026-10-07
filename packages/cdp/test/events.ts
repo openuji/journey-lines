@@ -1,4 +1,4 @@
-import type { InteractionWirePayload } from '@openuji/core';
+import type { InteractionWirePayload, ScrollWirePayload } from '@openuji/core';
 import type { FakeCdpTransport } from '@openuji/cdp/testing';
 
 /**
@@ -114,6 +114,23 @@ export function clickPayload(selector = 'a.link'): string {
     },
     pageTimeMs: 1_700_000_000_000,
   };
+  return JSON.stringify(payload);
+}
+
+/** The page reporting where it scrolled to; `ended` is its `scrollend`. */
+export function scrollPayload(y: number, ended = false, x = 0): string {
+  const payload: ScrollWirePayload = {
+    action: ended ? 'scrollend' : 'scroll',
+    x,
+    y,
+    pageTimeMs: 1_700_000_000_000,
+  };
+  return JSON.stringify(payload);
+}
+
+/** The page saying where it is when the probe starts in it. */
+export function positionPayload(y: number, x = 0): string {
+  const payload: ScrollWirePayload = { action: 'position', x, y, pageTimeMs: 1_700_000_000_000 };
   return JSON.stringify(payload);
 }
 

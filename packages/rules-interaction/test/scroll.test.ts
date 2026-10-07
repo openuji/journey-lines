@@ -1,394 +1,396 @@
 import { describe, expect, it } from 'vitest';
-import { QUIET_AFTER_MS, type DomainEvent, type MilestoneCapture } from '@openuji/core';
+import { QUIET_AFTER_MS, type CompositorFrame, type DomainEvent, type MilestoneCapture } from '@openuji/core';
 import { RulesEngine, type MilestoneRule } from '@openuji/engine';
 import { defaultInteractionRules, ScrollEpisodeRule } from '@openuji/rules-interaction';
 import {
   click,
   frame,
-  frameEvent,
-  milestone,
   navigated,
+  pageAt,
+  pageScroll,
   quiet,
   withinDocument,
 } from '../../engine/test/helpers.js';
 
-function run(
-  events: readonly DomainEvent[],
-  rules: readonly MilestoneRule[] = [ScrollEpisodeRule],
-): MilestoneCapture[] {
-  const engine = new RulesEngine(rules);
-  return events.flatMap((event) => [...engine.processEvent(event).captures]);
-}
-
-/** Label and the offset of the frame each capture shows. */
-function scrolls(captures: readonly MilestoneCapture[]): string[] {
-  return captures.map((c) => `${c.label} ${c.frame.scrollX},${c.frame.scrollY}`);
-}
-
-/** The page painted at `y`, then nothing for long enough to prove it at rest. */
-function resting(y: number, atMs: number): DomainEvent[] {
-  return [frameEvent({ scrollY: y, receivedAtMs: atMs }), quiet(atMs + QUIET_AFTER_MS)];
-}
-
-/** A page that keeps painting at `y`: a frame every 16 ms over `[fromMs, toMs]`. */
-function ticking(y: number, fromMs: number, toMs: number): DomainEvent[] {
-  const frames: DomainEvent[] = [];
-  for (let at = fromMs; at <= toMs; at += 16) {
-    frames.push(frameEvent({ scrollY: y, receivedAtMs: at }));
-  }
-  return frames;
+/**
+ * Scripts a page: named frames, so each capture says which picture it took.
+ * A frame's own offset is left at a stale value on purpose: the rule must
+ * never read it.
+ */
+function script() {
+  const names = new Map<CompositorFrame, string>();
+  const shown = (name: string, receivedAtMs: number, staleOffset = 0): DomainEvent => {
+    const f = frame({ scrollY: staleOffset, receivedAtMs });
+    names.set(f, name);
+    return { type: 'frame', frame: f };
+  };
+  const run = (events: readonly DomainEvent[], rules: readonly MilestoneRule[] = [ScrollEpisodeRule]) => {
+    const engine = new RulesEngine(rules);
+    return events.flatMap((event) => [...engine.processEvent(event).captures]);
+  };
+  /** Each capture as `label picture`. */
+  const read = (captures: readonly MilestoneCapture[]): string[] =>
+    captures.map((c) => `${c.label} ${names.get(c.frame) ?? '?'}`);
+  return { shown, run, read };
 }
 
 describe('ScrollEpisodeRule', () => {
-  it('ends a scroll on a page that stops painting on quiet, with the frames from either side', () => {
+  it("ends once the page said scrollend and reported nothing for 250 ms: 03 is the frame before its first report, 04 the newest after its last", () => {
+    const { shown, run, read } = script();
     const captures = run([
       navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 600, receivedAtMs: 300 }), // an instant scroll: one frame
-      quiet(550), // Chrome sends nothing more
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(100, 300),
+      shown('moving', 316),
+      pageScroll(200, 332),
+      pageScroll(200, 340, { ended: true }),
+      shown('landed', 360),
+      quiet(340 + QUIET_AFTER_MS),
     ]);
 
-    expect(scrolls(captures)).toEqual(['03-pre-scroll-01 0,0', '04-post-scroll-01 0,600']);
-    expect(captures[1]?.scrollEpisode?.path.map((s) => s.y)).toEqual([0, 600]);
-    expect(captures[1]?.detail).toBe(
-      'Post-scroll #1 of the page: (0, 0) → (0, 600), travelled 600px',
-    );
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 landed']);
+    expect(captures[1]?.scrollEpisode?.path.map((s) => s.y)).toEqual([100, 200, 200]);
+    expect(captures.map((c) => c.detail)).toEqual([
+      'Pre-scroll #1 of the page at (0, 0)',
+      'Post-scroll #1 of the page: (0, 0) → (0, 200), travelled 200px',
+    ]);
+    // Each record's position is the page's own: where it was, where it landed.
+    expect(captures.map((c) => c.position)).toEqual([{ x: 0, y: 0 }, { x: 0, y: 200 }]);
   });
 
   /**
-   * Measured on Chrome 154 (still page, CDP wheel): a frame's image can be
-   * newer than the offset it reports. f002 and f003 already showed the page
-   * scrolled while reporting 0, so the frame before the offset moved (f003)
-   * is no "before". The page last proven at rest (f001) is.
+   * Measured on www.fu-berlin.de (Chrome 154): the offset stamped on frames
+   * stayed at 54 for 460 ms while 27 different pictures arrived and the page
+   * reported 72 … 312. Frame offsets split that gesture in three; the page's
+   * reports keep it one.
    */
-  it('takes its before from the page proven at rest, not the frames whose images may already have moved', () => {
-    // Numbered in arrival order, as the compositor source numbers them.
-    const f001 = frame({ scrollY: 0, receivedAtMs: 0 });
-    const f002 = frame({ scrollY: 0, receivedAtMs: 500 }); // shows 600, reports 0
-    const f003 = frame({ scrollY: 0, receivedAtMs: 504 }); // shows 600, reports 0
-    const f004 = frame({ scrollY: 600, receivedAtMs: 520 });
-    const captures = run([
-      navigated('loader-a'),
-      { type: 'frame', frame: f001 },
-      quiet(250),
-      { type: 'frame', frame: f002 },
-      { type: 'frame', frame: f003 },
-      { type: 'frame', frame: f004 },
-      quiet(770),
-    ]);
+  it('keeps one gesture one scroll while the frames’ offsets stall, taking positions from the page', () => {
+    const { shown, run, read } = script();
+    const events: DomainEvent[] = [navigated('loader-a'), pageAt(0, 0), shown('rest', 10, 0)];
+    for (let i = 0; i < 20; i++) {
+      const at = 300 + i * 25;
+      events.push(pageScroll(18 * (i + 1), at), shown(`f${i}`, at + 10, 54));
+    }
+    events.push(pageScroll(360, 800, { ended: true }), shown('landed', 820, 54), quiet(1_050));
 
-    expect(captures.map((c) => c.label)).toEqual(['03-pre-scroll-01', '04-post-scroll-01']);
-    expect(captures[0]?.frame).toBe(f001);
-    expect(captures[1]?.frame).toBe(f004);
+    const captures = run(events);
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 landed']);
+    expect(captures[1]?.scrollEpisode?.path.at(-1)?.y).toBe(360);
   });
 
-  it('on a page that keeps painting, takes the latest frame 250 ms old as its before, and ends at the landing frame', () => {
-    const captures = run([
-      navigated('loader-a'),
-      ...ticking(0, 0, 400),
-      frameEvent({ scrollY: 100, receivedAtMs: 416 }),
-      frameEvent({ scrollY: 200, receivedAtMs: 432 }),
-      frameEvent({ scrollY: 300, receivedAtMs: 448 }),
-      ...ticking(300, 464, 800),
-    ]);
+  it('keeps a spin of wheel notches one scroll: each says scrollend, the next moves again within 250 ms', () => {
+    const { shown, run, read } = script();
+    const events: DomainEvent[] = [navigated('loader-a'), pageAt(0, 0), shown('rest', 10)];
+    for (let i = 0; i < 4; i++) {
+      const at = 300 + i * 100;
+      events.push(pageScroll(100 * (i + 1), at), pageScroll(100 * (i + 1), at, { ended: true }), shown(`notch-${i}`, at + 20));
+    }
+    events.push(quiet(600 + QUIET_AFTER_MS));
 
-    expect(scrolls(captures)).toEqual(['03-pre-scroll-01 0,0', '04-post-scroll-01 0,300']);
-    // At 416 the frames up to 166 ms are proven at rest; the latest came at 160.
-    expect(captures[0]?.frame.receivedAtMs).toBe(160);
-    // The landing frame, not a later still one.
-    expect(captures[1]?.frame.receivedAtMs).toBe(448);
-    expect(captures[1]?.scrollEpisode?.path.map((s) => s.y)).toEqual([0, 100, 200, 300]);
+    expect(read(run(events))).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 notch-3']);
   });
 
-  it('decides nothing while the page keeps painting less than 250 ms after the last motion', () => {
+  it('records an instant jump from where the page said it was', () => {
+    const { shown, run, read } = script();
     const captures = run([
       navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 600, receivedAtMs: 300 }),
-      ...ticking(600, 316, 549),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(800, 300),
+      pageScroll(800, 300, { ended: true }),
+      shown('jumped', 330),
+      quiet(550),
     ]);
 
-    expect(captures).toEqual([]);
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 jumped']);
+    expect(captures[1]?.detail).toContain('travelled 800px');
   });
 
-  it("takes movement in a page's first 250 ms for the page arriving, not a scroll: never a 04 without its 03", () => {
+  it('tells two gestures apart by the 250 ms after the first one’s scrollend', () => {
+    const { shown, run, read } = script();
     const captures = run([
       navigated('loader-a'),
-      frameEvent({ scrollY: 0, receivedAtMs: 0 }),
-      frameEvent({ scrollY: 600, receivedAtMs: 50 }),
-      quiet(300),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(200, 300),
+      pageScroll(200, 310, { ended: true }),
+      shown('first-landed', 330),
+      shown('still', 600),
+      pageScroll(400, 700),
+      pageScroll(400, 710, { ended: true }),
+      shown('second-landed', 730),
+      quiet(960),
     ]);
 
-    expect(captures).toEqual([]);
+    expect(read(captures)).toEqual([
+      '03-pre-scroll-01 rest',
+      // Its own landing, not the frame on screen when its end was noticed.
+      '04-post-scroll-01 first-landed',
+      '03-pre-scroll-02 still',
+      '04-post-scroll-02 second-landed',
+    ]);
   });
 
-  it('tells two scrolls apart by the pause between them, even with no frame in it', () => {
+  it('keeps a pause with the finger down one scroll: no scrollend, so not over', () => {
+    const { shown, run, read } = script();
     const captures = run([
       navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 300, receivedAtMs: 300 }),
-      // Nothing painted for a second, then the next scroll.
-      frameEvent({ scrollY: 700, receivedAtMs: 1_300 }),
-      quiet(1_550),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(100, 300),
+      shown('moving', 310),
+      // 600 ms without a report and without scrollend: the finger rests.
+      shown('resting', 700),
+      pageScroll(300, 910),
+      pageScroll(300, 920, { ended: true }),
+      shown('landed', 940),
+      quiet(1_170),
     ]);
 
-    expect(scrolls(captures)).toEqual([
-      '03-pre-scroll-01 0,0',
-      '04-post-scroll-01 0,300',
-      '03-pre-scroll-02 0,300',
-      '04-post-scroll-02 0,700',
-    ]);
-    // Where the first landed, proven at rest, is where the second set off.
-    expect(captures[1]?.frame).toBe(captures[2]?.frame);
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 landed']);
   });
 
-  it('keeps a pause shorter than 250 ms inside one scroll', () => {
+  it('ends a scroll whose scrollend never comes, after 1 s of silence', () => {
+    const { shown, run, read } = script();
     const captures = run([
       navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 300, receivedAtMs: 300 }),
-      frameEvent({ scrollY: 600, receivedAtMs: 500 }),
-      quiet(750),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(300, 300),
+      shown('landed', 320),
+      quiet(550), // not yet: no scrollend
+      quiet(1_300),
     ]);
 
-    expect(scrolls(captures)).toEqual(['03-pre-scroll-01 0,0', '04-post-scroll-01 0,600']);
-    expect(captures[1]?.scrollEpisode?.path.map((s) => s.y)).toEqual([0, 300, 600]);
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 landed']);
+  });
+
+  it('takes as 04 the newest frame within 100 ms of the last report, whenever the end is noticed', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('loader-a'),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(500, 300),
+      pageScroll(500, 310, { ended: true }),
+      shown('arriving', 320),
+      shown('landed', 350),
+      shown('image-loaded', 480), // after the landing: not the 04
+      quiet(730),
+    ]);
+
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 landed']);
+  });
+
+  it('waits for a frame newer than the last report: the picture of where the page landed', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('loader-a'),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(500, 300),
+      pageScroll(500, 300, { ended: true }),
+      quiet(550), // 250 ms on, but nothing painted since the report
+      shown('painted-late', 900),
+    ]);
+
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 painted-late']);
+  });
+
+  /** Measured in headless-shell (Chrome 154): the picture came 6–8 ms before the page's report about it. */
+  it('starts from the page at rest when a picture comes ahead of the report, and lands on it if nothing paints after', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('loader-a'),
+      pageAt(0, 0),
+      shown('rest', 10),
+      shown('jumped', 294),
+      pageScroll(600, 300),
+      pageScroll(600, 300, { ended: true }),
+      quiet(550),
+    ]);
+
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 jumped']);
+  });
+
+  it('counts a horizontal scroll', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('loader-a'),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(0, 300, { x: 500 }),
+      pageScroll(0, 300, { x: 500, ended: true }),
+      shown('landed', 320),
+      quiet(550),
+    ]);
+
+    expect(read(captures)).toEqual(['03-pre-scroll-01 rest', '04-post-scroll-01 landed']);
+    expect(captures[1]?.detail).toBe('Post-scroll #1 of the page: (0, 0) → (500, 0), travelled 500px');
   });
 
   it('keeps a scroll down and back up, though it ends where it started', () => {
+    const { shown, run } = script();
     const captures = run([
       navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 400, receivedAtMs: 316 }),
-      frameEvent({ scrollY: 0, receivedAtMs: 332 }),
-      quiet(600),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(400, 300),
+      pageScroll(0, 320),
+      pageScroll(0, 330, { ended: true }),
+      shown('back', 340),
+      quiet(580),
     ]);
 
-    expect(scrolls(captures)).toEqual(['03-pre-scroll-01 0,0', '04-post-scroll-01 0,0']);
     expect(captures[1]?.detail).toContain('travelled 800px');
   });
 
   it('drops a jitter that travels less than 8 px', () => {
-    const captures = run([
-      navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 3, receivedAtMs: 316 }),
-      frameEvent({ scrollY: 0, receivedAtMs: 332 }),
-      quiet(600),
-    ]);
-
-    expect(captures).toEqual([]);
+    const { shown, run } = script();
+    expect(
+      run([
+        navigated('loader-a'),
+        pageAt(0, 0),
+        shown('rest', 10),
+        pageScroll(3, 300),
+        pageScroll(3, 310, { ended: true }),
+        shown('jitter', 320),
+        quiet(560),
+      ]),
+    ).toEqual([]);
   });
 
-  it('adds up a slow drift, measured from where the page rests rather than the previous frame', () => {
-    const drift = (): DomainEvent[] =>
-      Array.from({ length: 30 }, (_, i) =>
-        frameEvent({ scrollY: (i + 1) * 0.5, receivedAtMs: 300 + 16 * (i + 1) }),
-      );
-    const captures = run([navigated('loader-a'), ...resting(0, 0), ...drift(), quiet(1_100)]);
-
-    expect(captures.map((c) => c.label)).toEqual(['03-pre-scroll-01', '04-post-scroll-01']);
-    expect(captures[1]?.frame.scrollY).toBe(15);
-  });
-
-  it('counts a horizontal scroll', () => {
+  it('says only what it knows: no position before the scroll if the page never said one', () => {
+    const { shown, run } = script();
     const captures = run([
       navigated('loader-a'),
-      frameEvent({ scrollX: 0, receivedAtMs: 0 }),
-      quiet(QUIET_AFTER_MS),
-      frameEvent({ scrollX: 500, receivedAtMs: 300 }),
-      quiet(550),
+      shown('rest', 10),
+      pageScroll(100, 300),
+      pageScroll(300, 320),
+      pageScroll(300, 330, { ended: true }),
+      shown('landed', 340),
+      quiet(580),
     ]);
 
-    expect(scrolls(captures)).toEqual(['03-pre-scroll-01 0,0', '04-post-scroll-01 500,0']);
+    expect(captures.map((c) => c.detail)).toEqual([
+      'Pre-scroll #1 of the page',
+      'Post-scroll #1 of the page: to (0, 300), travelled 200px',
+    ]);
+    expect(captures[0]?.position).toBeUndefined();
   });
 
   it('keeps a click out of the scroll: a quick click comes first, the scroll still shows where it landed', () => {
+    const { shown, run, read } = script();
     const captures = run(
       [
         navigated('loader-a'),
-        ...resting(0, 0),
-        frameEvent({ scrollY: 600, receivedAtMs: 300 }),
-        click('button#menu', 400), // 100 ms after landing
-        frameEvent({ scrollY: 600, receivedAtMs: 420 }), // the click's response
+        pageAt(0, 0),
+        shown('rest', 10),
+        pageScroll(600, 300),
+        pageScroll(600, 300, { ended: true }),
+        shown('landed', 320),
+        click('button#menu', 400),
+        shown('menu-open', 420),
         quiet(670),
       ],
       defaultInteractionRules,
     );
 
-    expect(captures.map((c) => `${c.label} ${c.frame.receivedAtMs}`)).toEqual([
-      '10-pre-click-01 300',
-      '11-post-click-01 420',
-      '03-pre-scroll-01 0',
-      '04-post-scroll-01 300',
+    expect(read(captures)).toEqual([
+      '10-pre-click-01 landed',
+      '11-post-click-01 menu-open',
+      '03-pre-scroll-01 rest',
+      // Where the scroll landed; the click's response came after it.
+      '04-post-scroll-01 landed',
     ]);
   });
 
-  it('lets a late click end the scroll by its time alone, so the scroll comes first', () => {
-    const captures = run(
-      [
-        navigated('loader-a'),
-        ...resting(0, 0),
-        frameEvent({ scrollY: 600, receivedAtMs: 300 }),
-        click('button#menu', 600),
-        frameEvent({ scrollY: 600, receivedAtMs: 620 }),
-      ],
-      defaultInteractionRules,
-    );
+  it('does not record a scroll still open when the page changes, or when the recording stops', () => {
+    const { shown, run } = script();
+    const open = [navigated('loader-a'), pageAt(0, 0), shown('rest', 10), pageScroll(600, 300), shown('moving', 320)];
 
-    expect(captures.map((c) => c.label)).toEqual([
-      '03-pre-scroll-01',
-      '04-post-scroll-01',
-      '10-pre-click-01',
-      '11-post-click-01',
-    ]);
+    expect(run([...open, navigated('loader-b')])).toEqual([]);
+    expect(run([...open, { type: 'stop' }])).toEqual([]);
   });
 
-  it('records a scroll that settled before the page changes', () => {
+  it('records a scroll that ended before the page changes', () => {
+    const { shown, run } = script();
     const captures = run([
       navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 600, receivedAtMs: 300 }),
+      pageAt(0, 0),
+      shown('rest', 10),
+      pageScroll(600, 300),
+      pageScroll(600, 300, { ended: true }),
+      shown('landed', 320),
       quiet(550),
       navigated('loader-b'),
+    ]);
+
+    expect(captures.map((c) => `${c.viewId} ${c.label}`)).toEqual(['1 03-pre-scroll-01', '1 04-post-scroll-01']);
+  });
+
+  it('takes the first 250 ms of a view for the page arriving: a new page restoring its scroll is no scroll', () => {
+    const { shown, run } = script();
+    expect(
+      run([
+        navigated('loader-a'),
+        pageAt(0, 0),
+        pageScroll(900, 50), // restored before anything of this page was painted
+        pageScroll(900, 50, { ended: true }),
+        shown('restored', 80),
+        quiet(330),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("takes reports in a view's first 250 ms for the page arriving, even after a late frame of the previous route", () => {
+    const { shown, run } = script();
+    const captures = run([
+      navigated('loader-a', 'https://app.example/'),
+      pageAt(0, 0),
+      shown('home', 10),
+      quiet(260),
+      withinDocument('https://app.example/inbox'),
+      shown('home-late', 600, 2000), // the previous route's last picture, delivered late
+      pageScroll(0, 620), // the router puts the new route at the top
+      pageScroll(0, 620, { ended: true }),
+      shown('inbox', 640),
+      quiet(890),
+    ]);
+
+    expect(captures).toEqual([]);
+  });
+
+  it("does not take a router's scroll reset for a scroll of the new route, and numbers each view from 01", () => {
+    const { shown, run } = script();
+    const captures = run([
+      navigated('loader-a', 'https://app.example/'),
+      pageAt(0, 0),
+      shown('home', 10),
+      pageScroll(2000, 300),
+      pageScroll(2000, 300, { ended: true }),
+      shown('home-down', 320),
+      quiet(550),
+      withinDocument('https://app.example/inbox'),
+      // The router resets the scroll before the new route paints.
+      pageScroll(0, 700),
+      pageScroll(0, 700, { ended: true }),
+      shown('inbox', 720),
+      quiet(970),
+      pageScroll(500, 1_000),
+      pageScroll(500, 1_000, { ended: true }),
+      shown('inbox-down', 1_020),
+      quiet(1_250),
     ]);
 
     expect(captures.map((c) => `${c.viewId} ${c.label}`)).toEqual([
       '1 03-pre-scroll-01',
       '1 04-post-scroll-01',
+      '2 03-pre-scroll-01',
+      '2 04-post-scroll-01',
     ]);
-  });
-
-  it("does not record a scroll still open when the page changes: its last frame may be the next page's", () => {
-    const captures = run([
-      navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 600, receivedAtMs: 300 }),
-      navigated('loader-b'),
-    ]);
-
-    expect(captures).toEqual([]);
-  });
-
-  it('does not record a scroll still open when the recording stops', () => {
-    const captures = run([
-      navigated('loader-a'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 600, receivedAtMs: 300 }),
-      { type: 'stop' },
-    ]);
-
-    expect(captures).toEqual([]);
-  });
-
-  describe('a page change, where a frame can land on the wrong side of it', () => {
-    it("A, page load: the previous page's late frame in the next page is no scroll", () => {
-      const captures = run([
-        navigated('loader-a'),
-        ...resting(600, 0),
-        navigated('loader-b'),
-        frameEvent({ scrollY: 600, receivedAtMs: 300 }), // page A, delivered late
-        frameEvent({ scrollY: 0, receivedAtMs: 312 }), // page B's first frame
-        milestone('firstPaint', 'loader-b', 315),
-        quiet(565),
-      ]);
-
-      expect(captures).toEqual([]);
-    });
-
-    it('A, slow page load: the late frame had time to look still, firstPaint starts over', () => {
-      const captures = run([
-        navigated('loader-a'),
-        ...resting(600, 0),
-        navigated('loader-b'),
-        frameEvent({ scrollY: 600, receivedAtMs: 300 }), // page A, delivered late
-        quiet(550), // long enough for it to count as still
-        frameEvent({ scrollY: 0, receivedAtMs: 1_800 }), // page B, 1.5 s later
-        milestone('firstPaint', 'loader-b', 1_803),
-        quiet(2_053),
-      ]);
-
-      expect(captures).toEqual([]);
-    });
-
-    it("A, slow page load with firstPaint before the next page's frame: still no scroll", () => {
-      const captures = run([
-        navigated('loader-a'),
-        ...resting(600, 0),
-        navigated('loader-b'),
-        frameEvent({ scrollY: 600, receivedAtMs: 300 }), // page A, delivered late
-        quiet(550),
-        milestone('firstPaint', 'loader-b', 1_797),
-        frameEvent({ scrollY: 0, receivedAtMs: 1_800 }), // page B
-        quiet(2_050),
-      ]);
-
-      expect(captures).toEqual([]);
-    });
-
-    it('a real scroll right after the next page has drawn is recorded', () => {
-      const captures = run([
-        navigated('loader-b'),
-        frameEvent({ scrollY: 0, receivedAtMs: 0 }),
-        milestone('firstPaint', 'loader-b', 3),
-        quiet(253),
-        frameEvent({ scrollY: 500, receivedAtMs: 300 }),
-        quiet(550),
-      ]);
-
-      expect(scrolls(captures)).toEqual(['03-pre-scroll-01 0,0', '04-post-scroll-01 0,500']);
-    });
-
-    it("A, SPA route: the previous route's late frame in the new route is no scroll", () => {
-      const captures = run([
-        navigated('loader-a', 'https://app.example/'),
-        ...resting(2000, 0),
-        withinDocument('https://app.example/inbox'),
-        frameEvent({ scrollY: 2000, receivedAtMs: 300 }), // the old route, delivered late
-        frameEvent({ scrollY: 0, receivedAtMs: 310 }), // the new route, scroll reset
-        quiet(560),
-      ]);
-
-      expect(captures).toEqual([]);
-    });
-
-    it("B, SPA route: the new route's frame before the route message is no scroll of the old route", () => {
-      const captures = run([
-        navigated('loader-a', 'https://app.example/'),
-        ...resting(2000, 0),
-        frameEvent({ scrollY: 0, receivedAtMs: 300 }), // rendered before pushState
-        withinDocument('https://app.example/inbox'),
-        frameEvent({ scrollY: 0, receivedAtMs: 320 }),
-        quiet(570),
-      ]);
-
-      expect(captures).toEqual([]);
-    });
-  });
-
-  it('does not take a route change for a scroll, and numbers each view from 01', () => {
-    const captures = run([
-      navigated('loader-a', 'https://app.example/'),
-      ...resting(0, 0),
-      frameEvent({ scrollY: 2000, receivedAtMs: 300 }),
-      quiet(600),
-      withinDocument('https://app.example/inbox'),
-      // The router's scroll reset, painted together with the new route.
-      ...resting(0, 700),
-      frameEvent({ scrollY: 500, receivedAtMs: 1_000 }),
-      quiet(1_250),
-    ]);
-
-    expect(captures.map((c) => `${c.viewId} ${c.label} ${c.frame.scrollY}`)).toEqual([
-      '1 03-pre-scroll-01 0',
-      '1 04-post-scroll-01 2000',
-      '2 03-pre-scroll-01 0',
-      '2 04-post-scroll-01 500',
-    ]);
-  });
-
-  it('needs a frame of the view to measure from', () => {
-    expect(run([navigated('loader-a'), quiet(300)])).toEqual([]);
-    expect(run([navigated('loader-a'), frameEvent({ scrollY: 600 }), quiet(300)])).toEqual([]);
+    // The second view's scroll starts where the router left the page.
+    expect(captures[3]?.detail).toBe('Post-scroll #1 of the page: (0, 0) → (0, 500), travelled 500px');
   });
 });

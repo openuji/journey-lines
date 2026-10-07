@@ -23,7 +23,7 @@ starts a view, and so does an SPA route change. `nav-00001` is the first view,
 
 | Artifact | Meaning |
 | --- | --- |
-| `interactions.ndjson` | One record per capture: screenshot path, view, URL showing, the frame's scroll offset, DOM target |
+| `interactions.ndjson` | One record per capture: screenshot path, view, URL showing, where the page said it was scrolled, DOM target |
 | `nav-00001-00-first.png` | First compositor paint of the view |
 | `nav-00001-01-domcontentloaded.png` | Frame following `DOMContentLoaded` |
 | `nav-00001-02-settled.png` | Frame following `networkAlmostIdle` |
@@ -124,60 +124,61 @@ captures of the view are its own.
 
 ### Scroll
 
-Scrolls of the page come from the compositor frames alone: each frame's
-metadata carries the page's offset, so nothing but frames picks an image.
+The page says when it scrolls; the frames say what was seen. The in-page
+probe reports where the page is when it starts, its position at every
+`scroll` event, and its `scrollend`. Frames choose every picture. The offset
+Chrome stamps on each frame can't time a scroll: on a real page
+(www.fu-berlin.de, Chrome 154) it stopped changing for up to 660 ms while 27
+different pictures arrived and the page reported 72 … 312, and after a scroll
+it often never caught up. Timing scrolls from it recorded one gesture as two
+or three scrolls.
 
-- A frame is **proven at rest** once 250 ms have passed after it with no frame
-  reporting motion. A younger frame isn't trusted: Chrome stamps each capture
-  with the offset of the frame that triggered it but copies a later one, so a
-  frame reporting no motion may already show some.
-- A scroll starts from a frame of the same page proven at rest: that is
-  `03-pre-scroll`. In a page's first 250 ms nothing is proven yet, and what
-  moves is the page arriving, not a scroll. So every scroll has its `03`.
-- It is recorded once the frame it landed on, `04-post-scroll`, is proven at
-  rest: by `quiet` on a page that stopped painting, by later frames on one
-  that keeps painting. Whatever paints after the landing, a click's response
-  or lazy images, belongs to what comes next.
-- A page change can put a frame on the wrong side of it: the previous page's
-  last frame can arrive after the switch, and an SPA's new route can be
-  painted before its URL changes. So a scroll is never taken across a page
-  change:
-  - when a new page reports `firstPaint`, tracking starts over from the
-    frame on screen, and that frame's stillness counts from then;
-  - a scroll still open when the page or route changes, or the recording
-    stops, is not recorded: its last frame may already be the next page's.
-- Both are decided once, when the scroll ends. A click within 250 ms of the
-  landing is therefore recorded before that scroll's pair; the frames are the
-  same either way.
-- The `04` record carries `scrollEpisode.path`, one sample (`frameIndex`,
-  `receivedAtMs`, `x`, `y`) per frame that moved.
+- A scroll starts at the page's first report. Its `03-pre-scroll` is the
+  newest frame that arrived at least 100 ms before that report: a picture and
+  the page's report about it arrive within 100 ms of each other, either way
+  round (headed, the report came first by 17–50 ms; in headless-shell the
+  picture came first by 6–8 ms).
+- Every later report extends it. A report after `scrollend` takes it up
+  again, so a spin of wheel notches, or a gesture that moves again, is one
+  scroll; a finger resting on the trackpad fires no `scrollend` at all.
+- It is over once the page has said `scrollend` and then reported nothing for
+  250 ms (or, should `scrollend` never come, has been silent for 1 s). Its
+  `04-post-scroll` is the newest frame up to 100 ms after the page's last
+  report, where it landed (the landing picture came at most 39 ms after
+  `scrollend`), or the first frame since it began if the page paints late.
+  Whatever paints after the landing, a click's response or lazy images,
+  belongs to what comes next.
+- Reports in a view's first 250 ms are the page arriving, not a scroll: a
+  router putting the new route at the top, a restored scroll position. A
+  scroll still open when the page or route changes, or the recording stops,
+  is not recorded.
+- The `04` record carries `scrollEpisode.path`: every position the page
+  reported (`receivedAtMs`, `pageTimeMs`, `x`, `y`). Every record's `scroll`
+  is where the page last said it was; a `03`'s is where it was before the
+  scroll. It is left out until the page has said.
 - Scrolls under 8 px of travel are dropped as jitter.
 - **Its frames, for a video.** Next to its captures the rule returns clip
-  writes: every frame from `03` to `04` once, in order, as soon as it is known
-  to be inside the scroll (the still ones of a pause only once the page moves
-  again), then `keep` with the `04`, or `drop` for a scroll not recorded.
-  `scroll-clip.ts` reads them off the rule's state; the detection above does
-  not know about them.
-- **The video**, when the recording makes them (`UXR_VIDEO=1` in the CLI;
-  off by default). `@openuji/clip-webm` encodes in a worker thread, so the
-  recording's own timing is untouched: each PNG is decoded, scaled to half
-  size and encoded as VP8 in WebM, all in WebAssembly (a vendored libav.js
-  build). It keeps up with a 60 fps scroll and takes about 1.2 MB per second
-  of scrolling. The video's times are decided in one place, next to the
-  pipeline: the `03` shows for at most 250 ms, every frame keeps its real
-  spacing, and the `04` stays 250 ms. The file is `….webm` next to the `04`,
-  and its own NDJSON line carries `trace`, one sample (`frameIndex`, `atMs`
-  in the video, `x`, `y`) per frame of it.
-- Known gap: the path holds offsets as the frames reported them. On a page
-  with no main-thread work, Chrome reports a wheel or key scroll's offset a few
-  frames late, so the path is sparse there and trails the images.
+  writes: the `03`, then every frame of the scroll through the `04`, once and
+  in order, each with where the page last said it was; then `keep` with the
+  `04`, or `drop` for a scroll not recorded. `scroll-clip.ts` reads them off
+  the rule's state.
+- **The video**, when the recording makes them (`UXR_VIDEO=1` in the CLI, a
+  switch in the extension; off by default). `@openuji/clip-webm` encodes in a
+  worker, so the recording's own timing is untouched: each PNG is decoded,
+  scaled to half size and encoded as VP8 in WebM, all in WebAssembly (a
+  vendored libav.js build). It keeps up with a 60 fps scroll and takes about
+  1.2 MB per second of scrolling. The video's times are decided in one place,
+  next to the pipeline: the `03` shows for at most 250 ms, every frame keeps
+  its real spacing, and the `04` stays 250 ms. The file is `….webm` next to
+  the `04`, and its own NDJSON line carries `trace`, one sample (`frameIndex`,
+  `atMs` in the video, `x`, `y`) per frame of it.
+- Known limit: a page busy with its own JavaScript delays its reports (by up
+  to 181 ms measured) and can paint a jump late (once 912 ms); a `04` then
+  shows the first picture that came.
 
 Not yet: who scrolled (every page scroll is `03`/`04`, a page's own
 `scrollTo` included), scroll depth, and elements with their own scrollbar. The
-steps are in `changes/scroll-rebuild.md`. A first version used the in-page
-probe's `scrollend` to end a scroll, and it raced the frames: recording one
-scroll twice and a post-scroll frame from before the scroll. That is why it
-was removed and rebuilt from frames.
+steps are in `changes/scroll-rebuild.md`.
 
 ### Attaching to a page that already has a document
 
@@ -278,12 +279,9 @@ port (measured with real 460 KB frames at 60 fps). Each video shows as "Play
 video" on its scroll's `04` row; Stop closes the document. The manifest's CSP
 adds `'wasm-unsafe-eval'`, without which Chrome refuses to compile the encoder.
 
-Known gap, measured on Chrome 154 (2026-10-07): in this host, on a page that
-does not repaint by itself, the screencast keeps reporting scroll offset 0
-after a wheel scroll, at scale factor 1 or 2 and with or without the pin, so
-no scroll is recorded there. The Puppeteer host records the same scroll on the
-same page. Pages that repaint (animations, tickers) are recorded in both. Not
-yet understood.
+In this host, on a page that does not repaint by itself, the screencast never
+reports a wheel scroll's offset (Chrome 154, at scale factor 1 or 2). Scrolls
+are timed by the page's own reports, so they are recorded there all the same.
 
 Puppeteer and `devtools-protocol` (the CDP types in `@openuji/cdp`) move
 together, in one change, to the versions Puppeteer pins. The streams still

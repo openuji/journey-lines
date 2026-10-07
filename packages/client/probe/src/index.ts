@@ -19,5 +19,7 @@ export { PROBE_SOURCE } from './generated/probe-source.js';
 export type {
   InteractionAction,
   InteractionWirePayload,
+  ProbeWirePayload,
+  ScrollWirePayload,
   TargetElementMeta,
 } from '@openuji/core/wire';
