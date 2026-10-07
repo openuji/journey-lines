@@ -3,6 +3,7 @@
   --ds-color-canvas: light-dark(#f7f7f5, #0f1114);
   --ds-color-surface: light-dark(#ffffff, #16181d);
   --ds-color-surface-raised: light-dark(#ffffff, #16181d);
+  --ds-color-surface-inset: light-dark(#f2f2ef, #1b1e24);
   --ds-color-ink: light-dark(#16181d, #ececea);
   --ds-color-ink-muted: light-dark(#3b3f47, #b9bcc2);
   --ds-color-ink-soft: light-dark(#686d75, #878b93);
@@ -37,6 +38,8 @@
   --ds-type-body: 13px;
   --ds-type-label: 12px;
   --ds-type-meta: 11px;
+  --ds-type-report-title: clamp(24px, 3.5vw, 36px);
+  --ds-type-report-body: 15px;
   --ds-leading-body: 1.5;
   --ds-leading-tight: 1.2;
   --ds-weight-regular: 400;

@@ -29,6 +29,8 @@ export type RecorderStatus =
     }>
   | Readonly<{
       state: 'done';
+      /** Present when the completed recording can be opened in a report. */
+      sessionId?: string;
       tab: TabSummary;
       startedAtMs: number;
       endedAtMs: number;

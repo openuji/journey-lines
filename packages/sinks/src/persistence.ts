@@ -1,7 +1,9 @@
 import { appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
-  base64ByteLength,
+  artifactFileName,
+  captureLogRecord,
+  clipLogRecord,
   type CaptureSink,
   type Clip,
   type ClipFiling,
@@ -48,49 +50,23 @@ export class PersistenceSink implements CaptureSink {
 
   public enqueue(capture: MilestoneCapture): void {
     const file = this.fileFor(capture, 'png');
-    this.persist(file, capture.frame.base64, (sequence): InteractionLogRecord => ({
-      ...this.header(sequence, capture),
-      screenshotFile: file.name,
-      screenshotPath: file.path,
-      byteLength: base64ByteLength(capture.frame.base64),
-      ...(capture.position ? { scroll: capture.position } : {}),
-      detail: capture.detail,
-      ...(capture.domTarget ? { domTarget: capture.domTarget } : {}),
-      ...(capture.scrollEpisode ? { scrollEpisode: capture.scrollEpisode } : {}),
-    }));
+    this.persist(file, capture.frame.base64, (sequence, epochMs): InteractionLogRecord =>
+      captureLogRecord(capture, sequence, file.path, epochMs),
+    );
   }
 
   /** A kept clip: its video next to the capture it belongs to, and its trace in the log. */
   public enqueueClip(clip: Clip): void {
     const file = this.fileFor(clip, 'webm');
-    this.persist(file, clip.base64, (sequence): ClipLogRecord => ({
-      ...this.header(sequence, clip),
-      videoFile: file.name,
-      videoPath: file.path,
-      mimeType: clip.mimeType,
-      byteLength: base64ByteLength(clip.base64),
-      trace: clip.trace,
-    }));
+    this.persist(file, clip.base64, (sequence, epochMs): ClipLogRecord =>
+      clipLogRecord(clip, sequence, file.path, epochMs),
+    );
   }
 
   /** One number per view: a page load and an SPA route change each start one. */
-  private fileFor(filing: ClipFiling, extension: string): { name: string; path: string } {
-    const name = `nav-${String(filing.viewId).padStart(5, '0')}-${filing.label}.${extension}`;
+  private fileFor(filing: ClipFiling, extension: 'png' | 'webm'): { name: string; path: string } {
+    const name = artifactFileName(filing, extension);
     return { name, path: join(this.outDir, name) };
-  }
-
-  private header(sequence: number, filing: ClipFiling) {
-    return {
-      sequence,
-      timestamp: new Date().toISOString(),
-      epochMs: Date.now(),
-      viewId: filing.viewId,
-      entry: filing.entry,
-      documentId: filing.documentId,
-      loaderId: filing.loaderId,
-      url: filing.url,
-      label: filing.label,
-    };
   }
 
   /**
@@ -101,9 +77,9 @@ export class PersistenceSink implements CaptureSink {
   private persist(
     file: { name: string; path: string },
     base64: string,
-    record: (sequence: number) => InteractionLogRecord | ClipLogRecord,
+    record: (sequence: number, epochMs: number) => InteractionLogRecord | ClipLogRecord,
   ): void {
-    const line = `${JSON.stringify(record(++this.sequence))}\n`;
+    const line = `${JSON.stringify(record(++this.sequence, Date.now()))}\n`;
 
     this.writeQueue = this.writeQueue
       .then(async () => {

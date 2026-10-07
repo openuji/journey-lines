@@ -18,6 +18,7 @@ const meta = {
     onRecord: () => undefined,
     onStop: () => undefined,
     onReset: () => undefined,
+    onOpenReport: () => undefined,
     onDismissError: () => undefined,
   },
 } satisfies Meta<typeof PanelView>;

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import {
   ArrowDownUp,
   Camera,
@@ -9,8 +9,9 @@ import {
   Route,
   type LucideIcon,
 } from 'lucide-react';
-import { decodeBase64, type Clip, type MilestoneCapture, type ViewEntry } from '@openuji/core';
+import type { Clip, MilestoneCapture, ViewEntry } from '@openuji/core';
 import { formatClock, frameSrc, shortUrl, type CaptureKind } from '../../lib/journey';
+import { ClipVideo } from '../../ui/ClipVideo';
 
 const captureIcon: Record<CaptureKind, LucideIcon> = {
   view: Camera,
@@ -80,19 +81,7 @@ export function CaptureRow({
           loading="lazy"
         />
       )}
-      {clip && playing && <ClipVideo clip={clip} />}
+      {clip && playing && <ClipVideo clip={clip} className="capture-row__video" autoPlay />}
     </li>
   );
-}
-
-/** A clip, played from a Blob URL that lives as long as the player. */
-function ClipVideo({ clip }: { clip: Clip }) {
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    const url = URL.createObjectURL(new Blob([decodeBase64(clip.base64)], { type: clip.mimeType }));
-    setSrc(url);
-    return () => URL.revokeObjectURL(url);
-  }, [clip]);
-
-  return src && <video className="capture-row__video" src={src} controls autoPlay muted playsInline />;
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { initialPanelState, panelReducer } from '../../lib/panel-state';
 import { connectJourney, type JourneyPort } from '../../lib/port';
 import type { PanelMessage } from '../../lib/protocol';
+import { reportUrl } from '../../lib/report-protocol';
 import { Alert } from '../../ui/Alert';
 import { Done } from './Done';
 import { Idle } from './Idle';
@@ -17,6 +18,7 @@ export function App() {
       onRecord={(tabId, options) => send({ type: 'record', tabId, options })}
       onStop={() => send({ type: 'stop' })}
       onReset={() => send({ type: 'reset' })}
+      onOpenReport={(sessionId) => void chrome.tabs.create({ url: reportUrl(sessionId) })}
       onDismissError={() => dispatch({ type: 'dismiss-error' })}
     />
   );
@@ -27,12 +29,14 @@ export function PanelView({
   onRecord,
   onStop,
   onReset,
+  onOpenReport,
   onDismissError,
 }: {
   state: typeof initialPanelState;
   onRecord: (tabId: number, options: {video: boolean}) => void;
   onStop: () => void;
   onReset: () => void;
+  onOpenReport: (sessionId: string) => void;
   onDismissError: () => void;
 }) {
   const { connected, status, captures, error, clips } = state;
@@ -63,6 +67,7 @@ export function PanelView({
           captures={captures}
           clips={clips}
           onReset={onReset}
+          onOpenReport={onOpenReport}
         />
       )}
     </main>

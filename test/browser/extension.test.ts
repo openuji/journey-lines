@@ -57,6 +57,9 @@ describe('extension host against a real browser', () => {
     await extension.worker.evaluate(async () => {
       await recorder.stop();
       recorder.reset();
+      const reportPrefix = chrome.runtime.getURL('report.html');
+      const reports = (await chrome.tabs.query({})).filter((tab) => tab.id !== undefined && tab.url?.startsWith(reportPrefix));
+      await Promise.all(reports.map((tab) => chrome.tabs.remove(tab.id!)));
     });
   });
 
@@ -254,6 +257,13 @@ describe('extension host against a real browser', () => {
       WAIT,
     );
     expect((await labels()).at(-1)).toBe(DocumentLabel.beforeNavigation);
+    const reportUrl = await extension.worker.evaluate(() => {
+      if (recorder.status.state !== 'done' || !recorder.status.sessionId) throw new Error('No report session');
+      return `${chrome.runtime.getURL('report.html')}?session=${encodeURIComponent(recorder.status.sessionId)}`;
+    });
+    const report = await (await extension.browser.waitForTarget((target) => target.url() === reportUrl)).page();
+    if (!report) throw new Error('Report tab did not open after tab close');
+    await vi.waitFor(async () => expect(await report.$('.report-capture__image-link img')).not.toBeNull(), WAIT);
   });
 
   it('shows the journey in the panel as it happens, then the summary', async () => {
@@ -279,9 +289,76 @@ describe('extension host against a real browser', () => {
     await vi.waitFor(async () => expect(await panel.$('.summary')).not.toBeNull(), WAIT);
     expect(await shownLabels()).toEqual(await labels());
 
+    const reportUrl = await extension.worker.evaluate(() => {
+      if (recorder.status.state !== 'done' || !recorder.status.sessionId) throw new Error('No report session');
+      return `${chrome.runtime.getURL('report.html')}?session=${encodeURIComponent(recorder.status.sessionId)}`;
+    });
+    const reportTarget = await extension.browser.waitForTarget((target) => target.url() === reportUrl);
+    const report = await reportTarget.page();
+    if (!report) throw new Error('Report tab did not open');
+    await vi.waitFor(async () => expect(await report.$$('.report-capture__image-link img')).toHaveLength((await labels()).length), WAIT);
+    expect(await report.$eval('.report-head h1', (heading) => heading.textContent)).toBe('uxr fixture');
+    expect(await report.$('.report-bar__meta')).not.toBeNull();
+    expect(await panel.$('.open-report-button')).not.toBeNull();
+
+    const archiveFiles = await report.evaluate([
+      '(async () => {',
+      '  let downloadUrl = "";',
+      '  const click = HTMLAnchorElement.prototype.click;',
+      '  HTMLAnchorElement.prototype.click = function () { downloadUrl = this.href; };',
+      '  try {',
+      '    document.querySelector(".report-bar button").click();',
+      '    const bytes = new Uint8Array(await (await fetch(downloadUrl)).arrayBuffer());',
+      '    const view = new DataView(bytes.buffer);',
+      '    const end = bytes.length - 22;',
+      '    const count = view.getUint16(end + 10, true);',
+      '    let offset = view.getUint32(end + 16, true);',
+      '    const files = [];',
+      '    for (let i = 0; i < count; i++) {',
+      '      if (view.getUint32(offset, true) !== 0x02014b50) throw new Error("Invalid archive");',
+      '      const length = view.getUint16(offset + 28, true);',
+      '      files.push(new TextDecoder().decode(bytes.subarray(offset + 46, offset + 46 + length)));',
+      '      offset += 46 + length + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);',
+      '    }',
+      '    return files;',
+      '  } finally { HTMLAnchorElement.prototype.click = click; }',
+      '})()',
+    ].join('\n')) as string[];
+    expect(archiveFiles).toContain('interactions.ndjson');
+    expect(archiveFiles.filter((name) => name.endsWith('.png'))).toHaveLength((await labels()).length);
+
+    await report.setViewport({ width: 360, height: 640 });
+    expect(await report.evaluate('document.documentElement.scrollWidth <= innerWidth')).toBe(true);
+    await report.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+    const light = await report.evaluate('getComputedStyle(document.body).backgroundColor');
+    await report.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
+    const dark = await report.evaluate('getComputedStyle(document.body).backgroundColor');
+    expect(dark).not.toBe(light);
+
+    await press('.open-report-button');
+    await vi.waitFor(async () => {
+      const openReports = await extension.worker.evaluate(
+        (url) => chrome.tabs.query({}).then((tabs) => tabs.filter((tab) => tab.url === url).length),
+        reportUrl,
+      );
+      expect(openReports).toBe(2);
+    }, WAIT);
+
     await press('.secondary-button');
     await vi.waitFor(async () => expect(await panel.$('.record-button')).not.toBeNull(), WAIT);
+    expect(await report.$('.report-head h1')).not.toBeNull();
     await panel.close();
+  });
+
+  it('explains when an in-memory report is unavailable', async () => {
+    const url = await extension.worker.evaluate(async () => {
+      const url = `${chrome.runtime.getURL('report.html')}?session=missing`;
+      await chrome.tabs.create({ url });
+      return url;
+    });
+    const report = await (await extension.browser.waitForTarget((target) => target.url() === url)).page();
+    if (!report) throw new Error('Report tab did not open');
+    await vi.waitFor(async () => expect(await report.$eval('[role="alert"]', (element) => element.textContent)).toContain('Recording unavailable'), WAIT);
   });
 
   // On `/still`: in this host the screencast never reports a still page's
@@ -341,9 +418,20 @@ describe('extension host against a real browser', () => {
       await vi.waitFor(async () => expect(await panel.$('.record-button')).not.toBeNull(), WAIT);
       await press('.option input');
       await press('.record-button');
-      await scrollOnce();
+      await waitForLabel(DocumentLabel.first);
+      await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+      await recordedTab.send('Runtime.evaluate', { expression: 'scrollTo(0, 600)' });
+      await waitForLabel(postScroll);
       await press('.stop-button');
       await vi.waitFor(async () => expect(await panel.$('.capture-row__play')).not.toBeNull(), WAIT);
+
+      const reportUrl = await extension.worker.evaluate(() => {
+        if (recorder.status.state !== 'done' || !recorder.status.sessionId) throw new Error('No report session');
+        return `${chrome.runtime.getURL('report.html')}?session=${encodeURIComponent(recorder.status.sessionId)}`;
+      });
+      const report = await (await extension.browser.waitForTarget((target) => target.url() === reportUrl)).page();
+      if (!report) throw new Error('Report tab did not open');
+      await vi.waitFor(async () => expect(await report.$('.report-capture__video')).not.toBeNull(), WAIT);
 
       // Chrome defers loading media in a background tab; the recording is over,
       // so the panel may come to the front, as when a person watches it.

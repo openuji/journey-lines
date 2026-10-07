@@ -17,11 +17,13 @@ export function Done({
   captures,
   clips,
   onReset,
+  onOpenReport,
 }: {
   status: Finished;
   captures: readonly MilestoneCapture[];
   clips: readonly Clip[];
   onReset: () => void;
+  onOpenReport: (sessionId: string) => void;
 }) {
   const views = new Set(captures.map((capture) => capture.viewId)).size;
   const note = endedNote[status.endedBy];
@@ -35,6 +37,9 @@ export function Done({
         <span className="done-header__title" title={status.tab.url}>
           {status.tab.title || shortUrl(status.tab.url)}
         </span>
+        {status.sessionId && (
+          <Button className="open-report-button" size="small" onClick={() => onOpenReport(status.sessionId!)}>Open report</Button>
+        )}
       </header>
 
       <dl className="summary">

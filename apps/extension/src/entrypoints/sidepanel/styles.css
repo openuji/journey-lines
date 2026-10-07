@@ -101,6 +101,11 @@
   text-overflow: ellipsis;
 }
 
+.open-report-button {
+  flex: none;
+  white-space: nowrap;
+}
+
 .summary {
   display: flex;
   flex-wrap: wrap;

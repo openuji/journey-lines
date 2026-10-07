@@ -13,6 +13,7 @@ import {
   scrollPayload,
 } from '../../../packages/cdp/test/events.js';
 import type { OpenClips } from '../src/lib/clips';
+import { MemoryRecordingStore, type RecordingStore } from '../src/lib/recording-store';
 import type { WorkerMessage } from '../src/lib/protocol';
 import { Recorder } from '../src/lib/recorder';
 
@@ -77,8 +78,9 @@ function setup() {
   const tab = fakeTab(cdp);
   const messages: WorkerMessage[] = [];
   const video = fakeClips();
-  const recorder = new Recorder(async () => tab.target, (message) => messages.push(message), video.open);
-  return { cdp, tab, messages, recorder, clips: video.clips };
+  const store = new MemoryRecordingStore();
+  const recorder = new Recorder(async () => tab.target, (message) => messages.push(message), video.open, store);
+  return { cdp, tab, messages, recorder, clips: video.clips, store };
 }
 
 /** A scroll the default rules record: the page at rest, a jump it reports, its landing. */
@@ -121,7 +123,7 @@ describe('Recorder', () => {
       'capture',
       'status', // done
     ]);
-    expect(recorder.status).toEqual({
+    expect(recorder.status).toMatchObject({
       state: 'done',
       tab: TAB,
       startedAtMs: 1_000,
@@ -129,6 +131,7 @@ describe('Recorder', () => {
       endedBy: 'user',
       droppedFrames: 0,
     });
+    expect(recorder.status.state === 'done' && recorder.status.sessionId).toMatch(/^ses_/);
     expect(tab.closed).toBe(true);
     expect(recorder.cdp).toBeNull();
   });
@@ -171,11 +174,12 @@ describe('Recorder', () => {
   });
 
   it('starts over with an empty journey after reset', async () => {
-    const { cdp, messages, recorder } = setup();
+    const { cdp, messages, recorder, store } = setup();
     await recorder.record(TAB);
     firstFrame(cdp);
     await settle();
     await recorder.stop();
+    const sessionId = recorder.status.state === 'done' ? recorder.status.sessionId : undefined;
 
     recorder.reset();
 
@@ -186,6 +190,29 @@ describe('Recorder', () => {
       captures: [],
       clips: [],
     });
+    expect(sessionId && (await store.get(sessionId))?.items.length).toBeGreaterThan(0);
+  });
+
+  it('finishes cleanup without opening a report when its output store fails', async () => {
+    const cdp = createFakeCdpTransport({ startAtMs: 1_000 });
+    const tab = fakeTab(cdp);
+    const store: RecordingStore = {
+      begin: async () => 'ses_failed',
+      appendCapture: () => {},
+      appendClip: () => {},
+      finish: async () => { throw new Error('output failed'); },
+      discard: async () => {},
+      get: async () => null,
+    };
+    const recorder = new Recorder(async () => tab.target, () => {}, undefined, store);
+    await recorder.record(TAB);
+    firstFrame(cdp);
+    await settle();
+
+    await expect(recorder.stop()).rejects.toThrow('output failed');
+    expect(recorder.status).toMatchObject({ state: 'done' });
+    expect(recorder.status.state === 'done' && recorder.status.sessionId).toBeUndefined();
+    expect(tab.closed).toBe(true);
   });
 
   describe('video', () => {

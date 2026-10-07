@@ -367,6 +367,12 @@ The dev browser starts with a fresh profile every run: a kept profile would keep
 running the first service worker it installed. Click the toolbar button to open
 the panel.
 
+Stopping a recording opens a report tab with its screenshots and optional scroll
+clips. The completed panel can reopen it. Downloading from the report creates a
+ZIP with `interactions.ndjson`, PNG captures, and any WebM clips. Reports are
+held in service-worker memory only: an already loaded tab stays usable, but its
+URL cannot be reloaded after the worker loses the session.
+
 The service worker exposes its recorder as `recorder`: in `chrome://extensions`,
 open "Inspect views: service worker" and read `recorder.status` and
 `recorder.captures`, or send CDP with `await recorder.cdp.send(...)`. The

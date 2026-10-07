@@ -10,6 +10,8 @@ import {
   type WorkerMessage,
 } from '../lib/protocol';
 import { Recorder } from '../lib/recorder';
+import { MemoryRecordingStore } from '../lib/recording-store';
+import { REPORT_PORT, reportUrl, type ReportRequest, type ReportResponse } from '../lib/report-protocol';
 
 /**
  * The service worker: wires Chrome to the `Recorder` and the `Recorder` to the
@@ -20,18 +22,27 @@ export default defineBackground(() => {
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
   const panels = new Set<chrome.runtime.Port>();
+  const store = new MemoryRecordingStore();
 
   const broadcast = (message: WorkerMessage): void => {
     if (message.type === 'status' || message.type === 'snapshot') {
       console.info(`[recorder] ${message.status.state}`, message.status);
     }
-    for (const port of panels) port.postMessage(message);
+    for (const port of panels) {
+      try { port.postMessage(message); } catch { panels.delete(port); }
+    }
+    if (message.type === 'status' && message.status.state === 'done' && message.status.sessionId) {
+      void chrome.tabs.create({ url: reportUrl(message.status.sessionId) }).catch((error: unknown) => {
+        console.error('[report] Could not open report tab', error);
+      });
+    }
   };
 
   const recorder = new Recorder(
     (tabId) => attachTab(chrome.debugger, tabId),
     broadcast,
     openClips,
+    store,
   );
 
   // Debug handle: chrome://extensions → "Inspect views: service worker", then
@@ -51,6 +62,26 @@ export default defineBackground(() => {
   };
 
   chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === REPORT_PORT) {
+      port.onMessage.addListener((message: ReportRequest) => {
+        void (async () => {
+          const session = await store.get(message.sessionId);
+          let reply: ReportResponse;
+          if (!session) reply = { type: 'error', message: 'Recording unavailable.' };
+          else if (message.type === 'get') {
+            reply = { type: 'summary', meta: session.meta, total: session.items.length };
+          } else if (!Number.isSafeInteger(message.index) || message.index < 0 || message.index >= session.items.length) {
+            reply = { type: 'error', message: 'Recording item unavailable.' };
+          } else {
+            reply = { type: 'item', index: message.index, item: session.items[message.index]! };
+          }
+          port.postMessage(reply);
+        })().catch((error: unknown) => {
+          try { port.postMessage({ type: 'error', message: String(error) } satisfies ReportResponse); } catch { /* tab closed */ }
+        });
+      });
+      return;
+    }
     if (port.name !== JOURNEY_PORT) return;
 
     panels.add(port);

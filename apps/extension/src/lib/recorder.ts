@@ -4,6 +4,7 @@ import type { ClipWorker } from '@openuji/clip-webm';
 import { startRecording, type RecordingHandle } from '@openuji/fused';
 import type { DetachReason, ExtensionTarget } from '@openuji/host-extension';
 import type { OpenClips } from './clips';
+import { MemoryRecordingStore, type RecordingStore } from './recording-store';
 import type {
   EndedBy,
   RecorderStatus,
@@ -24,9 +25,8 @@ const endedByChrome: Record<DetachReason, EndedBy> = {
  *
  * Runs the same pipeline as every other host (`startRecording`) over the
  * attached tab, and keeps the journey — every capture so far, and the video of
- * each scroll when asked for — in memory. Each change goes out through `emit`
- * as a `WorkerMessage`. Failures reject the call that caused them and leave the
- * state as it was.
+ * each scroll when asked for — in memory and through the injected recording
+ * store. Each change goes out through `emit` as a `WorkerMessage`.
  *
  * No `chrome.*` in here: the tab comes from the injected `attach`, the video
  * encoder from `openClips`, so this runs unchanged in tests.
@@ -38,6 +38,7 @@ export class Recorder {
   private target: ExtensionTarget | null = null;
   private recording: RecordingHandle | null = null;
   private clipWorker: ClipWorker | null = null;
+  private sessionId: string | null = null;
   /** Set while a tab is being attached, so a second Record waits its turn. */
   private starting = false;
 
@@ -45,6 +46,7 @@ export class Recorder {
     private readonly attach: AttachTab,
     private readonly emit: (message: WorkerMessage) => void,
     private readonly openClips?: OpenClips,
+    private readonly store: RecordingStore = new MemoryRecordingStore(),
   ) {}
 
   get status(): RecorderStatus {
@@ -84,17 +86,22 @@ export class Recorder {
     this.starting = true;
     try {
       const target = await this.attach(tab.id);
-
       this.target = target;
-      this.journey = [];
-      this.videos = [];
-      this.current = { state: 'recording', tab, startedAtMs: target.cdp.clock.now() };
-      // A snapshot, not a status: panels drop the previous journey with it.
-      this.emit(this.snapshot());
-
-      target.onClosed((reason) => void this.stop(endedByChrome[reason]));
-
       try {
+        const startedAtMs = target.cdp.clock.now();
+        this.sessionId = await this.store.begin(tab, startedAtMs);
+        this.journey = [];
+        this.videos = [];
+        this.current = { state: 'recording', tab, startedAtMs };
+        // A snapshot, not a status: panels drop the previous journey with it.
+        this.emit(this.snapshot());
+
+        target.onClosed((reason) => {
+          void this.stop(endedByChrome[reason]).catch((error: unknown) => {
+            this.emit({ type: 'error', message: `Could not finish recording: ${String(error)}` });
+          });
+        });
+
         // The one place the video setting is read: whether there is a clip sink.
         this.clipWorker = options.video ? await this.startClips() : null;
         this.recording = await startRecording(target.cdp, {
@@ -106,6 +113,10 @@ export class Recorder {
         this.clipWorker = null;
         await target.close();
         this.target = null;
+        if (this.sessionId) await this.store.discard(this.sessionId);
+        this.sessionId = null;
+        this.journey = [];
+        this.videos = [];
         this.current = { state: 'idle' };
         this.emit(this.snapshot());
         throw error;
@@ -128,18 +139,34 @@ export class Recorder {
     const endedAtMs = target.cdp.clock.now();
     this.setStatus({ state: 'stopping', tab, startedAtMs });
 
+    const failures: unknown[] = [];
     try {
       // Drains the clip sink too: the last scroll's video is in by now.
       await this.recording?.stop();
-    } finally {
-      const droppedFrames = this.recording?.stats.dropped ?? 0;
-      await this.clipWorker?.close();
-      this.clipWorker = null;
-      await target.close();
-      this.target = null;
-      this.recording = null;
-      this.setStatus({ state: 'done', tab, startedAtMs, endedAtMs, endedBy, droppedFrames });
+    } catch (error) {
+      failures.push(error);
     }
+    const droppedFrames = this.recording?.stats.dropped ?? 0;
+    try { await this.clipWorker?.close(); } catch (error) { failures.push(error); }
+    this.clipWorker = null;
+    try { await target.close(); } catch (error) { failures.push(error); }
+    this.target = null;
+    this.recording = null;
+
+    let sessionId: string | undefined;
+    if (this.sessionId && failures.length === 0) {
+      try {
+        await this.store.finish(this.sessionId, endedAtMs, endedBy, droppedFrames);
+        sessionId = this.sessionId;
+      } catch (error) {
+        failures.push(error);
+      }
+    }
+    if (this.sessionId && !sessionId) {
+      try { await this.store.discard(this.sessionId); } catch (error) { failures.push(error); }
+    }
+    this.setStatus({ state: 'done', tab, startedAtMs, endedAtMs, endedBy, droppedFrames, ...(sessionId ? { sessionId } : {}) });
+    if (failures.length) throw new Error(`Could not finish recording: ${failures.map(String).join('; ')}`);
   }
 
   /** Leave a finished recording. Its journey is gone after this. */
@@ -147,6 +174,7 @@ export class Recorder {
     if (this.current.state !== 'done') return;
     this.journey = [];
     this.videos = [];
+    this.sessionId = null;
     this.current = { state: 'idle' };
     this.emit(this.snapshot());
   }
@@ -156,6 +184,7 @@ export class Recorder {
     return {
       name: 'journey',
       enqueue: (capture) => {
+        if (this.sessionId) this.store.appendCapture(this.sessionId, capture);
         this.journey.push(capture);
         this.emit({ type: 'capture', capture });
       },
@@ -167,6 +196,7 @@ export class Recorder {
   private startClips(): Promise<ClipWorker> {
     if (!this.openClips) throw new Error('This recorder cannot make videos.');
     return this.openClips((clip) => {
+      if (this.sessionId) this.store.appendClip(this.sessionId, clip, this.target?.cdp.clock.now() ?? Date.now());
       this.videos.push(clip);
       this.emit({ type: 'clip', clip });
     });
