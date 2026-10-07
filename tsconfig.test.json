@@ -25,7 +25,7 @@
       "@openuji/rules-interaction": ["./packages/rules-interaction/src/index.ts"],
       "@openuji/sinks": ["./packages/sinks/src/index.ts"],
       "@openuji/stream-compositor": ["./packages/stream-compositor/src/index.ts"],
-      "@openuji/stream-interaction": ["./packages/stream-interaction/src/index.ts"],
+      "@openuji/stream-probe": ["./packages/stream-probe/src/index.ts"],
       "@openuji/stream-lifecycle": ["./packages/stream-lifecycle/src/index.ts"]
     }
   },

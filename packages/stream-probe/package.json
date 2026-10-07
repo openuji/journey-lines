@@ -1,9 +1,9 @@
 {
-  "name": "@openuji/stream-interaction",
+  "name": "@openuji/stream-probe",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "In-page DOM interaction stream — one of the three fused event sources.",
+  "description": "What the in-page probe reports: interactions, the page's position and what starts a scroll. One of the three fused event sources.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

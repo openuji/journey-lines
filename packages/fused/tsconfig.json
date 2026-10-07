@@ -12,7 +12,7 @@
     { "path": "../rules-document" },
     { "path": "../rules-interaction" },
     { "path": "../stream-compositor" },
-    { "path": "../stream-interaction" },
+    { "path": "../stream-probe" },
     { "path": "../stream-lifecycle" }
   ]
 }

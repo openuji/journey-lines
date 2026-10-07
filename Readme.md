@@ -44,7 +44,7 @@ Set `UXR_HEADLESS=1` to run without a visible browser window, and
 ```
 [ Host ] ──► CdpTransport ──┬─► [ 1. Compositor  ] ──┐
  Puppeteer today;           ├─► [ 2. Lifecycle   ] ──┼──► [ Fused Stream ] ──► [ Rules Engine ] ──► [ Sinks ]
- extension, Electron next   └─► [ 3. Interaction ] ──┘      (one FIFO)         (pure reducer)     (console,
+ extension, Electron next   └─► [ 3. Probe       ] ──┘      (one FIFO)         (pure reducer)     (console,
                                                                                                  persistence)
 ```
 
@@ -76,6 +76,32 @@ for a span it follows (a scroll) clip writes. `startRecording` delivers
 captures to the capture sinks and clip writes to its `clips` sink. Whether a
 recording makes videos is only which clip sink it is given: `noClips`, the
 default, discards them.
+
+### How the in-page probe reports
+
+The third source is a script in the page, the probe (`@openuji/client-probe`).
+It reports what the person clicks, where the page is, and what starts a scroll.
+It reaches the host through CDP alone:
+
+```
+setup, host → page     Runtime.addBinding('__uxr_probe__')          a function in the page
+                       Page.addScriptToEvaluateOnNewDocument(probe)  the probe, first in every new document
+                       Runtime.evaluate(probe)                       and in the one showing now
+each report            probe → __uxr_probe__(JSON)  → Chrome: Runtime.bindingCalled  → host
+```
+
+- **Order.** `Runtime.bindingCalled` travels in the same ordered CDP event
+  stream as the screencast frames, so a click lands between exactly the frames
+  it came between.
+- **Checked against the wire contract.** The host (`@openuji/stream-probe`)
+  turns a payload into an event only if it is exactly what `core/wire.ts`
+  says. The binding is a global function, so the page's own scripts can call
+  it too: a checked payload is well-formed, not authentic.
+- **Invisible to the page.** The page's scrolling functions it hooks are
+  `Proxy`s of its own, with the same name, length and `[native code]`.
+- **Gone at Stop.** The host calls `window.__uxr_uninstall__()`, then removes
+  the script and the binding (`Runtime.removeBinding` alone would leave both
+  in the page). Frames inside the page keep their copy until they reload.
 
 ### Clocks
 
@@ -221,7 +247,7 @@ page yields `00-first`, not a stale `01-domcontentloaded`.
 | `@openuji/client-probe` | The in-page DOM probe: an `installProbe(report)` core plus the CDP-binding entry, bundled by esbuild into an injectable IIFE source string. |
 | `@openuji/stream-compositor` | CDP screencast frames. |
 | `@openuji/stream-lifecycle` | Navigations (`navigated`, to a new document or within the same one) and Chromium's lifecycle milestones (`milestone`). |
-| `@openuji/stream-interaction` | Installs the probe, decodes its binding callbacks. |
+| `@openuji/stream-probe` | Installs the probe, decodes what it reports against the wire contract, and takes it out at Stop. |
 | `@openuji/fused` | Orchestrator: three sources on one transport, one ordered `DomainEvent` stream; `startRecording` runs it through the engine into sinks. |
 | `@openuji/engine` | `reduce()` — the whole engine as one pure function — plus a thin stateful wrapper, and `view.ts`, which decides when a view begins. |
 | `@openuji/rules-document` | One-shot rules: first frame and farewell per view, lifecycle milestones per document. |
@@ -238,7 +264,7 @@ page yields `00-first`, not a stale `01-domcontentloaded`.
 ### Sources run alone or fused — same code
 
 Each stream package exports two functions. `attach*` (`attachCompositor`,
-`attachLifecycle`, `attachInteraction`) is the source itself: it subscribes to
+`attachLifecycle`, `attachProbe`) is the source itself: it subscribes to
 the transport, sends its enable commands, emits synchronously, and returns a
 `detach`. `create*Stream` wraps it in its own push stream so the source runs on
 its own — no orchestrator, no engine, no siblings. The fused orchestrator calls
@@ -351,7 +377,7 @@ runners live in `apps/stream-cli`:
 ```bash
 pnpm dev:compositor  https://my.fu-berlin.de/   # frame index, latency, scroll offset
 pnpm dev:lifecycle   https://my.fu-berlin.de/   # navigations (SPA routes too), loaderIds, milestones
-pnpm dev:interaction https://my.fu-berlin.de/   # clicks, with DOM metadata
+pnpm dev:probe       https://my.fu-berlin.de/   # clicks with DOM metadata, the page's position, scroll causes
 pnpm dev:fused       https://my.fu-berlin.de/   # full detection pipeline, zero disk I/O
 ```
 

@@ -1,35 +1,42 @@
 /**
  * The wire contract between the in-page probe (`@openuji/client-probe`, runs in the
- * browser) and the Node-side interaction stream (`@openuji/stream-interaction`).
+ * browser) and the host-side probe stream (`@openuji/stream-probe`).
  *
  * This module must stay free of any Node-only types (no `Buffer`, no `node:*`)
  * so the browser tier can depend on it via the `@openuji/core/wire` subpath without
- * pulling `@types/node` into a DOM-only program.
+ * pulling `@types/node` into a DOM-only program. Where both sides need a list
+ * of names, it is a value here and the type is derived from it.
  */
 
 export type InteractionAction = 'click' | 'input' | 'change';
 
+/** What a target says about itself, each only when it has one: the one list of them. */
+export const TARGET_TEXT_FIELDS = [
+  'id',
+  'className',
+  'role',
+  'ariaLabel',
+  'textSnippet',
+  'href',
+  'inputType',
+  'name',
+] as const;
+
 /** Structural description of the DOM element an interaction targeted. */
-export type TargetElementMeta = Readonly<{
-  tagName: string;
-  id?: string;
-  className?: string;
-  selector: string;
-  role?: string;
-  ariaLabel?: string;
-  textSnippet?: string;
-  href?: string;
-  inputType?: string;
-  name?: string;
-  clientX: number;
-  clientY: number;
-  boundingRect: Readonly<{
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }>;
-}>;
+export type TargetElementMeta = Readonly<
+  {
+    tagName: string;
+    selector: string;
+    clientX: number;
+    clientY: number;
+    boundingRect: Readonly<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }>;
+  } & { [K in (typeof TARGET_TEXT_FIELDS)[number]]?: string }
+>;
 
 /** An interaction with an element, as the probe JSON-serializes it into the CDP binding call. */
 export type InteractionWirePayload = Readonly<{
@@ -55,11 +62,14 @@ export type ScrollWirePayload = Readonly<{
 }>;
 
 /**
- * What starts a scroll of the page. The person: a wheel or trackpad, touch, a
- * scroll key, the scrollbar, a link to a place on the page. Or the page's own
- * code (`script`): `scrollTo`, `scrollIntoView`, `focus()`, `location.hash`…
+ * What starts a scroll of the page: the one list of them. The person: a wheel
+ * or trackpad, touch, a scroll key, the scrollbar, a link to a place on the
+ * page. Or the page's own code (`script`): `scrollTo`, `scrollIntoView`,
+ * `focus()`, `location.hash`…
  */
-export type ScrollCause = 'wheel' | 'touch' | 'key' | 'scrollbar' | 'link' | 'script';
+export const SCROLL_CAUSES = ['wheel', 'touch', 'key', 'scrollbar', 'link', 'script'] as const;
+
+export type ScrollCause = (typeof SCROLL_CAUSES)[number];
 
 /**
  * Something that starts a scroll happened, before the page reports moving. A

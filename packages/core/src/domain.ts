@@ -92,7 +92,7 @@ export type LifecycleEvent =
       monotonicTime: number;
     }>;
 
-/** What the interaction source emits for an element — straight into the fused stream. */
+/** What the person did to an element, as the probe reports it — straight into the fused stream. */
 export type InteractionEvent = Readonly<{
   type: 'interaction';
   action: InteractionAction;
@@ -103,9 +103,9 @@ export type InteractionEvent = Readonly<{
 
 /**
  * The page scrolled to (`x`, `y`), as the page itself reports it: one per
- * `scroll` event, then one with `ended` at its `scrollend`. Also from the
- * interaction source. Continuous where frames' offsets stall: measured on a
- * real page, never more than 61 ms apart while it scrolled.
+ * `scroll` event, then one with `ended` at its `scrollend`. From the probe.
+ * Continuous where frames' offsets stall: measured on a real page, never
+ * more than 61 ms apart while it scrolled.
  */
 export type PageScrollEvent = Readonly<{
   type: 'page-scroll';
@@ -172,7 +172,7 @@ export type ViewState = Readonly<{
   /** A frame has been seen since the document loaded. */
   firstFrameObserved: boolean;
   lastFrame: CompositorFrame | null;
-  /** Where the page last said it is; null until it reports a scroll. */
+  /** Where the page last said it is; null until it has said (the probe does when it starts). */
   position: PagePosition | null;
 }>;
 

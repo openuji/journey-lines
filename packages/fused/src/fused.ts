@@ -13,13 +13,13 @@ import {
   type ScreencastOptions,
 } from '@openuji/stream-compositor';
 import { attachLifecycle } from '@openuji/stream-lifecycle';
-import { attachInteraction } from '@openuji/stream-interaction';
+import { attachProbe } from '@openuji/stream-probe';
 
 export interface FusedStreamOptions {
   /**
    * Cap on domain events queued but not yet consumed.
    *
-   * Only compositor frames are ever evicted — lifecycle and interaction events
+   * Only compositor frames are ever evicted — lifecycle and probe events
    * are the signals rules arm on, and losing one silently corrupts a recording.
    * Omit for an unbounded queue (the default).
    */
@@ -86,12 +86,12 @@ export async function createFusedStream(
     );
   };
 
-  // Lifecycle and interaction events already are domain events; only a
+  // Lifecycle and probe events already are domain events; only a
   // compositor frame, which is also the payload captures carry, gets tagged.
   const attached = await Promise.allSettled([
     attachCompositor(cdp, (frame) => push({ type: 'frame', frame }), screencast),
     attachLifecycle(cdp, push),
-    attachInteraction(cdp, push),
+    attachProbe(cdp, push),
   ]);
 
   const detaches: Detach[] = attached.flatMap((result) =>

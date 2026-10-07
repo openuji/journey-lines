@@ -6,10 +6,14 @@
  */
 
 /** The `Runtime.addBinding` function the probe calls to reach the host. */
-export const PROBE_BINDING_NAME = '__uxr_interaction__';
+export const PROBE_BINDING_NAME = '__uxr_probe__';
 
-/** Guard flag the probe sets on `window` so a re-injection is a no-op. */
-export const PROBE_INJECTED_FLAG = '__uxr_injected__';
+/**
+ * Where the probe keeps how to uninstall it, on `window`: its presence means
+ * the probe is installed, so a re-injection is a no-op. The host calls it when
+ * the recording stops.
+ */
+export const PROBE_UNINSTALL = '__uxr_uninstall__';
 
 /** Longest element text snippet reported with an interaction. */
 export const MAX_TEXT_SNIPPET_LENGTH = 40;

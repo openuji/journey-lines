@@ -25,7 +25,8 @@ import { startRecording } from '@openuji/fused';
 import { DocumentLabel } from '@openuji/rules-document';
 import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import { createCompositorStream } from '@openuji/stream-compositor';
-import { createInteractionStream } from '@openuji/stream-interaction';
+import { PROBE_UNINSTALL } from '@openuji/client-probe';
+import { createProbeStream, PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import { createLifecycleStream } from '@openuji/stream-lifecycle';
 import { ANCHOR, BUTTON, SPA, startFixtureServer, type FixtureServer } from './fixture.js';
 import { click, press, wheel } from './input.js';
@@ -176,6 +177,9 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
       }
     };
 
+    const evaluate = (cdp: CdpTransport, expression: string) =>
+      cdp.send('Runtime.evaluate', { expression, returnByValue: true });
+
     it('runs the browser it was asked for', () =>
       withTarget(async ({ cdp }) => {
         const { product } = await cdp.send('Browser.getVersion');
@@ -299,22 +303,55 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         await compositor.stop();
       }));
 
-    it('interaction: the probe reports clicks', () =>
+    it('probe: reports clicks, and only what the wire contract says', () =>
       withTarget(async (target) => {
         const url = fixture.url('/');
-        const interaction = await createInteractionStream(target.cdp);
-        const events = collect(interaction.events);
+        const probe = await createProbeStream(target.cdp);
+        const events = collect(probe.events);
+        const ignored = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         await target.navigate(url);
         await waitForLoaded(target.cdp, url);
 
+        // The binding is a global function: the page's own scripts can call it.
+        await evaluate(
+          target.cdp,
+          `${PROBE_BINDING_NAME}(JSON.stringify({ action: 'scroll', x: 'a', y: 0, pageTimeMs: Date.now() }))`,
+        );
         await click(target.cdp, BUTTON_CENTER.x, BUTTON_CENTER.y);
         await vi.waitFor(() => {
           const clicked = events.find((event) => event.type === 'interaction' && event.action === 'click');
           expect(clicked?.type === 'interaction' && clicked.target.selector).toBe('button#go');
         }, WAIT);
 
-        await interaction.stop();
+        await probe.stop();
+        expect(events.filter((event) => event.type === 'page-scroll')).toEqual([]);
+        expect(ignored).toHaveBeenCalledWith(expect.stringContaining('off the wire contract'), expect.stringContaining('"x":"a"'));
+        ignored.mockRestore();
+      }));
+
+    it('probe: the page sees its own functions while they are hooked, and gets them back at Stop', () =>
+      withTarget(async (target) => {
+        const url = fixture.url('/still');
+        await target.navigate(url);
+        await waitForLoaded(target.cdp, url);
+
+        const page = async (expression: string): Promise<unknown> =>
+          (await evaluate(target.cdp, expression)).result.value;
+        const hookable = `[scrollTo, Element.prototype.scrollIntoView, HTMLElement.prototype.focus,
+          Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop').set]`;
+        const looks = `${hookable}.map((f) => [f.name, f.length, Function.prototype.toString.call(f).includes('[native code]')])`;
+        const theOriginals = `${hookable}.map((f, i) => f === window.originals[i])`;
+        await page(`window.originals = ${hookable}`);
+        const lookedBefore = await page(looks);
+
+        const probe = await createProbeStream(target.cdp);
+        expect(await page(theOriginals)).toEqual([false, false, false, false]);
+        expect(await page(looks)).toEqual(lookedBefore);
+
+        await probe.stop();
+        expect(await page(theOriginals)).toEqual([true, true, true, true]);
+        expect(await page(`typeof ${PROBE_UNINSTALL}`)).toBe('undefined');
       }));
 
     it('pipeline: captures every default milestone across a navigation', () =>
@@ -460,9 +497,6 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
       await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
       return { url, sink, recording };
     };
-
-    const evaluate = (cdp: CdpTransport, expression: string) =>
-      cdp.send('Runtime.evaluate', { expression, returnByValue: true });
 
     // Each way a person or the page starts a scroll. The touchpad gesture is
     // also the fu-berlin.de bug: one gesture recorded as two or three scrolls

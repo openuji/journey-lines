@@ -1,30 +1,24 @@
 /**
- * In-page DOM interaction probe — the observation core.
+ * In-page probe — the observation core.
  *
- * Observes user interactions in the capture phase, and the page's own
- * scrolling, and hands each one, as a wire payload, to whatever `report` it
- * was installed with. It reports; it decides nothing. It knows nothing
- * about how the payload leaves the page: the CDP binding entry
+ * Observes what the person clicks, and the page scrolling itself
+ * (`page-scroll.ts`), and hands each one, as a wire payload, to whatever
+ * `report` it was installed with. It reports; it decides nothing. It knows
+ * nothing about how the payload leaves the page: the CDP binding entry
  * (`cdp-binding.ts`) is one delivery channel, an extension content script
  * relaying over `chrome.runtime` would be another.
- *
- * Listeners are registered in the capture phase so an interaction is reported
- * even when the page stops propagation on its own handlers.
  */
 
-import type {
-  InteractionAction,
-  ProbeWirePayload,
-  TargetElementMeta,
-} from '@openuji/core/wire';
+import type { ProbeWirePayload, TargetElementMeta } from '@openuji/core/wire';
 import {
   MAX_SELECTOR_CLASSES,
   MAX_TEXT_SNIPPET_LENGTH,
-  PROBE_INJECTED_FLAG,
+  PROBE_UNINSTALL,
 } from '../constants.js';
-import { observeScrollCauses } from './scroll-causes.js';
+import { on } from './on.js';
+import { observePageScroll } from './page-scroll.js';
 
-/** Receives each observed interaction and scroll. Must not throw into the page. */
+/** Receives each payload the probe sends. Must not throw into the page. */
 export type ProbeReporter = (payload: ProbeWirePayload) => void;
 
 const WHITESPACE = /\s+/g;
@@ -108,71 +102,31 @@ function describeElement(
   };
 }
 
-function targetOf(event: Event): TargetElementMeta | null {
-  const target = event.target;
-  if (!(target instanceof Element)) {
-    return null;
-  }
-
-  // Only pointer-ish events carry coordinates.
-  const mouse = event as Partial<MouseEvent>;
-  return describeElement(target, {
-    clientX: mouse.clientX ?? 0,
-    clientY: mouse.clientY ?? 0,
-  });
+function targetOf({ target, clientX, clientY }: MouseEvent): TargetElementMeta | null {
+  return target instanceof Element ? describeElement(target, { clientX, clientY }) : null;
 }
 
 /**
- * Starts observing, reporting each interaction through `report`. Returns a
- * disposer that stops observing.
- *
- * A second install into the same document is a no-op (the returned disposer
- * does nothing), so the probe can be injected more than once safely — e.g. on
- * new documents and again into the one already showing.
+ * Starts observing, reporting through `report`, once per document: the probe
+ * is injected into new documents and again into the one already showing, and
+ * a second install does nothing. `window[PROBE_UNINSTALL]` stops it, after
+ * which an install starts again; the host calls it when the recording stops.
  */
-export function installProbe(report: ProbeReporter): () => void {
-  if (window[PROBE_INJECTED_FLAG]) return () => {};
-  window[PROBE_INJECTED_FLAG] = true;
+export function installProbe(report: ProbeReporter): void {
+  if (window[PROBE_UNINSTALL]) return;
 
-  const emit = (action: InteractionAction, target: TargetElementMeta): void => {
-    report({ action, target, pageTimeMs: Date.now() });
-  };
+  const stops = [
+    // Every frame of the page: what the person clicked.
+    on('click', (event) => {
+      const target = targetOf(event);
+      if (target) report({ action: 'click', target, pageTimeMs: Date.now() });
+    }),
+    // The top document only: the page scrolling itself.
+    ...(window === window.top ? [observePageScroll(report)] : []),
+  ];
 
-  const onClick = (event: Event): void => {
-    const target = targetOf(event);
-    if (target) emit('click', target);
-  };
-
-  // The page's own scrolling: its position at every `scroll`, then its
-  // `scrollend`. Only the top document scrolling itself, not an element with
-  // its own scrollbar, nor a frame inside the page. Listened for on `window`,
-  // which exists before `document.documentElement` does.
-  const onScroll = (event: Event): void => {
-    if (window !== window.top || event.target !== document) return;
-    const action = event.type === 'scrollend' ? 'scrollend' : 'scroll';
-    report({ action, x: window.scrollX, y: window.scrollY, pageTimeMs: Date.now() });
-  };
-  const scrollOptions = { capture: true, passive: true };
-
-  window.addEventListener('click', onClick, true);
-  window.addEventListener('scroll', onScroll, scrollOptions);
-  window.addEventListener('scrollend', onScroll, scrollOptions);
-
-  // What starts a scroll of the page, before the page reports moving.
-  const stopCauses = window === window.top ? observeScrollCauses(report) : () => {};
-
-  // Where the page is now: the top of a new document, or wherever a page that
-  // was already open has been scrolled to. A scroll's first report is where
-  // it went; this is where it came from.
-  if (window === window.top) {
-    report({ action: 'position', x: window.scrollX, y: window.scrollY, pageTimeMs: Date.now() });
-  }
-
-  return () => {
-    window.removeEventListener('click', onClick, true);
-    window.removeEventListener('scroll', onScroll, scrollOptions);
-    window.removeEventListener('scrollend', onScroll, scrollOptions);
-    stopCauses();
-    window[PROBE_INJECTED_FLAG] = false;
+  window[PROBE_UNINSTALL] = () => {
+    for (const stop of stops) stop();
+    delete window[PROBE_UNINSTALL];
   };
 }

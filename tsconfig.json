@@ -10,7 +10,7 @@
     { "path": "./packages/stream-compositor" },
     { "path": "./packages/clip-webm" },
     { "path": "./packages/stream-lifecycle" },
-    { "path": "./packages/stream-interaction" },
+    { "path": "./packages/stream-probe" },
     { "path": "./packages/fused" },
     { "path": "./packages/sinks" },
     { "path": "./packages/host-puppeteer" },

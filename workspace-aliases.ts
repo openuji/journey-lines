@@ -26,6 +26,6 @@ export const workspaceAliases: Record<string, string> = {
   '@openuji/rules-interaction': pkg('./packages/rules-interaction/src/index.ts'),
   '@openuji/sinks': pkg('./packages/sinks/src/index.ts'),
   '@openuji/stream-compositor': pkg('./packages/stream-compositor/src/index.ts'),
-  '@openuji/stream-interaction': pkg('./packages/stream-interaction/src/index.ts'),
+  '@openuji/stream-probe': pkg('./packages/stream-probe/src/index.ts'),
   '@openuji/stream-lifecycle': pkg('./packages/stream-lifecycle/src/index.ts'),
 };

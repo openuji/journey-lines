@@ -25,7 +25,7 @@
     "start": "pnpm run build && node apps/recorder/dist/cli.js",
     "dev:compositor": "pnpm run build && node apps/stream-cli/dist/compositor.js",
     "dev:lifecycle": "pnpm run build && node apps/stream-cli/dist/lifecycle.js",
-    "dev:interaction": "pnpm run build && node apps/stream-cli/dist/interaction.js",
+    "dev:probe": "pnpm run build && node apps/stream-cli/dist/probe.js",
     "dev:fused": "pnpm run build && node apps/stream-cli/dist/fused.js",
     "dev:extension": "pnpm run build:probe && pnpm --filter @openuji/extension dev",
     "build:extension": "pnpm run build:probe && pnpm --filter @openuji/extension build"

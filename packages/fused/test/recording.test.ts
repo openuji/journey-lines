@@ -4,7 +4,7 @@ import type { CaptureSink, ClipSink, ClipWrite, MilestoneCapture } from '@openuj
 import { defaultRules, startRecording } from '@openuji/fused';
 import { defaultDocumentRules } from '@openuji/rules-document';
 import { defaultInteractionRules } from '@openuji/rules-interaction';
-import { PROBE_BINDING_NAME } from '@openuji/stream-interaction';
+import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import {
   bindingCalled,
   clickPayload,

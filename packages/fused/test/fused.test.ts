@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createFakeCdpTransport } from '@openuji/cdp/testing';
 import { createFusedStream } from '@openuji/fused';
-import { PROBE_BINDING_NAME } from '@openuji/stream-interaction';
+import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import {
   bindingCalled,
   clickPayload,

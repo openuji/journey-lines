@@ -23,7 +23,7 @@
     "@openuji/rules-document": "workspace:*",
     "@openuji/rules-interaction": "workspace:*",
     "@openuji/stream-compositor": "workspace:*",
-    "@openuji/stream-interaction": "workspace:*",
+    "@openuji/stream-probe": "workspace:*",
     "@openuji/stream-lifecycle": "workspace:*"
   }
 }

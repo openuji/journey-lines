@@ -3,7 +3,7 @@ import { createFakeCdpTransport, type FakeCdpTransport } from '@openuji/cdp/test
 import type { Clip, ClipWrite } from '@openuji/core';
 import type { ClipWorker } from '@openuji/clip-webm';
 import type { DetachReason, ExtensionTarget } from '@openuji/host-extension';
-import { PROBE_BINDING_NAME } from '@openuji/stream-interaction';
+import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import {
   bindingCalled,
   causePayload,
