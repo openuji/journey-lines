@@ -2,6 +2,7 @@ import type { Preview } from '@storybook/react-vite';
 import { useGlobals } from 'storybook/preview-api';
 import '../src/ui/styles.css';
 import '../src/entrypoints/sidepanel/styles.css';
+import '../src/entrypoints/report/styles.css';
 import '../src/stories/storybook.css';
 
 const COLOR_MODES = [
@@ -47,6 +48,11 @@ const preview: Preview = {
     },
     viewport: {
       options: {
+        responsive: {
+          name: 'Responsive',
+          styles: { width: '100%', height: '100%' },
+          type: 'other',
+        },
         panelNarrow: {
           name: 'Side panel · 320',
           styles: { width: '320px', height: '800px' },
@@ -60,6 +66,16 @@ const preview: Preview = {
         panelWide: {
           name: 'Side panel · 480',
           styles: { width: '480px', height: '800px' },
+          type: 'other',
+        },
+        reportNarrow: {
+          name: 'Report · 390',
+          styles: { width: '390px', height: '800px' },
+          type: 'other',
+        },
+        reportDesktop: {
+          name: 'Report · 1280',
+          styles: { width: '1280px', height: '800px' },
           type: 'other',
         },
       },

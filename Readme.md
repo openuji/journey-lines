@@ -373,6 +373,11 @@ ZIP with `interactions.ndjson`, PNG captures, and any WebM clips. Reports are
 held in service-worker memory only: an already loaded tab stays usable, but its
 URL cannot be reloaded after the worker loses the session.
 
+`pnpm storybook:extension` includes fixture-backed `Report/Recording overview`
+stories and a completed-panel demo whose “Open report” button opens that view
+without Chrome. If port 6006 is occupied, run
+`pnpm --filter @openuji/extension exec storybook dev -p 6008`.
+
 The service worker exposes its recorder as `recorder`: in `chrome://extensions`,
 open "Inspect views: service worker" and read `recorder.status` and
 `recorder.captures`, or send CDP with `await recorder.cdp.send(...)`. The

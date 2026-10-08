@@ -4,6 +4,13 @@
   background: var(--ds-color-canvas);
 }
 
+.story-report-back {
+  position: fixed;
+  z-index: 6;
+  right: var(--ds-space-4);
+  bottom: var(--ds-space-4);
+}
+
 .story-stack {
   display: flex;
   flex-direction: column;

@@ -44,6 +44,7 @@ export const donePanelState: PanelState = {
   connected: true,
   status: {
     state: 'done',
+    sessionId: 'ses_storybook_clip',
     tab: storyTab,
     startedAtMs: STORY_STARTED_AT_MS,
     endedAtMs: STORY_STARTED_AT_MS + 94_000,
@@ -63,6 +64,7 @@ export const stoppingRecorderStatus: RecorderStatus = {
 
 export const interruptedRecorderStatus: RecorderStatus = {
   state: 'done',
+  sessionId: 'ses_storybook_clip',
   tab: storyTab,
   startedAtMs: STORY_STARTED_AT_MS,
   endedAtMs: STORY_STARTED_AT_MS + 94_000,

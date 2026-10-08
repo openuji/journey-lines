@@ -1,4 +1,9 @@
+import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { downloadReport } from '../../lib/report-download';
+import { storyReportWithClip } from '../../stories/report-sessions';
+import { Button } from '../../ui/Button';
+import { ReportView } from '../report/ReportView';
 import { PanelView } from './App';
 import {
   donePanelState,
@@ -10,9 +15,25 @@ import {
   stoppingRecorderStatus,
 } from '../../stories/panel-states';
 
+function PanelPreview(args: ComponentProps<typeof PanelView>) {
+  const [reportOpen, setReportOpen] = useState(false);
+  if (reportOpen) {
+    return (
+      <>
+        <ReportView session={storyReportWithClip} onDownload={() => downloadReport(storyReportWithClip)} />
+        <Button className="story-report-back" size="small" onClick={() => setReportOpen(false)}>
+          Back to panel
+        </Button>
+      </>
+    );
+  }
+  return <PanelView {...args} onOpenReport={() => setReportOpen(true)} />;
+}
+
 const meta = {
   title: 'Panel/Complete states',
   component: PanelView,
+  render: (args) => <PanelPreview {...args} />,
   args: {
     state: idlePanelState,
     onRecord: () => undefined,
