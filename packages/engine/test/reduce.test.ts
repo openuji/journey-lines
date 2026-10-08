@@ -273,9 +273,9 @@ describe('document lifecycle rules', () => {
       [
         navigated('loader-a'),
         frameEvent(),
-        milestone('DOMContentLoaded', 'loader-a'),
+        milestone('ready', 'loader-a'),
         frameEvent(),
-        milestone('networkAlmostIdle', 'loader-a'),
+        milestone('settled', 'loader-a'),
         frameEvent(),
       ],
       defaultDocumentRules,
@@ -293,9 +293,9 @@ describe('document lifecycle rules', () => {
       [
         navigated('loader-a'),
         frameEvent({ scrollY: 1 }),
-        milestone('DOMContentLoaded', 'loader-a'),
+        milestone('ready', 'loader-a'),
         quiet(250),
-        milestone('networkAlmostIdle', 'loader-a', 600),
+        milestone('settled', 'loader-a', 600),
         quiet(850),
         // Painted much later: both are already captured.
         frameEvent({ scrollY: 2 }),
@@ -309,7 +309,7 @@ describe('document lifecycle rules', () => {
       '02-settled 1',
     ]);
     expect(captures[2]?.detail).toBe(
-      'Compositor frame showing at networkAlmostIdle; nothing was painted after it',
+      'Compositor frame showing once the document is settled; nothing was painted after it',
     );
   });
 
@@ -318,7 +318,7 @@ describe('document lifecycle rules', () => {
       [
         navigated('loader-a'),
         frameEvent({ scrollY: 1 }),
-        milestone('networkAlmostIdle', 'loader-a'),
+        milestone('settled', 'loader-a'),
         frameEvent({ scrollY: 2 }),
         quiet(250),
       ],
@@ -329,14 +329,14 @@ describe('document lifecycle rules', () => {
       '00-first 1',
       '02-settled 2',
     ]);
-    expect(captures[1]?.detail).toBe('Compositor frame following networkAlmostIdle');
+    expect(captures[1]?.detail).toBe('Compositor frame once the document is settled');
   });
 
   it('with nothing painted yet when the stream goes quiet, waits for the first frame', () => {
     const captures = run(
       [
         navigated('loader-a'),
-        milestone('DOMContentLoaded', 'loader-a'),
+        milestone('ready', 'loader-a'),
         quiet(250),
         frameEvent({ scrollY: 1 }),
       ],
@@ -354,7 +354,7 @@ describe('document lifecycle rules', () => {
       [
         navigated('loader-a'),
         frameEvent(),
-        milestone('DOMContentLoaded', 'some-subframe-loader'),
+        milestone('ready', 'some-subframe-loader'),
         frameEvent(),
       ],
       defaultDocumentRules,
@@ -428,7 +428,7 @@ describe('document lifecycle rules', () => {
       [
         navigated('loader-a', page('/')),
         frameEvent(),
-        milestone('DOMContentLoaded', 'loader-a'),
+        milestone('ready', 'loader-a'),
         withinDocument(page('/b')),
         frameEvent({ scrollY: 7 }),
         frameEvent(),

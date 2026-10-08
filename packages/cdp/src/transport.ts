@@ -88,4 +88,12 @@ export interface CdpTransport {
    * them stay on one clock.
    */
   readonly clock: Clock;
+
+  /**
+   * A session auto-attached under this one (`Target.setAutoAttach` with
+   * `flatten`; `Target.attachedToTarget` names it): its commands and events
+   * only, on this clock. `dispose` stops listening to it. Ending the session
+   * itself is a command to this one, `Target.detachFromTarget`.
+   */
+  child(sessionId: string): CdpTransport & { dispose: Unsubscribe };
 }

@@ -11,6 +11,8 @@
     { "path": "./packages/clip-webm" },
     { "path": "./packages/stream-lifecycle" },
     { "path": "./packages/stream-probe" },
+    { "path": "./packages/stream-html" },
+    { "path": "./packages/stream-pdf" },
     { "path": "./packages/fused" },
     { "path": "./packages/sinks" },
     { "path": "./packages/host-puppeteer" },

@@ -1,9 +1,9 @@
 import type { MilestoneRule } from '@openuji/engine';
 import {
   BeforeNavigationRule,
-  DomContentLoadedRule,
   FirstFrameRule,
-  NetworkAlmostIdleRule,
+  ReadyRule,
+  SettledRule,
 } from '@openuji/rules-document';
 import { defaultInteractionRules } from '@openuji/rules-interaction';
 
@@ -18,8 +18,8 @@ import { defaultInteractionRules } from '@openuji/rules-interaction';
  */
 export const defaultRules: readonly MilestoneRule[] = [
   FirstFrameRule, // 00
-  DomContentLoadedRule, // 01
-  NetworkAlmostIdleRule, // 02
+  ReadyRule, // 01
+  SettledRule, // 02
   ...defaultInteractionRules, // 03–04 scroll, 10–11 click
   BeforeNavigationRule, // 99
 ];

@@ -1,9 +1,6 @@
 import type { MilestoneRule } from '@openuji/engine';
 import { FirstFrameRule } from './first-frame.js';
-import {
-  DomContentLoadedRule,
-  NetworkAlmostIdleRule,
-} from './lifecycle-milestone.js';
+import { ReadyRule, SettledRule } from './lifecycle-milestone.js';
 import { BeforeNavigationRule } from './before-navigation.js';
 
 export * from './labels.js';
@@ -21,7 +18,7 @@ export * from './before-navigation.js';
  */
 export const defaultDocumentRules: readonly MilestoneRule[] = [
   FirstFrameRule,
-  DomContentLoadedRule,
-  NetworkAlmostIdleRule,
+  ReadyRule,
+  SettledRule,
   BeforeNavigationRule,
 ];

@@ -146,6 +146,46 @@ async function similarity(
   return result.value as { psnr: number; duration: number };
 }
 
+/** headless-shell has no PDF viewer. */
+describe.skipIf(headless)('puppeteer host, a PDF', () => {
+  it('records a PDF: the viewer first, the drawn PDF once loaded, and its scrolls', async () => {
+    const fixture = await startFixtureServer();
+    const target = await launchPuppeteerTarget({ headless: false, executablePath });
+    const captures: MilestoneCapture[] = [];
+    const sink: CaptureSink = { name: 'memory', enqueue: (c) => captures.push(c), drain: async () => {} };
+    try {
+      const recording = await startRecording(target.cdp, { sinks: [sink] });
+      const pdfUrl = fixture.url('/slow.pdf');
+      const ofPdf = () => captures.filter((capture) => capture.url === pdfUrl);
+      const postScroll = episodeLabel(InteractionLabel.postScroll, 1);
+
+      await target.navigate(pdfUrl);
+      await vi.waitFor(() => expect(ofPdf().map((c) => c.label)).toContain(DocumentLabel.settled), WAIT);
+      const [first, settled] = ofPdf();
+      expect([first?.label, settled?.label]).toEqual([DocumentLabel.first, DocumentLabel.settled]);
+      // The drawn PDF holds more than the viewer's empty backdrop.
+      expect(settled!.frame.base64.length).toBeGreaterThan(first!.frame.base64.length);
+
+      // The PDF scrolls in its own frame, where the probe sees it.
+      await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+      await wheel(target.cdp, 600, 400, 400);
+      await vi.waitFor(() => expect(ofPdf().map((c) => c.label)).toContain(postScroll), WAIT);
+      await recording.stop();
+
+      expect(ofPdf().map((c) => c.label)).toEqual([
+        DocumentLabel.first,
+        DocumentLabel.settled,
+        episodeLabel(InteractionLabel.preScroll, 1),
+        postScroll,
+        DocumentLabel.beforeNavigation,
+      ]);
+    } finally {
+      await target.close();
+      await fixture.close();
+    }
+  });
+});
+
 describe('puppeteer host, scroll video (UXR_VIDEO)', () => {
   it("records a video of a scroll: from 03's picture to 04's, its trace one sample per frame", async () => {
     const fixture = await startFixtureServer();

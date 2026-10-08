@@ -121,8 +121,9 @@ export function installProbe(report: ProbeReporter): void {
       const target = targetOf(event);
       if (target) report({ action: 'click', target, pageTimeMs: Date.now() });
     }),
-    // The top document only: the page scrolling itself.
-    ...(window === window.top ? [observePageScroll(report)] : []),
+    // Its document scrolling itself. Which frame's document is the page is the
+    // host's call: the one its session is for (`attachProbe`).
+    observePageScroll(report),
   ];
 
   window[PROBE_UNINSTALL] = () => {

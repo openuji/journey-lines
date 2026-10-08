@@ -42,13 +42,15 @@ Set `UXR_HEADLESS=1` to run without a visible browser window, and
 ## Architecture
 
 ```
-[ Host ] ──► CdpTransport ──┬─► [ 1. Compositor  ] ──┐
- Puppeteer today;           ├─► [ 2. Lifecycle   ] ──┼──► [ Fused Stream ] ──► [ Rules Engine ] ──► [ Sinks ]
- extension, Electron next   └─► [ 3. Probe       ] ──┘      (one FIFO)         (pure reducer)     (console,
-                                                                                                 persistence)
+[ Host ] ──► CdpTransport ──┬─► [ Compositor ] ──────────────────┐
+ Puppeteer, extension;      └─► [ Lifecycle  ]                    ├──► [ Fused Stream ] ──► [ Rules Engine ] ──► [ Sinks ]
+ Electron next                    per document, its kind:         │      (one FIFO)         (pure reducer)     (console,
+                                  ├─ [ PDF  ] its frame, probe ───┤                                            persistence)
+                                  └─ [ HTML ] page, probe ────────┘
 ```
 
-The app exists to bring **three independent asynchronous streams** together.
+The app exists to bring **independent asynchronous streams** together: the
+compositor's pictures, and for each document what its kind observes in it.
 Everything right of the host is runtime-agnostic: it sees only a
 `CdpTransport` (`send` + `on`), never a host API, and compiles without Node
 types, so the same pipeline can run in Node, Electron's main process, or an
@@ -59,17 +61,18 @@ preserve them:
    from inside its CDP event handler, so the order events reach the engine is
    the order they arrived from Chromium — by construction. That ordering *is*
    the fusion — no per-stream buffering, priority or round-robin merging.
-2. **"Next frame after X" is load-bearing.** A lifecycle notification says a
-   milestone was reached but not what the user can see; the pixels arrive on a
+2. **"Next frame after X" is load-bearing.** A milestone says how far a
+   document has come but not what the user can see; the pixels arrive on a
    later frame. Rules arm on a signal and capture the following frame. A page
    that stops moving stops painting, though, so the fused stream also says
    when nothing has arrived for a while: one `quiet` event, after 250 ms.
 3. **`lastFrame` advances after rules run.** That gap is what lets one rule
    capture the resting frame *before* an event while another captures the frame
    *after* it.
-4. **One transport, owned by the host.** All three sources attach to the
-   transport the host hands out; streams subscribe and unsubscribe but never
-   create or close it. Only the host (`RecordingTarget.close()`) ends it.
+4. **One transport, owned by the host.** The sources attach to the transport
+   the host hands out, and to sessions Chrome attaches under it; streams
+   subscribe and unsubscribe but never create or close it. Only the host
+   (`RecordingTarget.close()`) ends it.
 
 Rules never touch a sink. Each returns what it decided as data: captures, and
 for a span it follows (a scroll) clip writes. `startRecording` delivers
@@ -77,11 +80,33 @@ captures to the capture sinks and clip writes to its `clips` sink. Whether a
 recording makes videos is only which clip sink it is given: `noClips`, the
 default, discards them.
 
+### Document kinds
+
+What a recording can observe in a document depends on its kind. Each kind is
+one package behind one contract, `DocumentKind` (`@openuji/stream-lifecycle`):
+it says which documents it describes, and reports in the stack's own terms —
+`milestone` (`ready`, `settled`) and the probe's events. Its own signals never
+leave it. The lifecycle reports every navigation and, for each document the
+main frame commits, lets the first kind that describes it observe it; a kind's
+events pass only while one of its documents shows.
+
+- `@openuji/stream-pdf`: Chrome shows a PDF in its viewer, a frame of another
+  extension holding the PDF's own frame. The kind reaches that frame through
+  the sessions Chrome attaches under the tab, runs the probe there, and reports
+  `settled` once the viewer has loaded the document.
+- `@openuji/stream-html`: every other document. Chromium's page lifecycle
+  (`DOMContentLoaded` is `ready`, `networkAlmostIdle` is `settled`), and the
+  probe in the page.
+
+`documentKinds` in `@openuji/fused` lists them, most specific first. A new kind
+is a package and an entry there; core, the engine and the rules stay as they
+are.
+
 ### How the in-page probe reports
 
-The third source is a script in the page, the probe (`@openuji/client-probe`).
-It reports what the person clicks, where the page is, and what starts a scroll.
-It reaches the host through CDP alone:
+The probe is a script in the document (`@openuji/client-probe`), run by the
+document kinds. It reports what the person clicks, where the page is, and what
+starts a scroll. It reaches the host through CDP alone:
 
 ```
 setup, host → page     Runtime.addBinding('__uxr_probe__')          a function in the page
@@ -99,6 +124,10 @@ each report            probe → __uxr_probe__(JSON)  → Chrome: Runtime.bindin
   it too: a checked payload is well-formed, not authentic.
 - **Invisible to the page.** The page's scrolling functions it hooks are
   `Proxy`s of its own, with the same name, length and `[native code]`.
+- **The page is the session's own frame.** The probe runs in every frame of
+  its session. The host takes where the page is and what scrolls it from the
+  session's own frame only — the tab's top document, or the PDF's frame — and
+  clicks from any.
 - **Gone at Stop.** The host calls `window.__uxr_uninstall__()`, then removes
   the script and the binding (`Runtime.removeBinding` alone would leave both
   in the page). Frames inside the page keep their copy until they reload.
@@ -110,8 +139,7 @@ Every frame, lifecycle event and interaction carries `receivedAtMs`, stamped
 by the transport when the event arrived — the one clock comparable across
 sources. Sources never read a clock themselves; the clock is injected into the
 transport, so tests run on a manual one. Source times keep their own clock under their own name: `swapTimeMs`
-(Chromium frame swap, epoch ms), `monotonicTime` (Chromium `MonotonicTime`,
-seconds from an arbitrary origin) and `pageTimeMs` (the page's clock, epoch ms).
+(Chromium frame swap, epoch ms) and `pageTimeMs` (the page's clock, epoch ms).
 Never subtract one clock from another.
 
 Time decides one thing: whether the page has stopped, after 250 ms in which
@@ -246,11 +274,13 @@ page yields `00-first`, not a stale `01-domcontentloaded`.
 | `@openuji/cdp` | The `CdpTransport` contract every host implements, the `RecordingTarget` a host hands out, an event router for hosts with one generic event callback, and a fake transport for tests. Isomorphic. |
 | `@openuji/client-probe` | The in-page DOM probe: an `installProbe(report)` core plus the CDP-binding entry, bundled by esbuild into an injectable IIFE source string. |
 | `@openuji/stream-compositor` | CDP screencast frames. |
-| `@openuji/stream-lifecycle` | Navigations (`navigated`, to a new document or within the same one) and Chromium's lifecycle milestones (`milestone`). |
-| `@openuji/stream-probe` | Installs the probe, decodes what it reports against the wire contract, and takes it out at Stop. |
-| `@openuji/fused` | Orchestrator: three sources on one transport, one ordered `DomainEvent` stream; `startRecording` runs it through the engine into sinks. |
+| `@openuji/stream-lifecycle` | The base of the document kinds: navigations (`navigated`, to a new document or within the same one), the `DocumentKind` contract, and for each document the kind that observes it. |
+| `@openuji/stream-html` | The HTML kind, and the default: Chromium's page lifecycle as `ready`/`settled`, and the probe in the page. |
+| `@openuji/stream-pdf` | The PDF kind: the PDF's frame in Chrome's viewer, reached through child sessions; `settled` once loaded, and the probe in that frame. |
+| `@openuji/stream-probe` | Installs the probe, decodes what it reports against the wire contract, and takes it out at Stop. Used by the document kinds. |
+| `@openuji/fused` | Orchestrator: the compositor and the document kinds (`documentKinds`) on one transport, one ordered `DomainEvent` stream; `startRecording` runs it through the engine into sinks. |
 | `@openuji/engine` | `reduce()` — the whole engine as one pure function — plus a thin stateful wrapper, and `view.ts`, which decides when a view begins. |
-| `@openuji/rules-document` | One-shot rules: first frame and farewell per view, lifecycle milestones per document. |
+| `@openuji/rules-document` | One-shot rules: first frame and farewell per view, `ready`/`settled` per document. |
 | `@openuji/rules-interaction` | Repeating numbered episodes carrying DOM target metadata. |
 | `@openuji/clip-webm` | Scroll video: the clip sink's two sides, recorder (video times, trace) and encoder (in a worker), and a WebM encoder on a vendored libav.js build. Isomorphic. |
 | `@openuji/sinks` | Optional capture destinations: console and PNG + NDJSON persistence (videos too), and `startClipWorker`, the Node host's encoder thread. |
@@ -273,7 +303,7 @@ feeds the fused stream.
 
 ```ts
 const target = await launchPuppeteerTarget();           // or any other host
-const { events, stop } = await createLifecycleStream(target.cdp);   // one source
+const { events, stop } = await createLifecycleStream(target.cdp, documentKinds); // one source
 const recording = await startRecording(target.cdp, { sinks });      // whole pipeline
 ```
 

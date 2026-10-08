@@ -2,7 +2,7 @@ import type { InteractionWirePayload, ScrollCauseWirePayload, ScrollWirePayload 
 import type { FakeCdpTransport } from '@openuji/cdp/testing';
 
 /**
- * Scripted Chromium: the CDP events the three sources listen for, with only
+ * Scripted Chromium: the CDP events the sources listen for, with only
  * the fields they read.
  */
 
@@ -32,17 +32,32 @@ export function screencastFrame(
 export function frameNavigated(
   cdp: FakeCdpTransport,
   loaderId: string,
-  options: { url?: string; frameId?: string; parentId?: string } = {},
+  options: { url?: string; frameId?: string; parentId?: string; mimeType?: string } = {},
 ): void {
   cdp.emit('Page.frameNavigated', {
     frame: {
       id: options.frameId ?? 'main',
       loaderId,
       url: options.url ?? `https://example.com/${loaderId}`,
+      mimeType: options.mimeType ?? 'text/html',
       ...(options.parentId ? { parentId: options.parentId } : {}),
     },
     type: 'Navigation',
   });
+}
+
+/** Chrome attached a session under `cdp`'s (`Target.setAutoAttach`, flatten). */
+export function attachedToTarget(cdp: FakeCdpTransport, sessionId: string): void {
+  cdp.emit('Target.attachedToTarget', {
+    sessionId,
+    targetInfo: { targetId: sessionId, type: 'iframe', url: '' },
+    waitingForDebugger: false,
+  });
+}
+
+/** The session `sessionId` under `cdp`'s is gone, with its frame. */
+export function detachedFromTarget(cdp: FakeCdpTransport, sessionId: string): void {
+  cdp.emit('Target.detachedFromTarget', { sessionId });
 }
 
 /** What `history.pushState`, `replaceState` and fragment changes produce. */
@@ -76,10 +91,10 @@ export function showingDocument(
   cdp: FakeCdpTransport,
   loaderId: string,
   url = `https://example.com/${loaderId}`,
-  frameId = 'main',
+  mimeType = 'text/html',
 ): void {
   cdp.respond('Page.getFrameTree', {
-    frameTree: { frame: { id: frameId, loaderId, url } },
+    frameTree: { frame: { id: 'main', loaderId, url, mimeType } },
   } as never);
 }
 

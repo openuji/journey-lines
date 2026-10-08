@@ -10,8 +10,10 @@ import { PROBE_UNINSTALL } from '@openuji/client-probe';
 import { TARGET_TEXT_FIELDS } from '@openuji/core';
 import {
   bindingCalled,
+  causePayload,
   clickPayload,
   collect,
+  scrollPayload,
 } from '../../cdp/test/events.js';
 
 afterEach(() => {
@@ -27,12 +29,33 @@ describe('createProbeStream (standalone)', () => {
       { method: 'Runtime.enable', params: undefined },
       { method: 'Runtime.addBinding', params: { name: PROBE_BINDING_NAME } },
       { method: 'Page.enable', params: undefined },
+      { method: 'Page.getFrameTree', params: undefined },
       {
         method: 'Page.addScriptToEvaluateOnNewDocument',
         params: { source: PROBE_SOURCE },
       },
       { method: 'Runtime.evaluate', params: { expression: PROBE_SOURCE } },
     ]);
+  });
+
+  it("takes the page's position and scrolling from its session's own frame only; clicks from any", async () => {
+    const cdp = createFakeCdpTransport();
+    cdp.respond('Page.getFrameTree', { frameTree: { frame: { id: 'own' } } } as never);
+    const { events, stop } = await createProbeStream(cdp);
+    const context = (id: number, frameId: string) =>
+      cdp.emit('Runtime.executionContextCreated', { context: { id, auxData: { frameId } } });
+    const report = (contextId: number, payload: string) =>
+      cdp.emit('Runtime.bindingCalled', { name: PROBE_BINDING_NAME, payload, executionContextId: contextId });
+
+    context(1, 'own');
+    context(2, 'inner');
+    report(2, scrollPayload(50));
+    report(2, causePayload('wheel'));
+    report(2, clickPayload('a.inner'));
+    report(1, scrollPayload(300));
+    await stop();
+
+    expect((await collect(events)).map((event) => event.type)).toEqual(['interaction', 'page-scroll']);
   });
 
   it('decodes probe calls and ignores foreign bindings and malformed payloads', async () => {

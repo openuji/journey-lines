@@ -12,8 +12,6 @@
  *    frame, lifecycle event and interaction carries it; it is the one clock
  *    comparable across all events. Sources never read a clock themselves.
  *  - `swapTimeMs`: Chromium's frame-swap time, Unix epoch ms (frames).
- *  - `monotonicTime`: Chromium's `MonotonicTime` — seconds since an arbitrary
- *    origin, comparable only with other `monotonicTime` values (milestones).
  *  - `pageTimeMs`: the page's `Date.now()` at the DOM event, Unix epoch ms
  *    (interactions).
  *
@@ -47,7 +45,7 @@ export type CompositorFrame = Readonly<{
   swapTimeMs?: number;
 }>;
 
-/** What the lifecycle source emits — straight into the fused stream. */
+/** A document's lifecycle: the frames it shows in, and how far it has come. */
 export type LifecycleEvent =
   /**
    * A frame now shows `url`. Either a new document — CDP `Page.frameNavigated`,
@@ -68,29 +66,24 @@ export type LifecycleEvent =
       navigationType?: 'fragment' | 'historyApi' | 'other';
       receivedAtMs: number;
     }>
-  /**
-   * Chromium's progress report about a document: CDP `Page.lifecycleEvent`.
-   * Its `commit` milestone is one of these; a new document is `navigated`.
-   */
+  /** How far the document `loaderId` has come, as its kind reports it. */
   | Readonly<{
       type: 'milestone';
-      frameId: string;
-      isMainFrame: boolean;
+      name: DocumentProgress;
       loaderId: string;
-      name:
-        | 'init'
-        | 'commit'
-        | 'DOMContentLoaded'
-        | 'load'
-        | 'firstPaint'
-        | 'firstContentfulPaint'
-        | 'firstMeaningfulPaint'
-        | 'networkAlmostIdle'
-        | 'networkIdle'
-        | (string & {});
       receivedAtMs: number;
-      monotonicTime: number;
     }>;
+
+/**
+ * How far a document has come, in the stack's own terms. Which of its own
+ * signals is which step is its kind's decision; nothing above the kinds knows
+ * those signals.
+ */
+export type DocumentProgress =
+  /** Its content is in place. */
+  | 'ready'
+  /** It has finished loading and shows as it will stay. */
+  | 'settled';
 
 /** What the person did to an element, as the probe reports it — straight into the fused stream. */
 export type InteractionEvent = Readonly<{
@@ -184,17 +177,21 @@ export type ViewState = Readonly<{
  */
 export const QUIET_AFTER_MS = 250;
 
+/** What a document's sources report: its lifecycle, and what the probe sees in it. */
+export type DocumentEvent =
+  | LifecycleEvent
+  | InteractionEvent
+  | PageScrollEvent
+  | PagePositionEvent
+  | ScrollCauseEvent;
+
 /**
  * Everything the rules engine sees: the sources' events exactly as they emit
  * them, compositor frames tagged for the queue, and the events the fused
  * stream, the engine and the recorder synthesize themselves.
  */
 export type DomainEvent =
-  | LifecycleEvent
-  | InteractionEvent
-  | PageScrollEvent
-  | PagePositionEvent
-  | ScrollCauseEvent
+  | DocumentEvent
   | Readonly<{
       type: 'frame';
       frame: CompositorFrame;

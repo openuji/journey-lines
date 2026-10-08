@@ -18,10 +18,10 @@ import {
   type ClipSink,
   type ClipWrite,
   type CompositorFrame,
-  type LifecycleEvent,
+  type DocumentEvent,
   type MilestoneCapture,
 } from '@openuji/core';
-import { startRecording } from '@openuji/fused';
+import { documentKinds, startRecording } from '@openuji/fused';
 import { DocumentLabel } from '@openuji/rules-document';
 import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import { createCompositorStream } from '@openuji/stream-compositor';
@@ -142,12 +142,18 @@ async function waitForLoaded(cdp: CdpTransport, url: string): Promise<void> {
   }, WAIT);
 }
 
-function milestonesOf(events: readonly LifecycleEvent[], loaderId: string): string[] {
+function milestonesOf(events: readonly DocumentEvent[], loaderId: string): string[] {
   return events.flatMap((event) =>
-    event.type === 'milestone' && event.isMainFrame && event.loaderId === loaderId
-      ? [event.name]
-      : [],
+    event.type === 'milestone' && event.loaderId === loaderId ? [event.name] : [],
   );
+}
+
+/** The document the main frame loaded at `url`. */
+function loaderAt(events: readonly DocumentEvent[], url: string): string | undefined {
+  for (const event of events) {
+    if (event.type === 'navigated' && event.isMainFrame && event.url === url) return event.loaderId;
+  }
+  return undefined;
 }
 
 export function describeHostConformance(name: string, host: HostUnderTest): void {
@@ -213,31 +219,19 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         off();
       }));
 
-    it('lifecycle: reports the navigation, then its milestones in order', () =>
+    it('lifecycle: reports the navigation, then how far the document has come, in order', () =>
       withTarget(async (target) => {
         const url = fixture.url('/');
-        const lifecycle = await createLifecycleStream(target.cdp);
+        const lifecycle = await createLifecycleStream(target.cdp, documentKinds);
         const events = collect(lifecycle.events);
 
         await target.navigate(url);
 
-        let loaderId = '';
         await vi.waitFor(() => {
-          const navigated = events.find(
-            (event) => event.type === 'navigated' && event.isMainFrame && event.url === url,
-          );
-          expect(navigated).toBeDefined();
-          loaderId = navigated!.loaderId;
-          expect(milestonesOf(events, loaderId)).toContain('networkAlmostIdle');
+          expect(milestonesOf(events, loaderAt(events, url) ?? '')).toContain('settled');
         }, WAIT);
 
-        const milestones = milestonesOf(events, loaderId);
-        expect(milestones).toEqual(
-          expect.arrayContaining(['DOMContentLoaded', 'load', 'networkAlmostIdle']),
-        );
-        expect(milestones.indexOf('DOMContentLoaded')).toBeLessThan(
-          milestones.indexOf('load'),
-        );
+        expect(milestonesOf(events, loaderAt(events, url) ?? '')).toEqual(['ready', 'settled']);
 
         await lifecycle.stop();
       }));
@@ -245,7 +239,7 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
     it('lifecycle: reports a route change as a same-document navigation of the document it keeps', () =>
       withTarget(async (target) => {
         const spa = fixture.url('/spa');
-        const lifecycle = await createLifecycleStream(target.cdp);
+        const lifecycle = await createLifecycleStream(target.cdp, documentKinds);
         const events = collect(lifecycle.events);
 
         await target.navigate(spa);
@@ -255,9 +249,6 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         await click(target.cdp, x, y);
 
         await vi.waitFor(() => {
-          const loaded = events.find(
-            (event) => event.type === 'navigated' && event.isMainFrame && event.url === spa,
-          );
           expect(events).toContainEqual(
             expect.objectContaining({
               type: 'navigated',
@@ -265,7 +256,7 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
               url: fixture.url('/spa/b'),
               sameDocument: true,
               navigationType: 'historyApi',
-              loaderId: loaded?.loaderId,
+              loaderId: loaderAt(events, spa),
             }),
           );
         }, WAIT);
@@ -427,7 +418,7 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         });
 
         await target.navigate(url);
-        // `networkAlmostIdle` comes after the page's last paint: no frame follows it.
+        // The page settles after its last paint: no frame follows it.
         await vi.waitFor(() => expect(sink.labels(url)).toContain(DocumentLabel.settled), WAIT);
         const shownAtSettled = onScreen;
         await recording.stop();
@@ -700,17 +691,14 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         const url = fixture.url('/');
 
         // Load the page fully before the recording exists.
-        const lifecycle = await createLifecycleStream(target.cdp);
+        const lifecycle = await createLifecycleStream(target.cdp, documentKinds);
         const events = collect(lifecycle.events);
         await target.navigate(url);
         await vi.waitFor(
           () =>
             expect(
               events.some(
-                (event) =>
-                  event.type === 'milestone' &&
-                  event.isMainFrame &&
-                  event.name === 'networkAlmostIdle',
+                (event) => event.type === 'milestone' && event.name === 'settled',
               ),
             ).toBe(true),
           WAIT,

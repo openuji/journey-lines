@@ -27,16 +27,41 @@ export async function attachProbe(
   cdp: CdpTransport,
   emit: (event: ProbeEvent) => void,
 ): Promise<Detach> {
-  const unsubscribe = cdp.on('Runtime.bindingCalled', (raw, { receivedAtMs }) => {
-    if (raw.name !== PROBE_BINDING_NAME) return;
+  // The probe runs in every frame of the session. The page is the session's
+  // own frame — the tab's top document, or the frame the session is for —
+  // so where the page is and what scrolls it come from there only; another
+  // frame's are its own. Clicks count in any frame.
+  let ownFrame: string | undefined;
+  const frameOf = new Map<number, string>();
+  const elsewhere = (contextId: number): boolean => {
+    const frame = frameOf.get(contextId);
+    return frame !== undefined && ownFrame !== undefined && frame !== ownFrame;
+  };
 
-    const event = decodeProbePayload(raw.payload, receivedAtMs);
-    if (!event) {
-      console.error('Ignoring a probe payload off the wire contract:', raw.payload.slice(0, 200));
-      return;
-    }
-    emit(event);
-  });
+  const unsubscribes = [
+    cdp.on('Runtime.executionContextCreated', ({ context }) => {
+      const frameId: unknown = context.auxData?.frameId;
+      if (typeof frameId === 'string') frameOf.set(context.id, frameId);
+    }),
+    cdp.on('Runtime.executionContextDestroyed', ({ executionContextId }) => {
+      frameOf.delete(executionContextId);
+    }),
+    cdp.on('Runtime.executionContextsCleared', () => frameOf.clear()),
+    cdp.on('Runtime.bindingCalled', (raw, { receivedAtMs }) => {
+      if (raw.name !== PROBE_BINDING_NAME) return;
+
+      const event = decodeProbePayload(raw.payload, receivedAtMs);
+      if (!event) {
+        console.error('Ignoring a probe payload off the wire contract:', raw.payload.slice(0, 200));
+        return;
+      }
+      if (event.type !== 'interaction' && elsewhere(raw.executionContextId)) return;
+      emit(event);
+    }),
+  ];
+  const unsubscribe = (): void => {
+    for (const off of unsubscribes) off();
+  };
 
   let scriptId: string | undefined;
 
@@ -65,6 +90,7 @@ export async function attachProbe(
     await cdp.send('Runtime.addBinding', { name: PROBE_BINDING_NAME });
 
     await cdp.send('Page.enable');
+    ownFrame = (await cdp.send('Page.getFrameTree'))?.frameTree?.frame.id;
     scriptId = (
       await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
         source: PROBE_SOURCE,

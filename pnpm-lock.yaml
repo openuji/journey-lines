@@ -204,12 +204,15 @@ importers:
       '@openuji/stream-compositor':
         specifier: workspace:*
         version: link:../stream-compositor
+      '@openuji/stream-html':
+        specifier: workspace:*
+        version: link:../stream-html
       '@openuji/stream-lifecycle':
         specifier: workspace:*
         version: link:../stream-lifecycle
-      '@openuji/stream-probe':
+      '@openuji/stream-pdf':
         specifier: workspace:*
-        version: link:../stream-probe
+        version: link:../stream-pdf
 
   packages/host-extension:
     dependencies:
@@ -262,6 +265,21 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/stream-html:
+    dependencies:
+      '@openuji/cdp':
+        specifier: workspace:*
+        version: link:../cdp
+      '@openuji/core':
+        specifier: workspace:*
+        version: link:../core
+      '@openuji/stream-lifecycle':
+        specifier: workspace:*
+        version: link:../stream-lifecycle
+      '@openuji/stream-probe':
+        specifier: workspace:*
+        version: link:../stream-probe
+
   packages/stream-lifecycle:
     dependencies:
       '@openuji/cdp':
@@ -270,6 +288,21 @@ importers:
       '@openuji/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/stream-pdf:
+    dependencies:
+      '@openuji/cdp':
+        specifier: workspace:*
+        version: link:../cdp
+      '@openuji/core':
+        specifier: workspace:*
+        version: link:../core
+      '@openuji/stream-lifecycle':
+        specifier: workspace:*
+        version: link:../stream-lifecycle
+      '@openuji/stream-probe':
+        specifier: workspace:*
+        version: link:../stream-probe
 
   packages/stream-probe:
     dependencies:

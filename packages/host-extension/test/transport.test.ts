@@ -57,6 +57,26 @@ describe('createChromeDebuggerTransport', () => {
     expect(chromeDebugger.listenerCount()).toBe(0);
   });
 
+  it('gives a child session its own events and commands, never its tab’s', async () => {
+    const chromeDebugger = createFakeChromeDebugger();
+    const cdp = createChromeDebuggerTransport(chromeDebugger, TAB);
+    const child = cdp.child('viewer');
+    const seen: string[] = [];
+
+    cdp.on('Page.lifecycleEvent', ({ name }) => seen.push(`tab ${name}`));
+    child.on('Page.lifecycleEvent', ({ name }) => seen.push(`child ${name}`));
+
+    chromeDebugger.emit({ tabId: TAB }, 'Page.lifecycleEvent', { name: 'a' });
+    chromeDebugger.emit({ tabId: TAB, sessionId: 'viewer' }, 'Page.lifecycleEvent', { name: 'b' });
+    chromeDebugger.emit({ tabId: TAB, sessionId: 'other' }, 'Page.lifecycleEvent', { name: 'c' });
+    await child.send('Runtime.enable');
+
+    expect(seen).toEqual(['tab a', 'child b']);
+    expect(chromeDebugger.sent).toEqual([
+      { tabId: TAB, sessionId: 'viewer', method: 'Runtime.enable', params: undefined },
+    ]);
+  });
+
   it('refuses to send once disposed, without asking Chrome: commands go by tab', async () => {
     const chromeDebugger = createFakeChromeDebugger();
     const cdp = createChromeDebuggerTransport(chromeDebugger, TAB);

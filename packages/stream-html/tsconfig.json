@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.isomorphic.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../core" },
+    { "path": "../cdp" },
+    { "path": "../stream-lifecycle" },
+    { "path": "../stream-probe" }
+  ]
+}

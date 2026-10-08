@@ -13,7 +13,7 @@ import {
   type ScreencastOptions,
 } from '@openuji/stream-compositor';
 import { attachLifecycle } from '@openuji/stream-lifecycle';
-import { attachProbe } from '@openuji/stream-probe';
+import { documentKinds } from './document-kinds.js';
 
 export interface FusedStreamOptions {
   /**
@@ -44,14 +44,16 @@ export interface FusedStreamHandle {
 }
 
 /**
- * Fuses the three independent CDP sources into one ordered domain event stream.
+ * Fuses the independent CDP sources — the compositor's pictures, and the
+ * documents with what their kinds observe — into one ordered domain event
+ * stream.
  *
  * Two things here are the whole design:
  *
- *  1. **One transport at a time.** All three sources attach to the transport
- *     the host owns, so they share one connection; this function never closes
- *     it. A host that follows the active tab moves them to another transport
- *     with `continueOn`.
+ *  1. **One transport at a time.** The sources attach to the transport the
+ *     host owns, and to sessions Chrome attaches under it, so they share one
+ *     connection; this function never closes it. A host that follows the
+ *     active tab moves them to another transport with `continueOn`.
  *  2. **One FIFO queue, fed synchronously.** Each source emits from inside its
  *     CDP event handler straight into a single queue. The transport delivers
  *     events in arrival order and synchronously, so the order events reach the
@@ -158,20 +160,20 @@ export async function createFusedStream(
 }
 
 /**
- * The three sources on one transport, pushing through `emit`. If any fails,
- * the ones that did attach are taken off again before the failure is thrown.
+ * The sources on one transport, pushing through `emit`: the pictures, and the
+ * documents with whatever their kinds observe. If either fails, the other is
+ * taken off again before the failure is thrown.
  */
 async function attachSources(
   cdp: CdpTransport,
   emit: (event: TimedEvent) => void,
   screencast: ScreencastOptions | undefined,
 ): Promise<Detach[]> {
-  // Lifecycle and probe events already are domain events; only a
-  // compositor frame, which is also the payload captures carry, gets tagged.
+  // Document events already are domain events; only a compositor frame, which
+  // is also the payload captures carry, gets tagged.
   const attached = await Promise.allSettled([
     attachCompositor(cdp, (frame) => emit({ type: 'frame', frame }), screencast),
-    attachLifecycle(cdp, emit),
-    attachProbe(cdp, emit),
+    attachLifecycle(cdp, emit, documentKinds),
   ]);
 
   const detaches = attached.flatMap((result) =>

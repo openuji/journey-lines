@@ -48,6 +48,17 @@ export interface FakeCdpTransport extends CdpTransport {
    */
   advance(ms: number): void;
   listenerCount(event?: CdpEventName): number;
+  /**
+   * The child session `sessionId`: the same fake every time it is asked for,
+   * on this clock, so a test plays its events and reads its commands.
+   */
+  child(sessionId: string): FakeChildTransport;
+}
+
+export interface FakeChildTransport extends FakeCdpTransport {
+  dispose(): void;
+  /** `dispose` was called. */
+  readonly disposed: boolean;
 }
 
 export interface FakeCdpTransportOptions {
@@ -123,10 +134,29 @@ export function createFakeCdpTransport(
       : result;
   };
 
+  const children = new Map<string, FakeChildTransport>();
+  const child = (sessionId: string): FakeChildTransport => {
+    const known = children.get(sessionId);
+    if (known) return known;
+    let disposed = false;
+    const made: FakeChildTransport = {
+      ...createFakeCdpTransport({ clock }),
+      dispose: () => {
+        disposed = true;
+      },
+      get disposed() {
+        return disposed;
+      },
+    };
+    children.set(sessionId, made);
+    return made;
+  };
+
   return {
     send: send as CdpTransport['send'],
     on: router.on,
     clock,
+    child,
     sent,
     sentMethods: () => sent.map((command) => command.method),
     respond(method, result) {

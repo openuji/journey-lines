@@ -28,4 +28,6 @@ export const workspaceAliases: Record<string, string> = {
   '@openuji/stream-compositor': pkg('./packages/stream-compositor/src/index.ts'),
   '@openuji/stream-probe': pkg('./packages/stream-probe/src/index.ts'),
   '@openuji/stream-lifecycle': pkg('./packages/stream-lifecycle/src/index.ts'),
+  '@openuji/stream-html': pkg('./packages/stream-html/src/index.ts'),
+  '@openuji/stream-pdf': pkg('./packages/stream-pdf/src/index.ts'),
 };

@@ -214,13 +214,22 @@ const PAGES: Readonly<Record<string, string>> = {
   '/opener': OPENER,
 };
 
-/** A one-page PDF: Chrome shows it in its PDF viewer, which extensions may not debug. */
-const PDF = (() => {
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] >>',
-  ];
+/**
+ * A PDF of `pages` pages, each with a coloured box: Chrome shows it in its
+ * PDF viewer, which takes the extension's debugger away when it commits.
+ */
+function pdf(pages: number): Buffer {
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', ''];
+  const kids: string[] = [];
+  const content = '0.2 0.4 0.8 rg 20 20 260 160 re f';
+  for (let page = 0; page < pages; page += 1) {
+    const id = objects.length + 1;
+    kids.push(`${id} 0 R`);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents ${id + 1} 0 R >>`);
+    objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  }
+  objects[1] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages} >>`;
+
   let body = '%PDF-1.4\n';
   const offsets = objects.map((object, i) => {
     const offset = body.length;
@@ -232,7 +241,14 @@ const PDF = (() => {
   for (const offset of offsets) body += `${String(offset).padStart(10, '0')} 00000 n \n`;
   body += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return Buffer.from(body, 'latin1');
-})();
+}
+
+const PDF = pdf(1);
+/** Tall enough to scroll in the viewer. */
+const SLOW_PDF = pdf(5);
+/** `/slow.pdf` arrives in this many parts, this far apart: about 1.5 s, as a real PDF over a network. */
+const SLOW_PARTS = 10;
+const SLOW_PART_MS = 150;
 
 export interface FixtureServer {
   /** Absolute URL of a fixture path, e.g. `url('/')`. */
@@ -246,6 +262,20 @@ export async function startFixtureServer(): Promise<FixtureServer> {
     const path = (req.url ?? '').split('?')[0] ?? '';
     if (path === '/doc.pdf') {
       res.writeHead(200, { 'content-type': 'application/pdf' }).end(PDF);
+      return;
+    }
+    if (path === '/slow.pdf') {
+      res.writeHead(200, { 'content-type': 'application/pdf', 'content-length': SLOW_PDF.length });
+      const size = Math.ceil(SLOW_PDF.length / SLOW_PARTS);
+      let sent = 0;
+      const timer = setInterval(() => {
+        res.write(SLOW_PDF.subarray(sent, (sent += size)));
+        if (sent >= SLOW_PDF.length) {
+          clearInterval(timer);
+          res.end();
+        }
+      }, SLOW_PART_MS);
+      res.on('close', () => clearInterval(timer));
       return;
     }
     // A server that never answers: a new tab on it never commits a page.

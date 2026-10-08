@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "CDP screencast frame stream — one of the three fused event sources.",
+  "description": "CDP screencast frame stream — one of the fused event sources.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

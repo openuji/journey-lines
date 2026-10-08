@@ -35,6 +35,8 @@ const postScroll = episodeLabel(InteractionLabel.postScroll, 1);
 
 const BUTTON_CENTER = { x: BUTTON.x + BUTTON.width / 2, y: BUTTON.y + BUTTON.height / 2 };
 const SCROLL_POINT = { x: 400, y: 400 };
+/** Over the PDF's pages, right of the viewer's sidebar. */
+const PDF_POINT = { x: 600, y: 400 };
 
 describe('extension host against a real browser', () => {
   let fixture: FixtureServer;
@@ -262,25 +264,40 @@ describe('extension host against a real browser', () => {
         WAIT,
       );
 
-    it('records on through a PDF in the same tab, and back on the page', async () => {
+    it('records a PDF: the viewer first, the drawn PDF once loaded, its scrolls, then the page after it', async () => {
       const tabId = await openTab(fixture.url('/'));
       await record(tabId);
       await waitForLabel(DocumentLabel.first);
 
       // Chrome takes the debugger away from its PDF viewer; the recording attaches again.
-      await extension.worker.evaluate(
-        (tabId, url) => chrome.tabs.update(tabId, { url }),
-        tabId,
-        fixture.url('/doc.pdf'),
-      );
+      const pdfUrl = fixture.url('/slow.pdf');
+      await extension.worker.evaluate((tabId, url) => chrome.tabs.update(tabId, { url }), tabId, pdfUrl);
+      /** The PDF view's captures, and how much each picture holds. */
+      const ofPdf = (): Promise<Array<{ label: string; size: number }>> =>
+        extension.worker.evaluate(
+          (url) =>
+            recorder.captures
+              .filter((capture) => capture.url === url)
+              .map(({ label, frame }) => ({ label, size: frame.base64.length })),
+          pdfUrl,
+        );
       await vi.waitFor(
-        async () =>
-          expect(await journey()).toContainEqual(
-            expect.objectContaining({ label: DocumentLabel.first, url: fixture.url('/doc.pdf') }),
-          ),
+        async () => expect((await ofPdf()).map(({ label }) => label)).toContain(DocumentLabel.settled),
         WAIT,
       );
+      const [first, settled] = await ofPdf();
+      expect([first?.label, settled?.label]).toEqual([DocumentLabel.first, DocumentLabel.settled]);
+      // The drawn PDF holds more than the viewer's empty backdrop.
+      expect(settled!.size).toBeGreaterThan(first!.size);
       expect((await status()).state).toBe('recording');
+
+      // The PDF scrolls in its own frame, where the probe sees it.
+      await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+      await wheel(recordedTab, PDF_POINT.x, PDF_POINT.y, 400);
+      await vi.waitFor(
+        async () => expect((await ofPdf()).map(({ label }) => label)).toContain(postScroll),
+        WAIT,
+      );
 
       await extension.worker.evaluate(
         (tabId, url) => chrome.tabs.update(tabId, { url }),
@@ -301,6 +318,13 @@ describe('extension host against a real browser', () => {
       expect(result.value).toBe(1);
 
       await stop();
+      expect((await ofPdf()).map(({ label }) => label)).toEqual([
+        DocumentLabel.first,
+        DocumentLabel.settled,
+        preScroll,
+        postScroll,
+        DocumentLabel.beforeNavigation,
+      ]);
       expect(await entries()).toEqual(['load', 'load', 'load']);
       expect(await status()).toMatchObject({ state: 'done', endedBy: 'user' });
     });

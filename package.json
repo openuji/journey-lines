@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "UXR interaction & visual stream capture \u2014 three fused CDP event streams",
+  "description": "UXR interaction & visual stream capture \u2014 fused CDP event streams",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/openuji/recorder.git"

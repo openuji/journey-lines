@@ -32,8 +32,9 @@ export interface ChromeEvent<Listener> {
 export interface ChromeDebugger {
   attach(target: { tabId: number }, requiredVersion: string): Promise<void>;
   detach(target: { tabId: number }): Promise<void>;
+  /** With `sessionId`, to a child session within the tab's. */
   sendCommand(
-    target: { tabId: number },
+    target: { tabId: number; sessionId?: string },
     method: string,
     commandParams?: { [key: string]: unknown },
   ): Promise<unknown>;

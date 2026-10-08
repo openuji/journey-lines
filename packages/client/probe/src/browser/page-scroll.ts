@@ -1,7 +1,7 @@
 /**
- * The page scrolling itself: where it is when the probe starts, every
+ * The document scrolling itself: where it is when the probe starts, every
  * position it reports, its `scrollend`, and what starts a scroll. Not an
- * element with its own scrollbar, nor a frame inside the page.
+ * element with its own scrollbar.
  */
 
 import type { ScrollCauseWirePayload, ScrollWirePayload } from '@openuji/core/wire';
@@ -10,7 +10,7 @@ import { observeScrollCauses } from './scroll-causes.js';
 
 type Report = (payload: ScrollWirePayload | ScrollCauseWirePayload) => void;
 
-/** Starts observing. Returns how to stop. Run in the top document only. */
+/** Starts observing. Returns how to stop. */
 export function observePageScroll(report: Report): () => void {
   const at = (action: ScrollWirePayload['action']): void => {
     report({ action, x: window.scrollX, y: window.scrollY, pageTimeMs: Date.now() });

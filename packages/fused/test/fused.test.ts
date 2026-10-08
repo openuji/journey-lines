@@ -47,23 +47,37 @@ describe('createFusedStream', () => {
     showingDocument(cdp, 'loader-now');
     replayOnEnable(cdp, () => {
       lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-now');
-      lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-now');
     });
 
     const { events, stop } = await createFusedStream(cdp, {
       screencast: { viewport },
     });
-    lifecycleEvent(cdp, 'networkIdle', 'loader-now');
+    lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-now');
     await stop();
 
     expect(
       (await collect(events)).map((e) =>
         e.type === 'milestone' ? `milestone ${e.name}` : e.type,
       ),
-    ).toEqual(['navigated', 'milestone networkIdle']);
+    ).toEqual(['navigated', 'milestone settled']);
   });
 
-  it('attaches all three sources to the one transport it was given', async () => {
+  it("hands a PDF to its own kind: the viewer page's lifecycle is not the document's", async () => {
+    const cdp = createFakeCdpTransport();
+    const { events, stop } = await createFusedStream(cdp, {
+      screencast: { viewport },
+    });
+
+    frameNavigated(cdp, 'loader-pdf', { mimeType: 'application/pdf' });
+    lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-pdf');
+    lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-pdf');
+    await stop();
+
+    expect((await collect(events)).map((e) => e.type)).toEqual(['navigated']);
+    expect(cdp.sentMethods()).toContain('Target.setAutoAttach');
+  });
+
+  it('attaches its sources to the one transport it was given', async () => {
     const cdp = createFakeCdpTransport();
     await createFusedStream(cdp, { screencast: { viewport } });
 
@@ -158,11 +172,17 @@ describe('createFusedStream: moving the sources', () => {
   const types = async (events: AsyncIterable<{ type: string }>): Promise<string[]> =>
     (await collect(events)).map((event) => event.type);
 
-  /** A command that answers only when the test says so: a page still loading. */
+  /** A command that answers only once the test says so: a page still loading. */
   const holdCommand = (cdp: FakeCdpTransport, method: 'Page.getFrameTree'): (() => void) => {
-    let answer = (): void => {};
-    cdp.respond(method, () => new Promise((resolve) => (answer = () => resolve({}))) as never);
-    return () => answer();
+    let loaded = false;
+    const waiting: Array<() => void> = [];
+    cdp.respond(method, () =>
+      (loaded ? {} : new Promise((resolve) => waiting.push(() => resolve({})))) as never,
+    );
+    return () => {
+      loaded = true;
+      for (const answer of waiting.splice(0)) answer();
+    };
   };
 
   it('continueOn puts every source on the new transport, saying so first', async () => {
