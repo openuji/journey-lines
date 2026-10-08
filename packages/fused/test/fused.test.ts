@@ -27,6 +27,7 @@ describe('createFusedStream', () => {
     lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
     bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload());
     screencastFrame(cdp);
+    lifecycleEvent(cdp, 'load', 'loader-a');
     lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
     screencastFrame(cdp);
     await stop();
@@ -52,6 +53,7 @@ describe('createFusedStream', () => {
     const { events, stop } = await createFusedStream(cdp, {
       screencast: { viewport },
     });
+    lifecycleEvent(cdp, 'load', 'loader-now');
     lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-now');
     await stop();
 

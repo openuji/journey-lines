@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import { createServer, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 /** Where the fixture page puts its button, in CSS pixels. */
@@ -204,6 +204,24 @@ const OPENER = `<!doctype html>
   </body>
 </html>`;
 
+/**
+ * A page about one image that arrives slowly: the network is almost idle
+ * (one request open) long before the image is in. It notes when it is.
+ */
+const SLOW_IMAGE_PAGE = `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>uxr slow image</title></head>
+  <body style="margin: 0; background: #111">
+    <img src="/slow-image.png" width="400" height="300" onload="window.imageLoadedAt = Date.now()" />
+  </body>
+</html>`;
+
+/** A 1×1 PNG. */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 const PAGES: Readonly<Record<string, string>> = {
   '/': INDEX,
   '/second': SECOND,
@@ -212,6 +230,7 @@ const PAGES: Readonly<Record<string, string>> = {
   '/spa': SPA_PAGE,
   '/spa/b': SPA_PAGE,
   '/opener': OPENER,
+  '/slow-image': SLOW_IMAGE_PAGE,
 };
 
 /**
@@ -246,9 +265,23 @@ function pdf(pages: number): Buffer {
 const PDF = pdf(1);
 /** Tall enough to scroll in the viewer. */
 const SLOW_PDF = pdf(5);
-/** `/slow.pdf` arrives in this many parts, this far apart: about 1.5 s, as a real PDF over a network. */
+/** A slow file arrives in this many parts, this far apart: about 1.5 s, as over a real network. */
 const SLOW_PARTS = 10;
 const SLOW_PART_MS = 150;
+
+function trickle(res: ServerResponse, contentType: string, body: Buffer): void {
+  res.writeHead(200, { 'content-type': contentType, 'content-length': body.length });
+  const size = Math.ceil(body.length / SLOW_PARTS);
+  let sent = 0;
+  const timer = setInterval(() => {
+    res.write(body.subarray(sent, (sent += size)));
+    if (sent >= body.length) {
+      clearInterval(timer);
+      res.end();
+    }
+  }, SLOW_PART_MS);
+  res.on('close', () => clearInterval(timer));
+}
 
 export interface FixtureServer {
   /** Absolute URL of a fixture path, e.g. `url('/')`. */
@@ -264,20 +297,8 @@ export async function startFixtureServer(): Promise<FixtureServer> {
       res.writeHead(200, { 'content-type': 'application/pdf' }).end(PDF);
       return;
     }
-    if (path === '/slow.pdf') {
-      res.writeHead(200, { 'content-type': 'application/pdf', 'content-length': SLOW_PDF.length });
-      const size = Math.ceil(SLOW_PDF.length / SLOW_PARTS);
-      let sent = 0;
-      const timer = setInterval(() => {
-        res.write(SLOW_PDF.subarray(sent, (sent += size)));
-        if (sent >= SLOW_PDF.length) {
-          clearInterval(timer);
-          res.end();
-        }
-      }, SLOW_PART_MS);
-      res.on('close', () => clearInterval(timer));
-      return;
-    }
+    if (path === '/slow.pdf') return trickle(res, 'application/pdf', SLOW_PDF);
+    if (path === '/slow-image.png') return trickle(res, 'image/png', PNG);
     // A server that never answers: a new tab on it never commits a page.
     if (path === '/hang') return;
 

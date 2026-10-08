@@ -94,9 +94,9 @@ events pass only while one of its documents shows.
   extension holding the PDF's own frame. The kind reaches that frame through
   the sessions Chrome attaches under the tab, runs the probe there, and reports
   `settled` once the viewer has loaded the document.
-- `@openuji/stream-html`: every other document. Chromium's page lifecycle
-  (`DOMContentLoaded` is `ready`, `networkAlmostIdle` is `settled`), and the
-  probe in the page.
+- `@openuji/stream-html`: every other document. Chromium's page lifecycle —
+  `DOMContentLoaded` is `ready`; `settled` takes both `load` and
+  `networkAlmostIdle`, whichever comes last — and the probe in the page.
 
 `documentKinds` in `@openuji/fused` lists them, most specific first. A new kind
 is a package and an entry there; core, the engine and the rules stay as they

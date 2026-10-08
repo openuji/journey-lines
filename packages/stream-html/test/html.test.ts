@@ -54,10 +54,47 @@ describe('htmlDocuments', () => {
 
     const { events, stop } = await createLifecycleStream(cdp, [htmlDocuments]);
     frameNavigated(cdp, 'loader-a');
+    lifecycleEvent(cdp, 'load', 'loader-a');
     lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
     await stop();
 
     expect(summarize(await collect(events))).toEqual(['settled loader-a']);
+  });
+
+  it('settles a page attached after its load once its network goes almost idle in front of us', async () => {
+    const cdp = createFakeCdpTransport();
+    showingDocument(cdp, 'loader-now');
+    replayOnEnable(cdp, () => {
+      lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-now');
+      lifecycleEvent(cdp, 'load', 'loader-now');
+      lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-now');
+    });
+
+    const { events, stop } = await createLifecycleStream(cdp, [htmlDocuments]);
+    // The page fetched more after its load, and calmed down again.
+    lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-now');
+    await stop();
+
+    expect(summarize(await collect(events))).toEqual(['settled loader-now']);
+  });
+
+  it('settles once the page has loaded and its network is almost idle, whichever comes last, and once', async () => {
+    const cdp = createFakeCdpTransport();
+    const { events, stop } = await createLifecycleStream(cdp, [htmlDocuments]);
+
+    // A page about one large image: the network is almost idle while it still downloads.
+    frameNavigated(cdp, 'loader-a');
+    lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
+    lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
+    lifecycleEvent(cdp, 'load', 'loader-a');
+    lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
+    // A page that loads, then fetches what it shows.
+    frameNavigated(cdp, 'loader-b');
+    lifecycleEvent(cdp, 'load', 'loader-b');
+    lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-b');
+    await stop();
+
+    expect(summarize(await collect(events))).toEqual(['ready loader-a', 'settled loader-a', 'settled loader-b']);
   });
 
   it('reports what the probe in the page sees', async () => {

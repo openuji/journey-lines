@@ -67,6 +67,7 @@ describe('startRecording', () => {
     screencastFrame(cdp, { data: 'Zmlyc3Q=' });
     lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
     screencastFrame(cdp);
+    lifecycleEvent(cdp, 'load', 'loader-a');
     lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
     screencastFrame(cdp, { data: 'c2V0dGxlZA==' });
     bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('button#go'));
@@ -164,6 +165,7 @@ describe('startRecording', () => {
     lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
     screencastFrame(cdp, { data: 'cGFpbnRlZA==' });
     cdp.advance(500);
+    lifecycleEvent(cdp, 'load', 'loader-a');
     lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
     // Chrome sends nothing more.
     cdp.advance(300);

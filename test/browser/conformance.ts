@@ -236,6 +236,32 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         await lifecycle.stop();
       }));
 
+    it('lifecycle: settles a page only once its image is in, though its network went almost idle before', () =>
+      withTarget(async (target) => {
+        const url = fixture.url('/slow-image');
+        const lifecycle = await createLifecycleStream(target.cdp, documentKinds);
+        const events = collect(lifecycle.events);
+
+        await target.navigate(url);
+        let settledAtMs = 0;
+        await vi.waitFor(() => {
+          const loaderId = loaderAt(events, url);
+          const settled = events.find(
+            (event) => event.type === 'milestone' && event.name === 'settled' && event.loaderId === loaderId,
+          );
+          expect(settled).toBeDefined();
+          settledAtMs = settled!.receivedAtMs;
+        }, WAIT);
+
+        const { result } = await target.cdp.send('Runtime.evaluate', {
+          expression: 'window.imageLoadedAt',
+          returnByValue: true,
+        });
+        expect(settledAtMs).toBeGreaterThanOrEqual(result.value as number);
+
+        await lifecycle.stop();
+      }));
+
     it('lifecycle: reports a route change as a same-document navigation of the document it keeps', () =>
       withTarget(async (target) => {
         const spa = fixture.url('/spa');
