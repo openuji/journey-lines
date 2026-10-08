@@ -150,10 +150,11 @@ export type ScrollStart = Readonly<{ kind: ScrollCause; detail?: string }>;
 export type PagePosition = Readonly<{ x: number; y: number }>;
 
 /**
- * How a view began: the main frame loaded a document, or the document showing
- * changed route without reloading (an SPA navigation).
+ * How a view began: the main frame loaded a document, the document showing
+ * changed route without reloading (an SPA navigation), or another tab became
+ * the one recorded.
  */
-export type ViewEntry = 'load' | 'route';
+export type ViewEntry = 'load' | 'route' | 'tab';
 
 /**
  * One step of the user's journey — what the user is looking at between two
@@ -185,8 +186,8 @@ export const QUIET_AFTER_MS = 250;
 
 /**
  * Everything the rules engine sees: the sources' events exactly as they emit
- * them, compositor frames tagged for the queue, and two events the engine and
- * recorder synthesize themselves.
+ * them, compositor frames tagged for the queue, and the events the fused
+ * stream, the engine and the recorder synthesize themselves.
  */
 export type DomainEvent =
   | LifecycleEvent
@@ -210,6 +211,16 @@ export type DomainEvent =
        * The moment it describes: the last event's `receivedAtMs` plus
        * `QUIET_AFTER_MS`, on the transport's clock.
        */
+      receivedAtMs: number;
+    }>
+  /**
+   * Synthesized by the fused stream when its sources move to a new session on
+   * the active page: the same tab again, or another tab. Until that session
+   * reports the document showing, nothing that arrives belongs to a view.
+   */
+  | Readonly<{
+      type: 'session-changed';
+      otherTab: boolean;
       receivedAtMs: number;
     }>
   /**

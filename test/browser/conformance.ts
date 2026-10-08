@@ -411,6 +411,38 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         }
       }));
 
+    it('pipeline: a page that stops painting still gets its 01 and 02, showing what is on screen', () =>
+      withTarget(async (target) => {
+        const url = fixture.url('/still');
+        const sink = new MemorySink();
+        const recording = await startRecording(target.cdp, {
+          sinks: [sink],
+          screencast: { viewport: target.viewport },
+        });
+
+        // What is on screen: the latest frame.
+        let onScreen = '';
+        const off = target.cdp.on('Page.screencastFrame', ({ data }) => {
+          onScreen = data;
+        });
+
+        await target.navigate(url);
+        // `networkAlmostIdle` comes after the page's last paint: no frame follows it.
+        await vi.waitFor(() => expect(sink.labels(url)).toContain(DocumentLabel.settled), WAIT);
+        const shownAtSettled = onScreen;
+        await recording.stop();
+        off();
+
+        expect(sink.labels(url)).toEqual([
+          DocumentLabel.first,
+          DocumentLabel.domContentLoaded,
+          DocumentLabel.settled,
+          DocumentLabel.beforeNavigation,
+        ]);
+        const settled = sink.captures.find((capture) => capture.label === DocumentLabel.settled);
+        expect(settled?.frame.base64).toBe(shownAtSettled);
+      }));
+
     it('pipeline: a scroll on a page that stops painting ends by itself, with the frames from either side', () =>
       withTarget(async (target) => {
         const url = fixture.url('/still');

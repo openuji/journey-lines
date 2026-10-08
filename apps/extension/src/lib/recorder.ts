@@ -1,8 +1,7 @@
-import type { CdpTransport } from '@openuji/cdp';
+import type { CdpTransport, TabHost } from '@openuji/cdp';
 import type { CaptureSink, Clip, MilestoneCapture } from '@openuji/core';
 import type { ClipWorker } from '@openuji/clip-webm';
-import { startRecording, type RecordingHandle } from '@openuji/fused';
-import type { DetachReason, ExtensionTarget } from '@openuji/host-extension';
+import { recordActiveTab, type ActiveTabRecording, type ActiveTabState } from '@openuji/fused';
 import type { OpenClips } from './clips';
 import type {
   EndedBy,
@@ -12,37 +11,41 @@ import type {
   WorkerMessage,
 } from './protocol';
 
-export type AttachTab = (tabId: number) => Promise<ExtensionTarget>;
+/** The tabs of one window, as the recording follows them. */
+export type TabsOf = (windowId: number) => TabHost<number>;
+export type DescribeTab = (tabId: number) => Promise<TabSummary>;
 
-const endedByChrome: Record<DetachReason, EndedBy> = {
-  target_closed: 'tab-closed',
-  canceled_by_user: 'debugging-cancelled',
+const endedByChrome: Record<'gone' | 'revoked', EndedBy> = {
+  gone: 'window-closed',
+  revoked: 'debugging-cancelled',
 };
 
 /**
- * Records one tab at a time: idle → recording → stopping → done.
+ * Records the active tab of one window: idle → recording → stopping → done.
  *
- * Runs the same pipeline as every other host (`startRecording`) over the
- * attached tab, and keeps the journey — every capture so far, and the video of
+ * Runs the same pipeline as every other host (`recordActiveTab`) over the
+ * window's tabs, and keeps the journey — every capture so far, and the video of
  * each scroll when asked for — in memory. Each change goes out through `emit`
  * as a `WorkerMessage`. Failures reject the call that caused them and leave the
  * state as it was.
  *
- * No `chrome.*` in here: the tab comes from the injected `attach`, the video
+ * No `chrome.*` in here: the tabs come from the injected `tabsOf`, the video
  * encoder from `openClips`, so this runs unchanged in tests.
  */
 export class Recorder {
   private current: RecorderStatus = { state: 'idle' };
   private journey: MilestoneCapture[] = [];
   private videos: Clip[] = [];
-  private target: ExtensionTarget | null = null;
-  private recording: RecordingHandle | null = null;
+  private recording: ActiveTabRecording | null = null;
   private clipWorker: ClipWorker | null = null;
   /** Set while a tab is being attached, so a second Record waits its turn. */
   private starting = false;
+  /** Counts what the recording said about the active tab; only the latest shows. */
+  private shown = 0;
 
   constructor(
-    private readonly attach: AttachTab,
+    private readonly tabsOf: TabsOf,
+    private readonly describeTab: DescribeTab,
     private readonly emit: (message: WorkerMessage) => void,
     private readonly openClips?: OpenClips,
   ) {}
@@ -60,9 +63,9 @@ export class Recorder {
     return this.videos;
   }
 
-  /** The recorded tab's CDP connection, null when nothing is recorded. */
+  /** The active tab's CDP connection; null when nothing is recorded. */
   get cdp(): CdpTransport | null {
-    return this.target?.cdp ?? null;
+    return this.recording?.cdp ?? null;
   }
 
   /** Everything a newly opened panel needs to show. */
@@ -83,33 +86,35 @@ export class Recorder {
 
     this.starting = true;
     try {
-      const target = await this.attach(tab.id);
+      // The one place the video setting is read: whether there is a clip sink.
+      const clipWorker = options.video ? await this.startClips() : null;
+      const journey: MilestoneCapture[] = [];
 
-      this.target = target;
-      this.journey = [];
-      this.videos = [];
-      this.current = { state: 'recording', tab, startedAtMs: target.cdp.clock.now() };
-      // A snapshot, not a status: panels drop the previous journey with it.
-      this.emit(this.snapshot());
-
-      target.onClosed((reason) => void this.stop(endedByChrome[reason]));
-
+      let recording: ActiveTabRecording;
       try {
-        // The one place the video setting is read: whether there is a clip sink.
-        this.clipWorker = options.video ? await this.startClips() : null;
-        this.recording = await startRecording(target.cdp, {
-          sinks: [this.sink()],
-          ...(this.clipWorker ? { clips: this.clipWorker.sink } : {}),
+        recording = await recordActiveTab(this.tabsOf(tab.windowId), tab.id, {
+          sinks: [this.sink(journey)],
+          ...(clipWorker ? { clips: clipWorker.sink } : {}),
+          onActiveTab: (tabId, tabState) => void this.showActive(tabId, tabState),
+          onEnd: (why) => void this.stop(endedByChrome[why]),
         });
       } catch (error) {
-        await this.clipWorker?.close();
-        this.clipWorker = null;
-        await target.close();
-        this.target = null;
-        this.current = { state: 'idle' };
-        this.emit(this.snapshot());
+        await clipWorker?.close();
         throw error;
       }
+
+      this.recording = recording;
+      this.clipWorker = clipWorker;
+      this.journey = journey;
+      this.videos = [];
+      this.current = {
+        state: 'recording',
+        tab,
+        active: { tab, state: 'recording' },
+        startedAtMs: this.now(),
+      };
+      // A snapshot, not a status: panels drop the previous journey with it.
+      this.emit(this.snapshot());
     } finally {
       this.starting = false;
     }
@@ -117,28 +122,32 @@ export class Recorder {
 
   /**
    * Flush the final resting state (`99-before-navigation`), drain, and hand
-   * the tab back. A no-op unless recording, so the person pressing Stop and
-   * Chrome closing the tab can race harmlessly.
+   * every tab back. A no-op unless recording, so the person pressing Stop and
+   * Chrome ending the recording can race harmlessly.
    */
   async stop(endedBy: EndedBy = 'user'): Promise<void> {
-    if (this.current.state !== 'recording' || !this.target) return;
+    if (this.current.state !== 'recording' || !this.recording) return;
 
-    const { tab, startedAtMs } = this.current;
-    const target = this.target;
-    const endedAtMs = target.cdp.clock.now();
-    this.setStatus({ state: 'stopping', tab, startedAtMs });
+    const { tab, active, startedAtMs } = this.current;
+    const recording = this.recording;
+    const endedAtMs = this.now();
+    this.setStatus({ state: 'stopping', tab, active, startedAtMs });
 
     try {
       // Drains the clip sink too: the last scroll's video is in by now.
-      await this.recording?.stop();
+      await recording.stop();
     } finally {
-      const droppedFrames = this.recording?.stats.dropped ?? 0;
       await this.clipWorker?.close();
       this.clipWorker = null;
-      await target.close();
-      this.target = null;
       this.recording = null;
-      this.setStatus({ state: 'done', tab, startedAtMs, endedAtMs, endedBy, droppedFrames });
+      this.setStatus({
+        state: 'done',
+        tab,
+        startedAtMs,
+        endedAtMs,
+        endedBy,
+        droppedFrames: recording.stats.dropped,
+      });
     }
   }
 
@@ -151,16 +160,35 @@ export class Recorder {
     this.emit(this.snapshot());
   }
 
-  /** Where the pipeline's captures go: onto the journey, and out to the panels. */
-  private sink(): CaptureSink {
+  /**
+   * Where the pipeline's captures go: onto `journey`, and out to the panels
+   * once it is the journey shown. Captures that come before carry over in the
+   * recording's first snapshot.
+   */
+  private sink(journey: MilestoneCapture[]): CaptureSink {
     return {
       name: 'journey',
       enqueue: (capture) => {
-        this.journey.push(capture);
-        this.emit({ type: 'capture', capture });
+        journey.push(capture);
+        if (this.journey === journey) this.emit({ type: 'capture', capture });
       },
       drain: async () => {},
     };
+  }
+
+  /** What the recording does with the active tab, out to the panels. */
+  private async showActive(tabId: number, state: ActiveTabState): Promise<void> {
+    const shown = ++this.shown;
+    const tab = await this.describeTab(tabId).catch(() => null);
+    const current = this.current;
+    // Gone meanwhile (a closed tab), said again since, or no longer recording.
+    if (!tab || shown !== this.shown || current.state !== 'recording') return;
+    this.setStatus({ ...current, active: { tab, state } });
+  }
+
+  /** The transport's clock, as captures are stamped; `Date.now` while nothing is recorded. */
+  private now(): number {
+    return this.recording?.cdp?.clock.now() ?? Date.now();
   }
 
   /** The video encoder, its clips going onto the journey and out to the panels. */

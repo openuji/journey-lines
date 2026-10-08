@@ -27,14 +27,22 @@ export function createChromeDebuggerTransport(
   };
   chromeDebugger.onEvent.addListener(forward);
 
+  // Commands go by tab, not by session: once disposed, a send could reach a
+  // newer session on the same tab. So it is refused here, without asking Chrome.
+  let disposed = false;
   const send = (method: string, params?: { [key: string]: unknown }) =>
-    chromeDebugger.sendCommand({ tabId }, method, params);
+    disposed
+      ? Promise.reject(new Error(`The debugging session of tab ${tabId} has ended`))
+      : chromeDebugger.sendCommand({ tabId }, method, params);
 
   return {
     // `chrome.debugger` is untyped CDP; the transport contract types it.
     send: send as CdpTransport['send'],
     on: (event, listener) => router.on(event, listener),
     clock: router.clock,
-    dispose: () => chromeDebugger.onEvent.removeListener(forward),
+    dispose: () => {
+      disposed = true;
+      chromeDebugger.onEvent.removeListener(forward);
+    },
   };
 }

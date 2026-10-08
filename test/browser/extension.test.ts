@@ -16,7 +16,7 @@ import { DocumentLabel } from '@openuji/rules-document';
 import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import type { Recorder } from '../../apps/extension/src/lib/recorder';
 import { launchWithExtension, type ExtensionBrowser } from './extension-browser.js';
-import { BUTTON, startFixtureServer, type FixtureServer } from './fixture.js';
+import { BUTTON, NEW_TAB_LINK, startFixtureServer, type FixtureServer } from './fixture.js';
 import { click, wheel } from './input.js';
 
 declare global {
@@ -74,7 +74,10 @@ describe('extension host against a real browser', () => {
     extension.worker.evaluate(
       async (tabId, options) => {
         const tab = await chrome.tabs.get(tabId);
-        await recorder.record({ id: tabId, title: tab.title ?? '', url: tab.url ?? '' }, options);
+        await recorder.record(
+          { id: tabId, windowId: tab.windowId, title: tab.title ?? '', url: tab.url ?? '' },
+          options,
+        );
       },
       tabId,
       options,
@@ -238,22 +241,169 @@ describe('extension host against a real browser', () => {
     }
   });
 
-  it('ends the recording when the tab closes, keeping the resting state', async () => {
-    const tabId = await openTab(fixture.url('/'));
-    await record(tabId);
-    await waitForLabel(DocumentLabel.first);
+  describe('following the active tab', () => {
+    type Shown = { viewId: number; entry: string; label: string; url: string };
+    const journey = (): Promise<Shown[]> =>
+      extension.worker.evaluate(() =>
+        recorder.captures.map(({ viewId, entry, label, url }) => ({ viewId, entry, label, url })),
+      );
+    /** How each view began, in order. */
+    const entries = async (): Promise<string[]> => {
+      const seen = new Map<number, string>();
+      for (const { viewId, entry } of await journey()) seen.set(viewId, entry);
+      return [...seen.values()];
+    };
+    const status = () => extension.worker.evaluate(() => recorder.status);
+    const activate = (tabId: number): Promise<unknown> =>
+      extension.worker.evaluate((tabId) => chrome.tabs.update(tabId, { active: true }), tabId);
+    const waitForActive = (tabId: number, state: string): Promise<void> =>
+      vi.waitFor(
+        async () => expect(await status()).toMatchObject({ active: { tab: { id: tabId }, state } }),
+        WAIT,
+      );
 
-    await extension.worker.evaluate((tabId) => chrome.tabs.remove(tabId), tabId);
+    it('records on through a PDF in the same tab, and back on the page', async () => {
+      const tabId = await openTab(fixture.url('/'));
+      await record(tabId);
+      await waitForLabel(DocumentLabel.first);
 
-    await vi.waitFor(
-      async () =>
-        expect(await extension.worker.evaluate(() => recorder.status)).toMatchObject({
-          state: 'done',
-          endedBy: 'tab-closed',
-        }),
-      WAIT,
-    );
-    expect((await labels()).at(-1)).toBe(DocumentLabel.beforeNavigation);
+      // Chrome takes the debugger away from its PDF viewer; the recording attaches again.
+      await extension.worker.evaluate(
+        (tabId, url) => chrome.tabs.update(tabId, { url }),
+        tabId,
+        fixture.url('/doc.pdf'),
+      );
+      await vi.waitFor(
+        async () =>
+          expect(await journey()).toContainEqual(
+            expect.objectContaining({ label: DocumentLabel.first, url: fixture.url('/doc.pdf') }),
+          ),
+        WAIT,
+      );
+      expect((await status()).state).toBe('recording');
+
+      await extension.worker.evaluate(
+        (tabId, url) => chrome.tabs.update(tabId, { url }),
+        tabId,
+        fixture.url('/second'),
+      );
+      await vi.waitFor(
+        async () =>
+          expect(await journey()).toContainEqual(
+            expect.objectContaining({ label: DocumentLabel.first, url: fixture.url('/second') }),
+          ),
+        WAIT,
+      );
+      const { result } = await recordedTab.send('Runtime.evaluate', {
+        expression: 'devicePixelRatio',
+        returnByValue: true,
+      });
+      expect(result.value).toBe(1);
+
+      await stop();
+      expect(await entries()).toEqual(['load', 'load', 'load']);
+      expect(await status()).toMatchObject({ state: 'done', endedBy: 'user' });
+    });
+
+    it('follows a link into a new tab, back to its opener, and to the opener again when that tab closes', async () => {
+      const openerId = await openTab(fixture.url('/opener'));
+      await record(openerId);
+      await waitForLabel(DocumentLabel.first);
+
+      await click(
+        recordedTab,
+        NEW_TAB_LINK.x + NEW_TAB_LINK.width / 2,
+        NEW_TAB_LINK.y + NEW_TAB_LINK.height / 2,
+      );
+      const newTabId = await vi.waitFor(async () => {
+        const current = await status();
+        if (current.state !== 'recording') throw new Error(`The recording is ${current.state}`);
+        expect(current.active.tab.id).not.toBe(openerId);
+        expect(current.active.state).toBe('recording');
+        return current.active.tab.id;
+      }, WAIT);
+      await vi.waitFor(async () => expect(await entries()).toEqual(['load', 'tab']), WAIT);
+
+      await activate(openerId);
+      await waitForActive(openerId, 'recording');
+      await vi.waitFor(async () => expect(await entries()).toEqual(['load', 'tab', 'tab']), WAIT);
+
+      await activate(newTabId);
+      await waitForActive(newTabId, 'recording');
+      await extension.worker.evaluate((tabId) => chrome.tabs.remove(tabId), newTabId);
+      await waitForActive(openerId, 'recording');
+
+      await stop();
+      expect((await status()).state).toBe('done');
+      expect(await scaleOfIdleTab(openerId)).toBe(2);
+    });
+
+    it('never waits on a new tab whose page never comes: back to the first tab at once', async () => {
+      const firstId = await openTab(fixture.url('/'));
+      await record(firstId);
+      await waitForLabel(DocumentLabel.first);
+
+      const hungId = await extension.worker.evaluate(
+        async (url) => (await chrome.tabs.create({ url })).id!,
+        fixture.url('/hang'),
+      );
+      await waitForActive(hungId, 'attaching');
+      await activate(firstId);
+      await waitForActive(firstId, 'recording');
+
+      await stop();
+      await extension.worker.evaluate((tabId) => chrome.tabs.remove(tabId), hungId);
+    });
+
+    it('pauses on a page Chrome keeps from extensions, and resumes on the next one', async () => {
+      const tabId = await openTab(fixture.url('/'));
+      await record(tabId);
+      await waitForLabel(DocumentLabel.first);
+
+      await extension.worker.evaluate(
+        (tabId) => chrome.tabs.update(tabId, { url: 'chrome://version' }),
+        tabId,
+      );
+      await waitForActive(tabId, 'refused');
+
+      await extension.worker.evaluate(
+        (tabId, url) => chrome.tabs.update(tabId, { url }),
+        tabId,
+        fixture.url('/second'),
+      );
+      await waitForActive(tabId, 'recording');
+      await vi.waitFor(
+        async () =>
+          expect(await journey()).toContainEqual(
+            expect.objectContaining({ label: DocumentLabel.first, url: fixture.url('/second') }),
+          ),
+        WAIT,
+      );
+
+      await stop();
+      expect(await entries()).toEqual(['load', 'load']);
+    });
+
+    it('ends when its window closes, keeping the resting state', async () => {
+      const { tabId, windowId } = await extension.worker.evaluate(async (url) => {
+        const window = (await chrome.windows.create({ url }))!;
+        const tab = window.tabs![0]!;
+        while ((await chrome.tabs.get(tab.id!)).status !== 'complete') {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        return { tabId: tab.id!, windowId: window.id! };
+      }, fixture.url('/'));
+      await record(tabId);
+      await waitForLabel(DocumentLabel.first);
+
+      await extension.worker.evaluate((windowId) => chrome.windows.remove(windowId), windowId);
+
+      await vi.waitFor(
+        async () => expect(await status()).toMatchObject({ state: 'done', endedBy: 'window-closed' }),
+        WAIT,
+      );
+      expect((await labels()).at(-1)).toBe(DocumentLabel.beforeNavigation);
+    });
   });
 
   it('shows the journey in the panel as it happens, then the summary', async () => {

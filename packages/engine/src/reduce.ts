@@ -10,6 +10,7 @@ import type { MilestoneRule, RuleContext } from './rule.js';
 import {
   classifyNavigation,
   enterView,
+  isDocumentReport,
   pathOrHashRoute,
   type NavigatedEvent,
   type RoutePolicy,
@@ -21,6 +22,11 @@ export type EngineState = Readonly<{
   /** Documents loaded so far — also the current view's `documentId`. */
   documentCount: number;
   currentView: ViewState | null;
+  /**
+   * Set by `session-changed` until the new session reports the document
+   * showing; meanwhile nothing that arrives belongs to a view.
+   */
+  sessionChanged: Readonly<{ otherTab: boolean }> | null;
   /** Per-rule opaque state, keyed by rule id. */
   ruleStates: Readonly<Record<string, unknown>>;
 }>;
@@ -39,6 +45,7 @@ export const initialEngineState: EngineState = Object.freeze({
   viewCount: 0,
   documentCount: 0,
   currentView: null,
+  sessionChanged: null,
   ruleStates: Object.freeze({}),
 });
 
@@ -120,6 +127,7 @@ function enter(
       viewCount: view.id,
       documentCount: view.documentId,
       currentView: view,
+      sessionChanged: null,
       ruleStates: initialized,
     },
     captures: output.captures,
@@ -131,6 +139,9 @@ function enter(
  * The whole engine, as one pure function.
  *
  * Ordering here is load-bearing:
+ *  0. After `session-changed`, only the new session's document report (or
+ *     `stop`) gets through: it decides whether the view goes on or a new one
+ *     begins, and nothing may land in a view before that is known.
  *  1. A navigation that starts a new view goes through {@link enter} and stops
  *     there. One that only changes the URL showing updates it in place, so the
  *     rules below already see the new URL.
@@ -146,10 +157,25 @@ export function reduce(
   rules: readonly MilestoneRule[],
   routePolicy: RoutePolicy = pathOrHashRoute,
 ): ReduceResult {
+  if (event.type === 'session-changed') {
+    return { state: { ...state, sessionChanged: { otherTab: event.otherTab } }, ...NOTHING };
+  }
+  const { sessionChanged } = state;
+  if (sessionChanged) {
+    // Until the new session says which document shows, nothing belongs to a view.
+    if (event.type !== 'stop' && !isDocumentReport(event)) return { state, ...NOTHING };
+    state = { ...state, sessionChanged: null };
+  }
+
   let currentView = state.currentView;
 
   if (event.type === 'navigated') {
-    const outcome = classifyNavigation(currentView, event, routePolicy);
+    const outcome = classifyNavigation(
+      currentView,
+      event,
+      routePolicy,
+      sessionChanged?.otherTab ?? false,
+    );
 
     if (outcome?.kind === 'new-view') {
       return enter(state, event, outcome.entry, rules);

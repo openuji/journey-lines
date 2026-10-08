@@ -1,11 +1,11 @@
-import puppeteer, { type Browser, type Page } from 'puppeteer';
+import puppeteer, { type Browser, type Page, type Target } from 'puppeteer';
 import {
   navigateUntilClosed,
-  pinScaleFactor,
   type RecordingTarget,
-  type Unsubscribe,
+  type TabHost,
   type Viewport,
 } from '@openuji/cdp';
+import { puppeteerTabs } from './tabs.js';
 import { createPuppeteerTransport } from './transport.js';
 
 export const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
@@ -37,6 +37,23 @@ export interface PuppeteerTargetOptions {
 }
 
 /**
+ * A freshly launched Chrome with its own throwaway profile, whose tabs a
+ * recording can follow (`recordActiveTab(browser.tabs, browser.firstTab, …)`).
+ */
+export interface PuppeteerBrowser {
+  readonly browser: Browser;
+  /** Its tabs; a tab is Puppeteer's own `Target`. */
+  readonly tabs: TabHost<Target>;
+  /** The tab it opened with. */
+  readonly firstTab: Target;
+  /** Headless: the viewport every page is laid out at. Absent headed. */
+  readonly viewport?: Viewport;
+  /** Navigate the first tab; resolves once the new document has committed. */
+  navigate(url: string): Promise<void>;
+  close(): Promise<void>;
+}
+
+/**
  * A page in a freshly launched Chrome with its own throwaway profile.
  *
  * `browser` and `page` stay reachable for Puppeteer-specific callers (driving
@@ -49,9 +66,9 @@ export interface PuppeteerTarget extends RecordingTarget {
   navigate(url: string, options?: { waitUntil?: WaitUntil }): Promise<void>;
 }
 
-export async function launchPuppeteerTarget(
+export async function launchPuppeteerBrowser(
   options: PuppeteerTargetOptions = {},
-): Promise<PuppeteerTarget> {
+): Promise<PuppeteerBrowser> {
   const headless = options.headless !== false;
   const viewport = { ...(options.viewport ?? DEFAULT_VIEWPORT) };
 
@@ -75,40 +92,49 @@ export async function launchPuppeteerTarget(
     // Every launch gets a fresh temporary profile, so the default context is
     // already isolated; reusing its first tab avoids a stray blank window.
     const page = (await browser.pages())[0] ?? (await browser.newPage());
-    const cdp = createPuppeteerTransport(await page.createCDPSession());
     if (!headless) {
       // Sizes the content area, not the window, so the toolbar does not eat
-      // into it. The OS may still clamp it to fit the screen.
+      // into it. The OS may still clamp it to fit the screen. The layout then
+      // follows the real window; only the scale factor is pinned, per tab.
       await page.resize({
         contentWidth: viewport.width,
         contentHeight: viewport.height,
       });
-      // The layout follows the real window; only the scale factor is pinned.
-      await pinScaleFactor(cdp);
     }
 
-    const onClosed = (listener: () => void): Unsubscribe => {
-      // Closing the last window does not end the browser everywhere (macOS
-      // keeps it running), so a closed tab counts as the target going away.
-      let fired = false;
-      const once = (): void => {
-        if (fired) return;
-        fired = true;
-        listener();
-      };
-
-      browser.on('disconnected', once);
-      page.on('close', once);
-      return () => {
-        browser.off('disconnected', once);
-        page.off('close', once);
-      };
+    const tabs = await puppeteerTabs(browser, headless ? viewport : undefined);
+    return {
+      browser,
+      tabs,
+      firstTab: page.target(),
+      ...(headless ? { viewport } : {}),
+      navigate: (url) => navigateCommitted(page, url, tabs),
+      close: () => browser.close().catch(() => {}),
     };
+  } catch (err) {
+    await browser.close().catch(() => {});
+    throw err;
+  }
+}
+
+/**
+ * The browser of `launchPuppeteerBrowser`, recording its first tab only: the
+ * shape the stream runners and the conformance suite drive.
+ */
+export async function launchPuppeteerTarget(
+  options: PuppeteerTargetOptions = {},
+): Promise<PuppeteerTarget> {
+  const chrome = await launchPuppeteerBrowser(options);
+
+  try {
+    const page = await chrome.firstTab.page();
+    if (!page) throw new Error('The first tab has no page');
+    const session = await chrome.tabs.attach(chrome.firstTab);
 
     return {
-      cdp,
-      ...(headless ? { viewport } : {}),
-      browser,
+      cdp: session.cdp,
+      ...(chrome.viewport ? { viewport: chrome.viewport } : {}),
+      browser: chrome.browser,
       page,
 
       async navigate(url, navigateOptions = {}) {
@@ -120,18 +146,28 @@ export async function launchPuppeteerTarget(
 
         // `page.goto` cannot stop at commit, and on a slow page its timeout
         // would fail a recording that is going fine.
-        await navigateUntilClosed(cdp, url, onClosed);
+        await navigateUntilClosed(session.cdp, url, session.onClosed);
       },
 
-      onClosed,
+      // The page closing or the browser going away.
+      onClosed: session.onClosed,
 
-      async close() {
-        cdp.dispose();
-        await browser.close().catch(() => {});
-      },
+      close: () => chrome.close(),
     };
   } catch (err) {
-    await browser.close().catch(() => {});
+    await chrome.close();
     throw err;
+  }
+}
+
+/** Navigate `page` to `url` over a session of its own, until it commits or the browser is gone. */
+async function navigateCommitted(page: Page, url: string, tabs: TabHost<Target>): Promise<void> {
+  const session = await page.createCDPSession();
+  const cdp = createPuppeteerTransport(session);
+  try {
+    await navigateUntilClosed(cdp, url, tabs.onGone);
+  } finally {
+    cdp.dispose();
+    await session.detach().catch(() => {});
   }
 }

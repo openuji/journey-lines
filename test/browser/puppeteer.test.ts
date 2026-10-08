@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CdpTransport } from '@openuji/cdp';
 import { QUIET_AFTER_MS, type CaptureSink, type Clip, type MilestoneCapture } from '@openuji/core';
-import { startRecording } from '@openuji/fused';
-import { launchPuppeteerTarget } from '@openuji/host-puppeteer';
+import { recordActiveTab, startRecording } from '@openuji/fused';
+import { launchPuppeteerBrowser, launchPuppeteerTarget } from '@openuji/host-puppeteer';
 import { DocumentLabel } from '@openuji/rules-document';
 import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import { startClipWorker } from '@openuji/sinks';
 import { describeHostConformance } from './conformance.js';
-import { startFixtureServer } from './fixture.js';
-import { wheel } from './input.js';
+import { NEW_TAB_LINK, startFixtureServer } from './fixture.js';
+import { click, wheel } from './input.js';
 
 const env = process.env;
 const WAIT = { timeout: 15_000, interval: 50 };
@@ -201,6 +201,76 @@ describe('puppeteer host, scroll video (UXR_VIDEO)', () => {
     } finally {
       await worker.close();
       await target.close();
+      await fixture.close();
+    }
+  });
+});
+
+/**
+ * The same `recordActiveTab` as the extension's, over the launched browser's
+ * tabs. Headed, Chrome decides the active tab; headless-shell shows every
+ * page, so there a tab counts as active when it loads one.
+ */
+describe('puppeteer host, the active tab', () => {
+  const center = ({ x, y, width, height }: typeof NEW_TAB_LINK) => ({
+    x: x + width / 2,
+    y: y + height / 2,
+  });
+
+  async function start() {
+    const fixture = await startFixtureServer();
+    const chrome = await launchPuppeteerBrowser({ headless, executablePath });
+    const captures: MilestoneCapture[] = [];
+    const sink: CaptureSink = { name: 'memory', enqueue: (c) => captures.push(c), drain: async () => {} };
+    const onEnd = vi.fn();
+    const recording = await recordActiveTab(chrome.tabs, chrome.firstTab, {
+      sinks: [sink],
+      screencast: { viewport: chrome.viewport },
+      onEnd,
+    });
+    /** How each view began, in order. */
+    const entries = (): string[] => [
+      ...new Map(captures.map((c) => [c.viewId, c.entry] as const)).values(),
+    ];
+    return { fixture, chrome, captures, recording, onEnd, entries };
+  }
+
+  it('follows a link into a new tab, and back to the first one', async () => {
+    const { fixture, chrome, recording, entries } = await start();
+    try {
+      await chrome.navigate(fixture.url('/opener'));
+      await vi.waitFor(() => expect(entries()).toEqual(['load']), WAIT);
+
+      const link = center(NEW_TAB_LINK);
+      await click(recording.cdp!, link.x, link.y);
+      await vi.waitFor(() => expect(entries()).toEqual(['load', 'tab']), WAIT);
+
+      if (!headless) {
+        await (await chrome.firstTab.page())!.bringToFront();
+        await vi.waitFor(() => expect(entries()).toEqual(['load', 'tab', 'tab']), WAIT);
+      }
+      await recording.stop();
+    } finally {
+      await chrome.close();
+      await fixture.close();
+    }
+  });
+
+  it('ends when the browser is gone, keeping the resting state', async () => {
+    const { fixture, chrome, captures, recording, onEnd } = await start();
+    try {
+      await chrome.navigate(fixture.url('/'));
+      await vi.waitFor(
+        () => expect(captures.map((c) => c.label)).toContain(DocumentLabel.first),
+        WAIT,
+      );
+
+      await chrome.close();
+      await vi.waitFor(() => expect(onEnd).toHaveBeenCalledWith('gone'), WAIT);
+      await recording.stop();
+
+      expect(captures.at(-1)?.label).toBe(DocumentLabel.beforeNavigation);
+    } finally {
       await fixture.close();
     }
   });

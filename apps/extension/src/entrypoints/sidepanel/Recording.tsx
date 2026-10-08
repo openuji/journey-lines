@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Square } from 'lucide-react';
 import type { Clip, MilestoneCapture } from '@openuji/core';
+import type { ActiveTabState } from '@openuji/fused';
 import { formatClock, shortUrl } from '../../lib/journey';
 import type { RecorderStatus } from '../../lib/protocol';
 import { Journey } from './Journey';
+
+/** What to say about the active tab when it is not being recorded. */
+const activeNote: Record<ActiveTabState, string | null> = {
+  recording: null,
+  attaching: 'Waiting for the page…',
+  refused: "Paused: Chrome doesn't let extensions record this page.",
+};
 
 type Live = Extract<RecorderStatus, { state: 'recording' | 'stopping' }>;
 
@@ -20,6 +28,7 @@ export function Recording({
 }) {
   const now = useNow(500);
   const stopping = status.state === 'stopping';
+  const note = activeNote[status.active.state];
 
   return (
     <>
@@ -35,10 +44,11 @@ export function Recording({
         </button>
       </header>
 
-      <div className="tab-chip" title={status.tab.url}>
+      <div className="tab-chip" title={status.active.tab.url}>
         <span className="tab-chip__dot" aria-hidden />
-        {status.tab.title || shortUrl(status.tab.url)}
+        {status.active.tab.title || shortUrl(status.active.tab.url)}
       </div>
+      {note && <p className="note">{note}</p>}
 
       <Journey captures={captures} clips={clips} startedAtMs={status.startedAtMs} follow />
     </>

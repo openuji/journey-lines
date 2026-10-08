@@ -3,9 +3,11 @@ import type { Clip, MilestoneCapture } from '@openuji/core';
 import { initialPanelState, panelReducer, type PanelAction } from '../src/lib/panel-state';
 import type { RecorderStatus } from '../src/lib/protocol';
 
+const tab = { id: 7, windowId: 1, title: 'Example', url: 'https://example.com/' };
 const recording: RecorderStatus = {
   state: 'recording',
-  tab: { id: 7, title: 'Example', url: 'https://example.com/' },
+  tab,
+  active: { tab, state: 'recording' },
   startedAtMs: 1_000,
 };
 

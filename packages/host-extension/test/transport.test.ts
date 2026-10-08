@@ -56,4 +56,14 @@ describe('createChromeDebuggerTransport', () => {
 
     expect(chromeDebugger.listenerCount()).toBe(0);
   });
+
+  it('refuses to send once disposed, without asking Chrome: commands go by tab', async () => {
+    const chromeDebugger = createFakeChromeDebugger();
+    const cdp = createChromeDebuggerTransport(chromeDebugger, TAB);
+
+    cdp.dispose();
+
+    await expect(cdp.send('Page.enable')).rejects.toThrow(`tab ${TAB} has ended`);
+    expect(chromeDebugger.sent).toEqual([]);
+  });
 });

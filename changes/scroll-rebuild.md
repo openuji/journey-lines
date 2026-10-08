@@ -201,9 +201,37 @@ Plan: `~/.claude/plans/ok-plan-s1b-in-validated-anchor.md`.
 
 **Found while building Phase E (2026-10-07):** in the extension host, a still page's scroll is never reported in the screencast's offsets. It is fixed by "S1 revised" above: scrolls are timed by the page, and the extension's tests use the still page again.
 
-## S1c: `quiet` for `01`/`02`
+## S1c: `quiet` for `01`/`02` (built 2026-10-07)
 
-`02-settled` arms on `networkAlmostIdle` and then waits for a next frame that, on a still page, never comes. It could take the frame showing at `quiet` instead. The same applies to `01-domcontentloaded`, since both use one rule factory. Post-click keeps waiting for its next frame on purpose: a click's response often paints after a pause.
+**Why.** `02-settled` armed on `networkAlmostIdle` and then waited for the next frame. On most real pages none comes, because the page has finished painting by then. It then waited for the first paint of whatever the person did next. Measured headless on Chrome 154, 10 s after each load:
+
+| Page | Frames after `networkAlmostIdle` |
+|---|---|
+| fu-berlin.de, wikipedia.org, news.ycombinator.com, developer.mozilla.org, spiegel.de, github.com | none |
+| fu-berlin.de/studium, 13 loads | none in 9; within 121 ms in 3; at 257 ms in 1 |
+| tagesschau.de (animated) | the next one 16 ms later |
+
+`01-domcontentloaded` always had a frame after it: the page's first paints follow `DOMContentLoaded`.
+
+**Why it waited for the next frame.** The first recorder (`stream-watch-2.ts`, 2026-09-16) saved `lastFrame` at the milestone, then saved the next frame to the same file, so one overwrote the other. That cannot happen here:
+- a milestone is captured once, from the next frame or from `quiet`, never both;
+- the capture holds its frame's image, which never changes;
+- each label has its own file.
+
+**What changed** (`rules-document/src/lifecycle-milestone.ts`):
+- An armed milestone still takes the next frame. If the stream goes `quiet` first, it takes the frame showing (`lastFrame`): nothing was painted after the milestone, so that is the page at it.
+- With no frame yet in the view, `quiet` captures nothing, and the first frame does.
+- One factory, so `01`, `02` and the unused `load` rule all do it.
+- The detail says which: `Compositor frame following networkAlmostIdle`, or `Compositor frame showing at networkAlmostIdle; nothing was painted after it`. Both come from the milestone's name, so the factory's `detail` option is gone.
+- Post-click keeps waiting for its next frame on purpose: a click's response often paints after a pause.
+
+**Checked:**
+- Unit tests: quiet captures the frame showing, a frame before quiet wins, and nothing is captured twice.
+- `/still` in the browser suite gives `00 01 02 99`, and `02` is the picture on screen. Before the change, `02` never came (15 s).
+
+**Known limits:**
+- **A paint after `quiet` is not in `02`.** `02` is the picture showing when the stream first goes quiet after the milestone. A page that paints again later, a late image say, keeps the earlier picture; today's rule took that later paint. Seen in 2 of 103 loads of fu-berlin.de/studium (headless). In one, Chrome swapped the frame 233 ms after the capture: a real later paint. The other run did not record swap times.
+- **A paint still on its way when `quiet` fires is missed.** Such a picture is on screen, but its frame has not reached the recorder yet. Headless, frames arrive 5 ms after Chrome swaps them (median), 28 ms at p99, 39 ms at most: the PNG is encoded first. None of 90 loads showed this case. In the extension host, frames were measured at about 1 ms after their swap.
 
 ## S2: who scrolled
 

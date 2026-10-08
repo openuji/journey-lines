@@ -1,3 +1,4 @@
+import type { Viewport } from './target.js';
 import type { CdpTransport } from './transport.js';
 
 /**
@@ -5,16 +6,17 @@ import type { CdpTransport } from './transport.js';
  *
  * At any other scale factor — a HiDPI screen's own included — Chrome reports
  * every screencast frame at scroll offset 0 (seen on Chrome 154), so captures
- * would carry no scroll position. Width and height 0
+ * would carry no scroll position. Without a viewport, width and height 0
  * leave the layout to the real window, so the page still reflows when its
- * window is resized.
+ * window is resized. With one (a headless browser, which has no real window),
+ * the page is laid out at exactly that size.
  *
  * The override is per tab and survives cross-site navigations.
  */
-export async function pinScaleFactor(cdp: CdpTransport): Promise<void> {
+export async function pinScaleFactor(cdp: CdpTransport, viewport?: Viewport): Promise<void> {
   await cdp.send('Emulation.setDeviceMetricsOverride', {
-    width: 0,
-    height: 0,
+    width: viewport?.width ?? 0,
+    height: viewport?.height ?? 0,
     deviceScaleFactor: 1,
     mobile: false,
   });

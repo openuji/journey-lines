@@ -155,6 +155,30 @@ describe('startRecording', () => {
     ]);
   });
 
+  it('captures 01 and 02 on a page that stops painting once the stream goes quiet', async () => {
+    const cdp = createFakeCdpTransport();
+    const sink = new MemorySink();
+    const recording = await startRecording(cdp, { sinks: [sink], screencast });
+
+    frameNavigated(cdp, 'loader-a');
+    lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
+    screencastFrame(cdp, { data: 'cGFpbnRlZA==' });
+    cdp.advance(500);
+    lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
+    // Chrome sends nothing more.
+    cdp.advance(300);
+    await settle();
+
+    // Before Stop: the stream's quiet captured it.
+    expect(sink.captures.map((c) => `${c.label} ${c.frame.base64}`)).toEqual([
+      '00-first cGFpbnRlZA==',
+      '01-domcontentloaded cGFpbnRlZA==',
+      '02-settled cGFpbnRlZA==',
+    ]);
+
+    await recording.stop();
+  });
+
   it('ends a scroll on a page that stops painting once the stream goes quiet', async () => {
     const cdp = createFakeCdpTransport();
     const sink = new MemorySink();

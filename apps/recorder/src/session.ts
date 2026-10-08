@@ -3,11 +3,11 @@ import { join, resolve } from 'node:path';
 import { headlessFromEnv, videoFromEnv } from '@openuji/cli-kit';
 import type { CaptureSink } from '@openuji/core';
 import type { MilestoneRule } from '@openuji/engine';
-import { startRecording, type RecordingHandle } from '@openuji/fused';
+import { recordActiveTab, type ActiveTabRecording } from '@openuji/fused';
 import {
   DEFAULT_VIEWPORT,
-  launchPuppeteerTarget,
-  type PuppeteerTarget,
+  launchPuppeteerBrowser,
+  type PuppeteerBrowser,
 } from '@openuji/host-puppeteer';
 import {
   ConsoleSink,
@@ -38,11 +38,11 @@ export interface StreamWatchOptions {
 /**
  * Orchestrates a full end-to-end capture session: a Puppeteer-launched
  * browser as the host, and the host-agnostic recording pipeline (fused
- * streams, rules engine, sinks) running over its CDP transport.
+ * streams, rules engine, sinks) following its active tab.
  */
 export class StreamWatchSession {
-  private target: PuppeteerTarget | null = null;
-  private recording: RecordingHandle | null = null;
+  private chrome: PuppeteerBrowser | null = null;
+  private recording: ActiveTabRecording | null = null;
   private clipWorker: ClipWorker | null = null;
   private isStopping = false;
 
@@ -77,21 +77,25 @@ export class StreamWatchSession {
     }
 
     console.log('Launching browser session...');
-    this.target = await launchPuppeteerTarget({
+    const chrome = await launchPuppeteerBrowser({
       headless: this.options.headless ?? headlessFromEnv(),
       viewport: this.options.viewport ?? DEFAULT_VIEWPORT,
     });
+    this.chrome = chrome;
 
     console.log('Initializing fused stream pipeline...');
-    this.recording = await startRecording(this.target.cdp, {
+    this.recording = await recordActiveTab(chrome.tabs, chrome.firstTab, {
       ...(this.options.rules ? { rules: this.options.rules } : {}),
       sinks: this.sinks,
       ...(this.clipWorker ? { clips: this.clipWorker.sink } : {}),
-      screencast: { viewport: this.target.viewport },
+      screencast: { viewport: chrome.viewport },
+      onActiveTab: (tab, state) => {
+        if (state !== 'recording') console.log(`Active tab ${state}: ${tab.url()}`);
+      },
     });
 
     console.log(`Navigating to ${this.options.url}...`);
-    await this.target.navigate(this.options.url);
+    await chrome.navigate(this.options.url);
   }
 
   public async stop(): Promise<void> {
@@ -110,7 +114,7 @@ export class StreamWatchSession {
     }
     await this.clipWorker?.close();
 
-    await this.target?.close();
+    await this.chrome?.close();
 
     console.log('\nSession saved:');
     console.log(`  Screenshots: ${this.sessionDir}`);
@@ -128,10 +132,10 @@ export class StreamWatchSession {
   }
 
   /**
-   * The recorded target, once `start()` has run. Exposes the Puppeteer
-   * `page` and `browser` for driving the session programmatically.
+   * The launched browser, once `start()` has run. Exposes the Puppeteer
+   * `browser` and its tabs for driving the session programmatically.
    */
-  public get targetHandle(): PuppeteerTarget | null {
-    return this.target;
+  public get browserHandle(): PuppeteerBrowser | null {
+    return this.chrome;
   }
 }

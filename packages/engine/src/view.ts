@@ -1,12 +1,12 @@
-import type { LifecycleEvent, ViewEntry, ViewState } from '@openuji/core';
+import type { DomainEvent, LifecycleEvent, ViewEntry, ViewState } from '@openuji/core';
 
 /**
- * Views: the one place that knows a view can begin two ways.
+ * Views: the one place that knows the ways a view can begin.
  *
- * A document load and an SPA route change mean the same thing to the user — a
- * next step. This module turns both into a new view; everything downstream (the
- * reducer's boundary, every rule, every sink) sees only views, never which kind
- * of navigation produced one.
+ * A document load, an SPA route change and switching to another tab mean the
+ * same thing to the user — a next step. This module turns each into a new view;
+ * everything downstream (the reducer's boundary, every rule, every sink) sees
+ * only views, never what produced one.
  */
 
 export type NavigatedEvent = Extract<LifecycleEvent, { type: 'navigated' }>;
@@ -48,13 +48,24 @@ export type NavigationOutcome =
   /** Not the main frame's, or nothing showing to update. */
   | null;
 
-/** Pure. */
+/** The main frame showing a document: a load, or the one a new session finds showing. */
+export function isDocumentReport(event: DomainEvent): event is NavigatedEvent {
+  return event.type === 'navigated' && event.isMainFrame && !event.sameDocument;
+}
+
+/**
+ * Pure. `otherTab`: the recording has just moved to another tab, so the
+ * document it reports starts a `tab` view — even the one the current view
+ * shows, when you came back to it.
+ */
 export function classifyNavigation(
   current: ViewState | null,
   event: NavigatedEvent,
   routePolicy: RoutePolicy,
+  otherTab = false,
 ): NavigationOutcome {
   if (!event.isMainFrame) return null;
+  if (otherTab && isDocumentReport(event)) return { kind: 'new-view', entry: 'tab' };
 
   if (event.sameDocument) {
     if (!current) return null;
@@ -76,9 +87,9 @@ export type ViewCounts = Readonly<{ views: number; documents: number }>;
 /**
  * The view a navigation starts. Pure.
  *
- * The only difference between the two entries: a load starts from nothing,
- * while a route keeps its document — the frames already seen, because the
- * compositor never stopped painting it, and where the page last said it was.
+ * The only difference between the entries: a load or a tab starts from
+ * nothing, while a route keeps its document — the frames already seen, because
+ * the compositor never stopped painting it, and where the page last said it was.
  */
 export function enterView(
   current: ViewState | null,
@@ -97,7 +108,7 @@ export function enterView(
     documentId: counts.documents + 1,
     loaderId: event.loaderId,
     url: event.url,
-    entry: 'load',
+    entry,
     firstFrameObserved: false,
     lastFrame: null,
     position: null,

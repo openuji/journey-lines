@@ -8,12 +8,14 @@
  */
 
 import { createCdpEventRouter } from './router.js';
+import type { SessionEnd, TabHost, TabSession } from './target.js';
 import type {
   CdpCommand,
   CdpEventName,
   CdpResult,
   CdpTransport,
   Clock,
+  Unsubscribe,
 } from './transport.js';
 
 export interface SentCommand {
@@ -51,6 +53,8 @@ export interface FakeCdpTransport extends CdpTransport {
 export interface FakeCdpTransportOptions {
   /** Where the clock starts, Unix epoch ms. Defaults to 0. */
   startAtMs?: number;
+  /** A clock shared with other transports — one timeline, as on a real host. */
+  clock?: ManualClock;
 }
 
 /** A clock that moves only when told to. */
@@ -97,7 +101,7 @@ export function createManualClock(startAtMs = 0): ManualClock {
 export function createFakeCdpTransport(
   options: FakeCdpTransportOptions = {},
 ): FakeCdpTransport {
-  const clock = createManualClock(options.startAtMs ?? 0);
+  const clock = options.clock ?? createManualClock(options.startAtMs ?? 0);
 
   const router = createCdpEventRouter({
     clock,
@@ -133,5 +137,127 @@ export function createFakeCdpTransport(
     },
     advance: (ms) => clock.advance(ms),
     listenerCount: (event) => router.listenerCount(event),
+  };
+}
+
+/** A session of a `FakeTabHost`: a fake transport the test ends at will. */
+export interface FakeTabSession extends TabSession {
+  readonly cdp: FakeCdpTransport;
+  /** Handed back through `close()`. */
+  readonly closed: boolean;
+  /** The host ends the session on its own, as Chrome does. */
+  end(end: SessionEnd): void;
+}
+
+/**
+ * An in-memory `TabHost`. Tests play the browser's side: `activate` a tab,
+ * end its session, `hold` an attach until they `settle` it, `refuse` a tab
+ * Chrome would keep from extensions. Every session's transport runs on one
+ * shared manual clock.
+ */
+export interface FakeTabHost<Tab> extends TabHost<Tab> {
+  readonly clock: ManualClock;
+  /** The tab of every attach asked for, in order. */
+  readonly attaches: readonly Tab[];
+  /** The latest session handed out for `tab`. */
+  session(tab: Tab): FakeTabSession;
+  /** Report `tab` as the active one. */
+  activate(tab: Tab): void;
+  /** The window or browser goes away. */
+  gone(): void;
+  /** Attaches to `tab` refuse (`true`), or succeed again (`false`). */
+  refuse(tab: Tab, refused?: boolean): void;
+  /** Attaches to `tab` wait until `settle`. */
+  hold(tab: Tab): void;
+  /** Answer the held attaches of `tab`, as they would have been answered. */
+  settle(tab: Tab): void;
+}
+
+export function createFakeTabHost<Tab>(
+  options: { startAtMs?: number; prepare?: (cdp: FakeCdpTransport, tab: Tab) => void } = {},
+): FakeTabHost<Tab> {
+  const clock = createManualClock(options.startAtMs ?? 0);
+  const activeListeners = new Set<(tab: Tab) => void>();
+  const goneListeners = new Set<() => void>();
+  const sessions = new Map<Tab, FakeTabSession>();
+  const refused = new Set<Tab>();
+  const held = new Map<Tab, Array<() => void>>();
+  const attaches: Tab[] = [];
+
+  const openSession = (tab: Tab): FakeTabSession => {
+    const cdp = createFakeCdpTransport({ clock });
+    options.prepare?.(cdp, tab);
+    const closedListeners = new Set<(end: SessionEnd) => void>();
+    let closed = false;
+    const session: FakeTabSession = {
+      cdp,
+      get closed() {
+        return closed;
+      },
+      onClosed(listener): Unsubscribe {
+        closedListeners.add(listener);
+        return () => closedListeners.delete(listener);
+      },
+      async close() {
+        closed = true;
+        closedListeners.clear();
+      },
+      end(end) {
+        const listeners = [...closedListeners];
+        closedListeners.clear();
+        for (const listener of listeners) listener(end);
+      },
+    };
+    sessions.set(tab, session);
+    return session;
+  };
+
+  const answer = (tab: Tab): Promise<TabSession> =>
+    refused.has(tab)
+      ? Promise.reject(new Error('Cannot access a chrome:// URL'))
+      : Promise.resolve(openSession(tab));
+
+  return {
+    clock,
+    attaches,
+    session(tab) {
+      const session = sessions.get(tab);
+      if (!session) throw new Error(`No session was handed out for ${String(tab)}`);
+      return session;
+    },
+    onActive(listener) {
+      activeListeners.add(listener);
+      return () => activeListeners.delete(listener);
+    },
+    onGone(listener) {
+      goneListeners.add(listener);
+      return () => goneListeners.delete(listener);
+    },
+    attach(tab) {
+      attaches.push(tab);
+      const waiting = held.get(tab);
+      if (!waiting) return answer(tab);
+      return new Promise<TabSession>((resolve, reject) => {
+        waiting.push(() => answer(tab).then(resolve, reject));
+      });
+    },
+    activate(tab) {
+      for (const listener of [...activeListeners]) listener(tab);
+    },
+    gone() {
+      for (const listener of [...goneListeners]) listener();
+    },
+    refuse(tab, isRefused = true) {
+      if (isRefused) refused.add(tab);
+      else refused.delete(tab);
+    },
+    hold(tab) {
+      if (!held.has(tab)) held.set(tab, []);
+    },
+    settle(tab) {
+      const waiting = held.get(tab) ?? [];
+      held.delete(tab);
+      for (const answerHeld of waiting) answerHeld();
+    },
   };
 }

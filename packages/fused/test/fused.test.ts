@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
+import { createFakeCdpTransport, type FakeCdpTransport } from '@openuji/cdp/testing';
 import { createFusedStream } from '@openuji/fused';
 import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import {
@@ -151,5 +151,97 @@ describe('createFusedStream', () => {
     ).rejects.toThrow('binding refused');
     expect(cdp.listenerCount()).toBe(0);
     expect(cdp.sentMethods()).toContain('Page.stopScreencast');
+  });
+});
+
+describe('createFusedStream: moving the sources', () => {
+  const types = async (events: AsyncIterable<{ type: string }>): Promise<string[]> =>
+    (await collect(events)).map((event) => event.type);
+
+  /** A command that answers only when the test says so: a page still loading. */
+  const holdCommand = (cdp: FakeCdpTransport, method: 'Page.getFrameTree'): (() => void) => {
+    let answer = (): void => {};
+    cdp.respond(method, () => new Promise((resolve) => (answer = () => resolve({}))) as never);
+    return () => answer();
+  };
+
+  it('continueOn puts every source on the new transport, saying so first', async () => {
+    const a = createFakeCdpTransport();
+    const b = createFakeCdpTransport();
+    const fused = await createFusedStream(a, { screencast: { viewport } });
+
+    screencastFrame(a);
+    await fused.continueOn(b, { otherTab: true });
+    screencastFrame(a); // the tab left behind
+    screencastFrame(b);
+    await fused.stop();
+
+    expect(await types(fused.events)).toEqual(['frame', 'session-changed', 'frame']);
+    expect(a.listenerCount()).toBe(0);
+    expect(b.sentMethods()).toEqual(
+      expect.arrayContaining(['Page.startScreencast', 'Page.setLifecycleEventsEnabled', 'Runtime.addBinding']),
+    );
+  });
+
+  it('release takes the sources off, and the queue stays open', async () => {
+    const a = createFakeCdpTransport();
+    const b = createFakeCdpTransport();
+    const fused = await createFusedStream(a, { screencast: { viewport } });
+
+    await fused.release();
+    screencastFrame(a);
+    expect(a.listenerCount()).toBe(0);
+
+    await fused.continueOn(b, { otherTab: false });
+    screencastFrame(b);
+    await fused.stop();
+    expect(await types(fused.events)).toEqual(['session-changed', 'frame']);
+  });
+
+  it('mutes a move overtaken by a newer one: nothing it reports reaches the queue, in any order', async () => {
+    const a = createFakeCdpTransport();
+    const b = createFakeCdpTransport();
+    const c = createFakeCdpTransport();
+    const answerB = holdCommand(b, 'Page.getFrameTree');
+    const fused = await createFusedStream(a, { screencast: { viewport } });
+
+    const toB = fused.continueOn(b, { otherTab: true });
+    await fused.continueOn(c, { otherTab: true });
+    screencastFrame(b); // B's screencast is already running, its setup is not done
+    screencastFrame(c);
+    answerB();
+    await toB;
+    screencastFrame(b);
+    await fused.stop();
+
+    expect(await types(fused.events)).toEqual(['session-changed', 'session-changed', 'frame']);
+    expect(b.listenerCount()).toBe(0);
+  });
+
+  it('does not wait for the old sources to come off: a hung page cannot hold it up', async () => {
+    const a = createFakeCdpTransport();
+    const b = createFakeCdpTransport();
+    a.respond('Page.stopScreencast', () => new Promise(() => {}) as never);
+    const fused = await createFusedStream(a, { screencast: { viewport } });
+
+    await fused.continueOn(b, { otherTab: true });
+    screencastFrame(b);
+    await fused.stop();
+
+    expect(await types(fused.events)).toEqual(['session-changed', 'frame']);
+  });
+
+  it('a stop while moving leaves the new transport bare', async () => {
+    const a = createFakeCdpTransport();
+    const b = createFakeCdpTransport();
+    const answerB = holdCommand(b, 'Page.getFrameTree');
+    const fused = await createFusedStream(a, { screencast: { viewport } });
+
+    const toB = fused.continueOn(b, { otherTab: true });
+    await fused.stop();
+    answerB();
+    await toB;
+
+    expect(b.listenerCount()).toBe(0);
   });
 });

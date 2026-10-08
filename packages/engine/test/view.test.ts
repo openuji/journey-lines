@@ -3,6 +3,7 @@ import type { ViewState } from '@openuji/core';
 import {
   classifyNavigation,
   enterView,
+  isDocumentReport,
   pathOrHashRoute,
   type NavigatedEvent,
 } from '@openuji/engine';
@@ -119,5 +120,45 @@ describe('enterView', () => {
     const next = enterView(view(), asNavigated(withinDocument(at('/list/42'))), 'route', counts);
 
     expect(next.position).toEqual({ x: 0, y: 90 });
+  });
+});
+
+describe('a new session on another tab', () => {
+  it('starts a tab view with the document it finds, even the one showing', () => {
+    expect(
+      classifyNavigation(view(), asNavigated(navigated('loader-b')), pathOrHashRoute, true),
+    ).toEqual({ kind: 'new-view', entry: 'tab' });
+    expect(
+      classifyNavigation(view(), asNavigated(navigated('loader-a')), pathOrHashRoute, true),
+    ).toEqual({ kind: 'new-view', entry: 'tab' });
+  });
+
+  it('takes no subframe or same-document change for the document', () => {
+    expect(
+      classifyNavigation(
+        view(),
+        asNavigated(withinDocument(at('/x'), 'loader-a', { isMainFrame: false })),
+        pathOrHashRoute,
+        true,
+      ),
+    ).toBeNull();
+    expect(isDocumentReport(withinDocument(at('/list/42')))).toBe(false);
+    expect(isDocumentReport(navigated('loader-b'))).toBe(true);
+  });
+
+  it('starts a tab view from nothing, as a load does', () => {
+    const next = enterView(view(), asNavigated(navigated('loader-b', at('/other'))), 'tab', {
+      views: 3,
+      documents: 2,
+    });
+
+    expect(next).toMatchObject({
+      id: 4,
+      documentId: 3,
+      entry: 'tab',
+      firstFrameObserved: false,
+      lastFrame: null,
+      position: null,
+    });
   });
 });

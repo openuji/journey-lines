@@ -41,7 +41,7 @@ export class ConsoleSink implements CaptureSink {
     const sizeKb = (base64ByteLength(capture.frame.base64) / 1024).toFixed(1);
     const color = colorFor(capture.label);
 
-    const view = `NAV #${capture.viewId}${capture.entry === 'route' ? ' route' : ''}`;
+    const view = `NAV #${capture.viewId}${capture.entry === 'load' ? '' : ` ${capture.entry}`}`;
 
     console.log(
       `${color}★ [${view}] ${capture.label.padEnd(20, ' ')}${RESET} | ` +

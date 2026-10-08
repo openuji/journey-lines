@@ -13,9 +13,9 @@ const box = ({ x, y, width, height }: { x: number; y: number; width: number; hei
 /**
  * The page under test. The `requestAnimationFrame` counter keeps the compositor
  * producing frames: a static page stops sending screencast frames once it has
- * painted, and every "next frame after X" rule would then wait forever. The
- * scroll rule doesn't wait for frames (the stream's `quiet` ends a scroll);
- * `STILL` is the page that checks it.
+ * painted, and a post-click, which waits for the next frame, would then wait
+ * forever. The scroll rule and the lifecycle milestones don't wait for frames
+ * (the stream's `quiet` stands in for one); `STILL` is the page that checks it.
  */
 const INDEX = `<!doctype html>
 <html>
@@ -182,6 +182,28 @@ const SPA_PAGE = `<!doctype html>
   </body>
 </html>`;
 
+/** Where `/opener` puts its link that opens `/` in a new tab, in CSS pixels. */
+export const NEW_TAB_LINK = { x: 100, y: 100, width: 200, height: 60 } as const;
+
+/** A link that opens the fixture page in a new tab; it keeps painting, as `INDEX` does. */
+const OPENER = `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>uxr opener</title></head>
+  <body style="margin: 0">
+    <a id="new-tab" href="/" target="_blank" style="${box(NEW_TAB_LINK)}">new tab</a>
+    <span id="tick" style="position: absolute; top: 300px">0</span>
+    <script>
+      const tick = document.getElementById('tick');
+      let n = 0;
+      const loop = () => {
+        tick.textContent = String(++n);
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>`;
+
 const PAGES: Readonly<Record<string, string>> = {
   '/': INDEX,
   '/second': SECOND,
@@ -189,7 +211,28 @@ const PAGES: Readonly<Record<string, string>> = {
   '/fluid': FLUID,
   '/spa': SPA_PAGE,
   '/spa/b': SPA_PAGE,
+  '/opener': OPENER,
 };
+
+/** A one-page PDF: Chrome shows it in its PDF viewer, which extensions may not debug. */
+const PDF = (() => {
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] >>',
+  ];
+  let body = '%PDF-1.4\n';
+  const offsets = objects.map((object, i) => {
+    const offset = body.length;
+    body += `${i + 1} 0 obj ${object} endobj\n`;
+    return offset;
+  });
+  const xref = body.length;
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) body += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  body += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(body, 'latin1');
+})();
 
 export interface FixtureServer {
   /** Absolute URL of a fixture path, e.g. `url('/')`. */
@@ -200,7 +243,15 @@ export interface FixtureServer {
 /** Serves the fixture pages on a free loopback port. */
 export async function startFixtureServer(): Promise<FixtureServer> {
   const server = createServer((req, res) => {
-    const page = PAGES[(req.url ?? '').split('?')[0] ?? ''];
+    const path = (req.url ?? '').split('?')[0] ?? '';
+    if (path === '/doc.pdf') {
+      res.writeHead(200, { 'content-type': 'application/pdf' }).end(PDF);
+      return;
+    }
+    // A server that never answers: a new tab on it never commits a page.
+    if (path === '/hang') return;
+
+    const page = PAGES[path];
     if (page === undefined) {
       res.writeHead(404).end();
       return;

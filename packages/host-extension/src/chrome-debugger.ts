@@ -23,7 +23,8 @@ export type ChromeEventListener = (
 
 export type ChromeDetachListener = (source: Debuggee, reason: DetachReason) => void;
 
-interface ChromeEvent<Listener> {
+/** A `chrome.*` event, as far as this host uses one. */
+export interface ChromeEvent<Listener> {
   addListener(listener: Listener): void;
   removeListener(listener: Listener): void;
 }
@@ -39,8 +40,10 @@ export interface ChromeDebugger {
   /** Every CDP event of every session this extension has attached. */
   readonly onEvent: ChromeEvent<ChromeEventListener>;
   /**
-   * The tab closed, or the user pressed Cancel on the "started debugging"
-   * infobar. Not fired when the extension detaches itself.
+   * The tab closed, the user pressed Cancel on the "started debugging" infobar,
+   * or the tab now shows a page extensions may not debug (Chrome's PDF viewer:
+   * reported as `target_closed` although the tab stays). Not fired when the
+   * extension detaches itself.
    */
   readonly onDetach: ChromeEvent<ChromeDetachListener>;
 }
