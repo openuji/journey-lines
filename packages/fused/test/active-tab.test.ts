@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createFakeTabHost, type FakeCdpTransport } from '@openuji/cdp/testing';
 import type { CaptureSink, MilestoneCapture } from '@openuji/core';
-import { recordActiveTab, type ActiveTabState } from '@openuji/fused';
+import { recordActiveTab } from '@openuji/fused';
 import { frameNavigated, screencastFrame, showingDocument } from '../../cdp/test/events.js';
 
 /**
@@ -56,11 +56,10 @@ async function setup(prepare?: (cdp: FakeCdpTransport, tab: string, attachNo: nu
   const sink = new MemorySink();
   const states: string[] = [];
   const onEnd = vi.fn();
-  const recording = await recordActiveTab(host, 'A', {
-    sinks: [sink],
-    screencast,
-    onActiveTab: (tab: string, state: ActiveTabState) => states.push(`${tab} ${state}`),
-    onEnd,
+  const recording = await recordActiveTab(host, 'A', { sinks: [sink], screencast });
+  recording.onStatus(({ active: { tab, state }, ended }) => {
+    if (ended) onEnd(ended);
+    else states.push(`${tab} ${state}`);
   });
   await settle();
 
@@ -100,7 +99,7 @@ describe('recordActiveTab', () => {
     host.activate('B');
     host.activate('A');
     await settle();
-    expect(states).toEqual(['B attaching', 'A recording']);
+    expect(states).toEqual(['B attaching', 'A attaching', 'A recording']);
 
     host.settle('B');
     await settle();
@@ -156,7 +155,7 @@ describe('recordActiveTab', () => {
     await settle();
 
     expect(host.attaches).toEqual(['A', 'B']);
-    expect(states).toEqual(['B attaching', 'B recording', 'A recording']);
+    expect(states).toEqual(['B attaching', 'B recording', 'A attaching', 'A recording']);
     await recording.stop();
   });
 
@@ -175,7 +174,7 @@ describe('recordActiveTab', () => {
 
     expect(host.attaches).toEqual(['A', 'B', 'B']);
     expect(host.session('B')).not.toBe(firstB);
-    expect(states).toEqual(['B attaching', 'B attaching', 'B recording']);
+    expect(states).toEqual(['B attaching', 'B recording']);
     await recording.stop();
   });
 

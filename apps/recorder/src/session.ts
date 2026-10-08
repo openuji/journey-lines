@@ -42,7 +42,7 @@ export interface StreamWatchOptions {
  */
 export class StreamWatchSession {
   private chrome: PuppeteerBrowser | null = null;
-  private recording: ActiveTabRecording | null = null;
+  private recording: ActiveTabRecording<string> | null = null;
   private clipWorker: ClipWorker | null = null;
   private isStopping = false;
 
@@ -89,9 +89,9 @@ export class StreamWatchSession {
       sinks: this.sinks,
       ...(this.clipWorker ? { clips: this.clipWorker.sink } : {}),
       screencast: { viewport: chrome.viewport },
-      onActiveTab: (tab, state) => {
-        if (state !== 'recording') console.log(`Active tab ${state}: ${tab.url()}`);
-      },
+    });
+    this.recording.onStatus(({ active: { tab, state }, ended }) => {
+      if (!ended && state !== 'recording') console.log(`Active tab ${state}: ${chrome.tabs.urlOf(tab)}`);
     });
 
     console.log(`Navigating to ${this.options.url}...`);

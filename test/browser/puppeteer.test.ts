@@ -53,8 +53,9 @@ describe.skipIf(headless)('puppeteer host, headed', () => {
 
       // As if the user dragged the window smaller: a fixed viewport would keep
       // the page at 1000x700 and clip it.
+      // The OS resizes the window after `resize` resolves; the layout follows.
       await target.page.resize({ contentWidth: 900, contentHeight: 600 });
-      expect(await layoutOf(target.cdp)).toBe('900x600@1');
+      await vi.waitFor(async () => expect(await layoutOf(target.cdp)).toBe('900x600@1'), WAIT);
     } finally {
       await target.close();
     }
@@ -226,8 +227,8 @@ describe('puppeteer host, the active tab', () => {
     const recording = await recordActiveTab(chrome.tabs, chrome.firstTab, {
       sinks: [sink],
       screencast: { viewport: chrome.viewport },
-      onEnd,
     });
+    recording.onStatus(({ ended }) => ended && onEnd(ended));
     /** How each view began, in order. */
     const entries = (): string[] => [
       ...new Map(captures.map((c) => [c.viewId, c.entry] as const)).values(),
@@ -246,7 +247,8 @@ describe('puppeteer host, the active tab', () => {
       await vi.waitFor(() => expect(entries()).toEqual(['load', 'tab']), WAIT);
 
       if (!headless) {
-        await (await chrome.firstTab.page())!.bringToFront();
+        const browserSession = await chrome.browser.target().createCDPSession();
+        await browserSession.send('Target.activateTarget', { targetId: chrome.firstTab });
         await vi.waitFor(() => expect(entries()).toEqual(['load', 'tab', 'tab']), WAIT);
       }
       await recording.stop();

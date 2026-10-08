@@ -1,11 +1,11 @@
-import puppeteer, { type Browser, type Page, type Target } from 'puppeteer';
+import puppeteer, { type Browser, type Page } from 'puppeteer';
 import {
   navigateUntilClosed,
   type RecordingTarget,
-  type TabHost,
+  type Unsubscribe,
   type Viewport,
 } from '@openuji/cdp';
-import { puppeteerTabs } from './tabs.js';
+import { puppeteerTabs, type PuppeteerTabs } from './tabs.js';
 import { createPuppeteerTransport } from './transport.js';
 
 export const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
@@ -42,10 +42,10 @@ export interface PuppeteerTargetOptions {
  */
 export interface PuppeteerBrowser {
   readonly browser: Browser;
-  /** Its tabs; a tab is Puppeteer's own `Target`. */
-  readonly tabs: TabHost<Target>;
+  /** Its tabs; a tab is Chrome's target id. */
+  readonly tabs: PuppeteerTabs;
   /** The tab it opened with. */
-  readonly firstTab: Target;
+  readonly firstTab: string;
   /** Headless: the viewport every page is laid out at. Absent headed. */
   readonly viewport?: Viewport;
   /** Navigate the first tab; resolves once the new document has committed. */
@@ -69,6 +69,11 @@ export interface PuppeteerTarget extends RecordingTarget {
 export async function launchPuppeteerBrowser(
   options: PuppeteerTargetOptions = {},
 ): Promise<PuppeteerBrowser> {
+  return (await launch(options)).chrome;
+}
+
+/** The browser, and the Puppeteer page of the tab it opened with. */
+async function launch(options: PuppeteerTargetOptions): Promise<{ chrome: PuppeteerBrowser; page: Page }> {
   const headless = options.headless !== false;
   const viewport = { ...(options.viewport ?? DEFAULT_VIEWPORT) };
 
@@ -103,14 +108,15 @@ export async function launchPuppeteerBrowser(
     }
 
     const tabs = await puppeteerTabs(browser, headless ? viewport : undefined);
-    return {
+    const chrome: PuppeteerBrowser = {
       browser,
       tabs,
-      firstTab: page.target(),
+      firstTab: await targetIdOf(page),
       ...(headless ? { viewport } : {}),
-      navigate: (url) => navigateCommitted(page, url, tabs),
+      navigate: (url) => navigateCommitted(page, url, tabs.onGone),
       close: () => browser.close().catch(() => {}),
     };
+    return { chrome, page };
   } catch (err) {
     await browser.close().catch(() => {});
     throw err;
@@ -124,11 +130,9 @@ export async function launchPuppeteerBrowser(
 export async function launchPuppeteerTarget(
   options: PuppeteerTargetOptions = {},
 ): Promise<PuppeteerTarget> {
-  const chrome = await launchPuppeteerBrowser(options);
+  const { chrome, page } = await launch(options);
 
   try {
-    const page = await chrome.firstTab.page();
-    if (!page) throw new Error('The first tab has no page');
     const session = await chrome.tabs.attach(chrome.firstTab);
 
     return {
@@ -160,12 +164,26 @@ export async function launchPuppeteerTarget(
   }
 }
 
+/** Chrome's id for `page`'s tab. */
+async function targetIdOf(page: Page): Promise<string> {
+  const session = await page.createCDPSession();
+  try {
+    return (await session.send('Target.getTargetInfo')).targetInfo.targetId;
+  } finally {
+    await session.detach().catch(() => {});
+  }
+}
+
 /** Navigate `page` to `url` over a session of its own, until it commits or the browser is gone. */
-async function navigateCommitted(page: Page, url: string, tabs: TabHost<Target>): Promise<void> {
+async function navigateCommitted(
+  page: Page,
+  url: string,
+  onGone: (listener: () => void) => Unsubscribe,
+): Promise<void> {
   const session = await page.createCDPSession();
   const cdp = createPuppeteerTransport(session);
   try {
-    await navigateUntilClosed(cdp, url, tabs.onGone);
+    await navigateUntilClosed(cdp, url, onGone);
   } finally {
     cdp.dispose();
     await session.detach().catch(() => {});

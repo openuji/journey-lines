@@ -1,7 +1,7 @@
 import type { CdpTransport, TabHost } from '@openuji/cdp';
 import type { CaptureSink, Clip, MilestoneCapture } from '@openuji/core';
 import type { ClipWorker } from '@openuji/clip-webm';
-import { recordActiveTab, type ActiveTabRecording, type ActiveTabState } from '@openuji/fused';
+import { recordActiveTab, type ActiveTabRecording, type FollowStatus } from '@openuji/fused';
 import type { OpenClips } from './clips';
 import type {
   EndedBy,
@@ -36,12 +36,10 @@ export class Recorder {
   private current: RecorderStatus = { state: 'idle' };
   private journey: MilestoneCapture[] = [];
   private videos: Clip[] = [];
-  private recording: ActiveTabRecording | null = null;
+  private recording: ActiveTabRecording<number> | null = null;
   private clipWorker: ClipWorker | null = null;
   /** Set while a tab is being attached, so a second Record waits its turn. */
   private starting = false;
-  /** Counts what the recording said about the active tab; only the latest shows. */
-  private shown = 0;
 
   constructor(
     private readonly tabsOf: TabsOf,
@@ -90,13 +88,11 @@ export class Recorder {
       const clipWorker = options.video ? await this.startClips() : null;
       const journey: MilestoneCapture[] = [];
 
-      let recording: ActiveTabRecording;
+      let recording: ActiveTabRecording<number>;
       try {
         recording = await recordActiveTab(this.tabsOf(tab.windowId), tab.id, {
           sinks: [this.sink(journey)],
           ...(clipWorker ? { clips: clipWorker.sink } : {}),
-          onActiveTab: (tabId, tabState) => void this.showActive(tabId, tabState),
-          onEnd: (why) => void this.stop(endedByChrome[why]),
         });
       } catch (error) {
         await clipWorker?.close();
@@ -110,11 +106,15 @@ export class Recorder {
       this.current = {
         state: 'recording',
         tab,
-        active: { tab, state: 'recording' },
+        active: { tab, state: recording.status.active.state },
         startedAtMs: this.now(),
       };
       // A snapshot, not a status: panels drop the previous journey with it.
       this.emit(this.snapshot());
+      recording.onStatus((status) => {
+        if (status.ended) void this.stop(endedByChrome[status.ended]);
+        else void this.showActive(status);
+      });
     } finally {
       this.starting = false;
     }
@@ -177,13 +177,12 @@ export class Recorder {
   }
 
   /** What the recording does with the active tab, out to the panels. */
-  private async showActive(tabId: number, state: ActiveTabState): Promise<void> {
-    const shown = ++this.shown;
-    const tab = await this.describeTab(tabId).catch(() => null);
+  private async showActive(status: FollowStatus<number>): Promise<void> {
+    const tab = await this.describeTab(status.active.tab).catch(() => null);
+    // Gone meanwhile (a closed tab), or no longer the recording's status.
+    if (!tab || this.recording?.status !== status) return;
     const current = this.current;
-    // Gone meanwhile (a closed tab), said again since, or no longer recording.
-    if (!tab || shown !== this.shown || current.state !== 'recording') return;
-    this.setStatus({ ...current, active: { tab, state } });
+    if ('active' in current) this.setStatus({ ...current, active: { tab, state: status.active.state } });
   }
 
   /** The transport's clock, as captures are stamped; `Date.now` while nothing is recorded. */

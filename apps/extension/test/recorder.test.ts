@@ -13,7 +13,7 @@ import {
 } from '../../../packages/cdp/test/events.js';
 import type { OpenClips } from '../src/lib/clips';
 import type { TabSummary, WorkerMessage } from '../src/lib/protocol';
-import { Recorder } from '../src/lib/recorder';
+import { Recorder, type DescribeTab } from '../src/lib/recorder';
 
 const TAB: TabSummary = { id: 7, windowId: 1, title: 'Example', url: 'https://example.com/' };
 const OTHER: TabSummary = { id: 8, windowId: 1, title: 'Other', url: 'https://example.com/other' };
@@ -51,7 +51,7 @@ function fakeClips() {
 }
 
 /** A window of tabs played by a fake host; `cdp()` is the recorded tab's transport. */
-function setup(options: { encoder?: boolean } = {}) {
+function setup(options: { encoder?: boolean; describe?: DescribeTab } = {}) {
   const host = createFakeTabHost<number>({ startAtMs: 1_000 });
   const windows: number[] = [];
   const messages: WorkerMessage[] = [];
@@ -61,7 +61,7 @@ function setup(options: { encoder?: boolean } = {}) {
       windows.push(windowId);
       return host;
     },
-    async (tabId) => (tabId === OTHER.id ? OTHER : TAB),
+    options.describe ?? (async (tabId) => (tabId === OTHER.id ? OTHER : TAB)),
     (message) => messages.push(message),
     options.encoder === false ? undefined : video.open,
   );
@@ -146,6 +146,26 @@ describe('Recorder', () => {
       '2 tab 00-first',
       '2 tab 99-before-navigation',
     ]);
+  });
+
+  it('shows the latest status only: a description that arrives after a newer status is dropped', async () => {
+    let describeOther = (): void => {};
+    const { host, recorder } = setup({
+      describe: (tabId) =>
+        tabId === OTHER.id
+          ? new Promise((resolve) => (describeOther = () => resolve(OTHER)))
+          : Promise.resolve(TAB),
+    });
+    await recorder.record(TAB);
+    host.hold(OTHER.id);
+
+    host.activate(OTHER.id); // described slowly
+    host.activate(TAB.id); // and left before that description arrives
+    await settle();
+    describeOther();
+    await settle();
+
+    expect(recorder.status).toMatchObject({ active: { tab: TAB, state: 'recording' } });
   });
 
   it('says so when the active tab cannot be recorded', async () => {
