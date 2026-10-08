@@ -3,13 +3,11 @@ import {
   navigateUntilClosed,
   pinScaleFactor,
   type RecordingTarget,
+  type SessionEnd,
+  type TabSession,
   type Unsubscribe,
 } from '@openuji/cdp';
-import type {
-  ChromeDebugger,
-  ChromeDetachListener,
-  DetachReason,
-} from './chrome-debugger.js';
+import type { ChromeDebugger, ChromeDetachListener } from './chrome-debugger.js';
 import { createChromeDebuggerTransport } from './transport.js';
 
 /** The CDP version `chrome.debugger.attach` asks for; every Chrome speaks it. */
@@ -19,10 +17,14 @@ const PROTOCOL_VERSION = '1.3';
  * A tab in the user's own Chrome. The tab outlives the recording: closing the
  * target only detaches the debugger and hands the tab back as it was.
  */
-export interface ExtensionTarget extends RecordingTarget {
+export interface ExtensionTarget extends RecordingTarget, TabSession {
   readonly tabId: number;
-  /** Fires once if Chrome ends the session: the tab closed, or the user pressed Cancel. */
-  onClosed(listener: (reason: DetachReason) => void): Unsubscribe;
+  /**
+   * Fires once if Chrome ends the session: `revoked` when the person pressed
+   * Cancel, `lost` otherwise — the tab closed, or it shows a page extensions
+   * may not debug (Chrome's PDF viewer).
+   */
+  onClosed(listener: (end: SessionEnd) => void): Unsubscribe;
 }
 
 /**
@@ -42,10 +44,31 @@ export async function attachTab(
   }
 
   const cdp = createChromeDebuggerTransport(chromeDebugger, tabId);
+  const closedListeners = new Set<(end: SessionEnd) => void>();
+  let ended = false;
+
+  // The session is over. From here on the target never touches the tab again:
+  // a newer session may own it, and commands go by tab.
+  const finish = (): void => {
+    ended = true;
+    cdp.dispose();
+    chromeDebugger.onDetach.removeListener(onDetach);
+  };
+
+  // Chrome ends the session on its own when the tab closes, when the person
+  // presses Cancel, or when the tab shows a page extensions may not debug.
+  const onDetach: ChromeDetachListener = (source, reason) => {
+    if (source.tabId !== tabId) return;
+    finish();
+    const end: SessionEnd = reason === 'canceled_by_user' ? 'revoked' : 'lost';
+    for (const listener of closedListeners) listener(end);
+    closedListeners.clear();
+  };
+  chromeDebugger.onDetach.addListener(onDetach);
 
   const detach = async (): Promise<void> => {
-    cdp.dispose();
-    // Already gone when the tab closed or the user cancelled.
+    finish();
+    closedListeners.clear();
     await chromeDebugger.detach({ tabId }).catch(() => {});
   };
 
@@ -56,15 +79,9 @@ export async function attachTab(
     throw error;
   }
 
-  const onClosed = (listener: (reason: DetachReason) => void): Unsubscribe => {
-    const handler: ChromeDetachListener = (source, reason) => {
-      if (source.tabId !== tabId) return;
-      off();
-      listener(reason);
-    };
-    const off = (): void => chromeDebugger.onDetach.removeListener(handler);
-    chromeDebugger.onDetach.addListener(handler);
-    return off;
+  const onClosed = (listener: (end: SessionEnd) => void): Unsubscribe => {
+    closedListeners.add(listener);
+    return () => closedListeners.delete(listener);
   };
 
   return {
@@ -73,8 +90,9 @@ export async function attachTab(
     navigate: (url) => navigateUntilClosed(cdp, url, onClosed),
     onClosed,
     async close() {
+      if (ended) return;
       // The user keeps the tab: give it back at its own scale factor. Fails
-      // harmlessly when the session already ended.
+      // harmlessly when the session ended without Chrome saying so yet.
       await clearScaleFactor(cdp).catch(() => {});
       await detach();
     },

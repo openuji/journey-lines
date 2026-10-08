@@ -1,9 +1,9 @@
 {
-  "name": "@openuji/stream-interaction",
+  "name": "@openuji/stream-html",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "In-page DOM interaction stream — one of the three fused event sources.",
+  "description": "The HTML document kind: Chromium's page lifecycle in the stack's terms, and the probe in the page.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@openuji/cdp": "workspace:*",
-    "@openuji/client-probe": "workspace:*",
-    "@openuji/core": "workspace:*"
+    "@openuji/core": "workspace:*",
+    "@openuji/stream-lifecycle": "workspace:*",
+    "@openuji/stream-probe": "workspace:*"
   }
 }

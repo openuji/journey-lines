@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "CDP navigation & paint lifecycle stream — one of the three fused event sources.",
+  "description": "The document lifecycle: navigations, and for each document the kind that observes it. The base every document kind builds on.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

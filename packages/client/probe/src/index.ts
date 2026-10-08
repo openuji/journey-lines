@@ -5,11 +5,12 @@
  * binding entry; inject it with CDP `Page.addScriptToEvaluateOnNewDocument` and
  * install a binding named `PROBE_BINDING_NAME` to receive its payloads. Any CDP
  * host can do that — Node, Electron, or an extension through `chrome.debugger`.
+ * To take it out of the document showing, call `window[PROBE_UNINSTALL]()`.
  */
 
 export {
   PROBE_BINDING_NAME,
-  PROBE_INJECTED_FLAG,
+  PROBE_UNINSTALL,
   MAX_TEXT_SNIPPET_LENGTH,
   MAX_SELECTOR_CLASSES,
 } from './constants.js';

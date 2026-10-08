@@ -91,7 +91,7 @@ export async function runStreamCli(options: StreamCliOptions): Promise<void> {
  * target going away on its own (the user closing the browser window).
  */
 export function installShutdown(
-  target: RecordingTarget,
+  target: Pick<RecordingTarget, 'onClosed'>,
   teardown: () => Promise<void>,
 ): void {
   let started = false;

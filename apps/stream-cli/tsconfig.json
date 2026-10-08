@@ -11,7 +11,7 @@
     { "path": "../../packages/fused" },
     { "path": "../../packages/sinks" },
     { "path": "../../packages/stream-compositor" },
-    { "path": "../../packages/stream-interaction" },
+    { "path": "../../packages/stream-probe" },
     { "path": "../../packages/stream-lifecycle" }
   ]
 }

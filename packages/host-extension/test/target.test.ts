@@ -48,24 +48,49 @@ describe('attachTab', () => {
     expect(chromeDebugger.listenerCount()).toBe(0);
   });
 
-  it('reports Chrome ending the session once, with the reason', async () => {
+  it('reports Chrome ending the session once: Cancel as revoked, anything else as lost', async () => {
     const chromeDebugger = createFakeChromeDebugger();
-    const target = await attachTab(chromeDebugger, TAB);
-    const closed = vi.fn();
-    target.onClosed(closed);
+    const cancelled = await attachTab(chromeDebugger, TAB);
+    const revoked = vi.fn();
+    cancelled.onClosed(revoked);
 
     chromeDebugger.endSession(TAB + 1, 'target_closed');
-    expect(closed).not.toHaveBeenCalled();
+    expect(revoked).not.toHaveBeenCalled();
 
     chromeDebugger.endSession(TAB, 'canceled_by_user');
     chromeDebugger.endSession(TAB, 'canceled_by_user');
-    expect(closed).toHaveBeenCalledTimes(1);
-    expect(closed).toHaveBeenCalledWith('canceled_by_user');
+    expect(revoked).toHaveBeenCalledTimes(1);
+    expect(revoked).toHaveBeenCalledWith('revoked');
+
+    // Chrome's PDF viewer: the tab stays, the session goes, as `target_closed`.
+    const pdf = await attachTab(chromeDebugger, TAB);
+    const lost = vi.fn();
+    pdf.onClosed(lost);
+    chromeDebugger.endSession(TAB, 'target_closed');
+    expect(lost).toHaveBeenCalledWith('lost');
+  });
+
+  it('never touches the tab again once Chrome ended its session: a newer one may own it', async () => {
+    const chromeDebugger = createFakeChromeDebugger();
+    const target = await attachTab(chromeDebugger, TAB);
+    const heard = vi.fn();
+    target.cdp.on('Page.lifecycleEvent', heard);
+    chromeDebugger.endSession(TAB, 'target_closed');
+    const callsBefore = chromeDebugger.calls.length;
+
+    await expect(target.cdp.send('Page.enable')).rejects.toThrow('has ended');
+    chromeDebugger.emit({ tabId: TAB }, 'Page.lifecycleEvent', { name: 'load' });
+    await target.close();
+
+    expect(heard).not.toHaveBeenCalled();
+    expect(chromeDebugger.calls.length).toBe(callsBefore); // no command, no clear, no detach
+    expect(chromeDebugger.listenerCount()).toBe(0);
   });
 
   it('hands the tab back at its own scale factor, then detaches', async () => {
     const chromeDebugger = createFakeChromeDebugger();
     const target = await attachTab(chromeDebugger, TAB);
+    target.onClosed(() => {});
 
     await target.close();
 

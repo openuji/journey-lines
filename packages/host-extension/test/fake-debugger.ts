@@ -8,6 +8,7 @@ import type {
 
 export interface SentCommand {
   readonly tabId: number;
+  readonly sessionId?: string;
   readonly method: string;
   readonly params: unknown;
 }
@@ -49,9 +50,9 @@ export function createFakeChromeDebugger(): FakeChromeDebugger {
       calls.push(`detach ${tabId}`);
     },
 
-    async sendCommand({ tabId }, method, params) {
+    async sendCommand({ tabId, sessionId }, method, params) {
       calls.push(method);
-      sent.push({ tabId, method, params });
+      sent.push({ tabId, ...(sessionId === undefined ? {} : { sessionId }), method, params });
       const error = failingCommands.get(method);
       if (error) throw new Error(error);
       return {};

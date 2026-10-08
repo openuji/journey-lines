@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import { createServer, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 /** Where the fixture page puts its button, in CSS pixels. */
@@ -13,9 +13,9 @@ const box = ({ x, y, width, height }: { x: number; y: number; width: number; hei
 /**
  * The page under test. The `requestAnimationFrame` counter keeps the compositor
  * producing frames: a static page stops sending screencast frames once it has
- * painted, and every "next frame after X" rule would then wait forever. The
- * scroll rule doesn't wait for frames (the stream's `quiet` ends a scroll);
- * `STILL` is the page that checks it.
+ * painted, and a post-click, which waits for the next frame, would then wait
+ * forever. The scroll rule and the lifecycle milestones don't wait for frames
+ * (the stream's `quiet` stands in for one); `STILL` is the page that checks it.
  */
 const INDEX = `<!doctype html>
 <html>
@@ -182,6 +182,46 @@ const SPA_PAGE = `<!doctype html>
   </body>
 </html>`;
 
+/** Where `/opener` puts its link that opens `/` in a new tab, in CSS pixels. */
+export const NEW_TAB_LINK = { x: 100, y: 100, width: 200, height: 60 } as const;
+
+/** A link that opens the fixture page in a new tab; it keeps painting, as `INDEX` does. */
+const OPENER = `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>uxr opener</title></head>
+  <body style="margin: 0">
+    <a id="new-tab" href="/" target="_blank" style="${box(NEW_TAB_LINK)}">new tab</a>
+    <span id="tick" style="position: absolute; top: 300px">0</span>
+    <script>
+      const tick = document.getElementById('tick');
+      let n = 0;
+      const loop = () => {
+        tick.textContent = String(++n);
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    </script>
+  </body>
+</html>`;
+
+/**
+ * A page about one image that arrives slowly: the network is almost idle
+ * (one request open) long before the image is in. It notes when it is.
+ */
+const SLOW_IMAGE_PAGE = `<!doctype html>
+<html>
+  <head><meta charset="utf-8" /><title>uxr slow image</title></head>
+  <body style="margin: 0; background: #111">
+    <img src="/slow-image.png" width="400" height="300" onload="window.imageLoadedAt = Date.now()" />
+  </body>
+</html>`;
+
+/** A 1×1 PNG. */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 const PAGES: Readonly<Record<string, string>> = {
   '/': INDEX,
   '/second': SECOND,
@@ -189,7 +229,59 @@ const PAGES: Readonly<Record<string, string>> = {
   '/fluid': FLUID,
   '/spa': SPA_PAGE,
   '/spa/b': SPA_PAGE,
+  '/opener': OPENER,
+  '/slow-image': SLOW_IMAGE_PAGE,
 };
+
+/**
+ * A PDF of `pages` pages, each with a coloured box: Chrome shows it in its
+ * PDF viewer, which takes the extension's debugger away when it commits.
+ */
+function pdf(pages: number): Buffer {
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', ''];
+  const kids: string[] = [];
+  const content = '0.2 0.4 0.8 rg 20 20 260 160 re f';
+  for (let page = 0; page < pages; page += 1) {
+    const id = objects.length + 1;
+    kids.push(`${id} 0 R`);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents ${id + 1} 0 R >>`);
+    objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  }
+  objects[1] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages} >>`;
+
+  let body = '%PDF-1.4\n';
+  const offsets = objects.map((object, i) => {
+    const offset = body.length;
+    body += `${i + 1} 0 obj ${object} endobj\n`;
+    return offset;
+  });
+  const xref = body.length;
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets) body += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  body += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(body, 'latin1');
+}
+
+const PDF = pdf(1);
+/** Tall enough to scroll in the viewer. */
+const SLOW_PDF = pdf(5);
+/** A slow file arrives in this many parts, this far apart: about 1.5 s, as over a real network. */
+const SLOW_PARTS = 10;
+const SLOW_PART_MS = 150;
+
+function trickle(res: ServerResponse, contentType: string, body: Buffer): void {
+  res.writeHead(200, { 'content-type': contentType, 'content-length': body.length });
+  const size = Math.ceil(body.length / SLOW_PARTS);
+  let sent = 0;
+  const timer = setInterval(() => {
+    res.write(body.subarray(sent, (sent += size)));
+    if (sent >= body.length) {
+      clearInterval(timer);
+      res.end();
+    }
+  }, SLOW_PART_MS);
+  res.on('close', () => clearInterval(timer));
+}
 
 export interface FixtureServer {
   /** Absolute URL of a fixture path, e.g. `url('/')`. */
@@ -200,7 +292,17 @@ export interface FixtureServer {
 /** Serves the fixture pages on a free loopback port. */
 export async function startFixtureServer(): Promise<FixtureServer> {
   const server = createServer((req, res) => {
-    const page = PAGES[(req.url ?? '').split('?')[0] ?? ''];
+    const path = (req.url ?? '').split('?')[0] ?? '';
+    if (path === '/doc.pdf') {
+      res.writeHead(200, { 'content-type': 'application/pdf' }).end(PDF);
+      return;
+    }
+    if (path === '/slow.pdf') return trickle(res, 'application/pdf', SLOW_PDF);
+    if (path === '/slow-image.png') return trickle(res, 'image/png', PNG);
+    // A server that never answers: a new tab on it never commits a page.
+    if (path === '/hang') return;
+
+    const page = PAGES[path];
     if (page === undefined) {
       res.writeHead(404).end();
       return;

@@ -4,7 +4,7 @@ import type { CaptureSink, ClipSink, ClipWrite, MilestoneCapture } from '@openuj
 import { defaultRules, startRecording } from '@openuji/fused';
 import { defaultDocumentRules } from '@openuji/rules-document';
 import { defaultInteractionRules } from '@openuji/rules-interaction';
-import { PROBE_BINDING_NAME } from '@openuji/stream-interaction';
+import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import {
   bindingCalled,
   clickPayload,
@@ -67,6 +67,7 @@ describe('startRecording', () => {
     screencastFrame(cdp, { data: 'Zmlyc3Q=' });
     lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
     screencastFrame(cdp);
+    lifecycleEvent(cdp, 'load', 'loader-a');
     lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
     screencastFrame(cdp, { data: 'c2V0dGxlZA==' });
     bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('button#go'));
@@ -153,6 +154,31 @@ describe('startRecording', () => {
       '00-first',
       '99-before-navigation',
     ]);
+  });
+
+  it('captures 01 and 02 on a page that stops painting once the stream goes quiet', async () => {
+    const cdp = createFakeCdpTransport();
+    const sink = new MemorySink();
+    const recording = await startRecording(cdp, { sinks: [sink], screencast });
+
+    frameNavigated(cdp, 'loader-a');
+    lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
+    screencastFrame(cdp, { data: 'cGFpbnRlZA==' });
+    cdp.advance(500);
+    lifecycleEvent(cdp, 'load', 'loader-a');
+    lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-a');
+    // Chrome sends nothing more.
+    cdp.advance(300);
+    await settle();
+
+    // Before Stop: the stream's quiet captured it.
+    expect(sink.captures.map((c) => `${c.label} ${c.frame.base64}`)).toEqual([
+      '00-first cGFpbnRlZA==',
+      '01-domcontentloaded cGFpbnRlZA==',
+      '02-settled cGFpbnRlZA==',
+    ]);
+
+    await recording.stop();
   });
 
   it('ends a scroll on a page that stops painting once the stream goes quiet', async () => {

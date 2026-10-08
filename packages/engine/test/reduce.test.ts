@@ -9,7 +9,7 @@ import {
   type MilestoneRule,
 } from '@openuji/engine';
 import { defaultDocumentRules } from '@openuji/rules-document';
-import { navigated, frameEvent, milestone, withinDocument } from './helpers.js';
+import { navigated, frameEvent, milestone, quiet, withinDocument } from './helpers.js';
 
 /** Records every event it is shown, so we can assert on engine dispatch. */
 function spyRule(id: string): MilestoneRule<string[]> & {
@@ -273,9 +273,9 @@ describe('document lifecycle rules', () => {
       [
         navigated('loader-a'),
         frameEvent(),
-        milestone('DOMContentLoaded', 'loader-a'),
+        milestone('ready', 'loader-a'),
         frameEvent(),
-        milestone('networkAlmostIdle', 'loader-a'),
+        milestone('settled', 'loader-a'),
         frameEvent(),
       ],
       defaultDocumentRules,
@@ -288,12 +288,73 @@ describe('document lifecycle rules', () => {
     ]);
   });
 
+  it('on a page that paints nothing after a milestone, captures the frame showing once the stream goes quiet', () => {
+    const captures = run(
+      [
+        navigated('loader-a'),
+        frameEvent({ scrollY: 1 }),
+        milestone('ready', 'loader-a'),
+        quiet(250),
+        milestone('settled', 'loader-a', 600),
+        quiet(850),
+        // Painted much later: both are already captured.
+        frameEvent({ scrollY: 2 }),
+      ],
+      defaultDocumentRules,
+    );
+
+    expect(captures.map((c) => `${c.label} ${c.frame.scrollY}`)).toEqual([
+      '00-first 1',
+      '01-domcontentloaded 1',
+      '02-settled 1',
+    ]);
+    expect(captures[2]?.detail).toBe(
+      'Compositor frame showing once the document is settled; nothing was painted after it',
+    );
+  });
+
+  it('takes the next frame when one comes before quiet, and captures once', () => {
+    const captures = run(
+      [
+        navigated('loader-a'),
+        frameEvent({ scrollY: 1 }),
+        milestone('settled', 'loader-a'),
+        frameEvent({ scrollY: 2 }),
+        quiet(250),
+      ],
+      defaultDocumentRules,
+    );
+
+    expect(captures.map((c) => `${c.label} ${c.frame.scrollY}`)).toEqual([
+      '00-first 1',
+      '02-settled 2',
+    ]);
+    expect(captures[1]?.detail).toBe('Compositor frame once the document is settled');
+  });
+
+  it('with nothing painted yet when the stream goes quiet, waits for the first frame', () => {
+    const captures = run(
+      [
+        navigated('loader-a'),
+        milestone('ready', 'loader-a'),
+        quiet(250),
+        frameEvent({ scrollY: 1 }),
+      ],
+      defaultDocumentRules,
+    );
+
+    expect(captures.map((c) => `${c.label} ${c.frame.scrollY}`)).toEqual([
+      '00-first 1',
+      '01-domcontentloaded 1',
+    ]);
+  });
+
   it('ignores lifecycle events belonging to another loader', () => {
     const captures = run(
       [
         navigated('loader-a'),
         frameEvent(),
-        milestone('DOMContentLoaded', 'some-subframe-loader'),
+        milestone('ready', 'some-subframe-loader'),
         frameEvent(),
       ],
       defaultDocumentRules,
@@ -367,7 +428,7 @@ describe('document lifecycle rules', () => {
       [
         navigated('loader-a', page('/')),
         frameEvent(),
-        milestone('DOMContentLoaded', 'loader-a'),
+        milestone('ready', 'loader-a'),
         withinDocument(page('/b')),
         frameEvent({ scrollY: 7 }),
         frameEvent(),
@@ -431,5 +492,95 @@ describe('document lifecycle rules', () => {
     // A new document starts from not knowing.
     engine.processEvent(navigated('loader-b'));
     expect(engine.currentState.currentView?.position).toBeNull();
+  });
+});
+
+describe('a new session (session-changed)', () => {
+  const sessionChanged = (otherTab: boolean): DomainEvent => ({
+    type: 'session-changed',
+    otherTab,
+    receivedAtMs: 0,
+  });
+
+  /** `viewId entry label scrollY` of each capture. */
+  const journey = (events: readonly DomainEvent[]): string[] => {
+    const engine = new RulesEngine(defaultDocumentRules);
+    return events.flatMap((event) =>
+      engine
+        .processEvent(event)
+        .captures.map((c) => `${c.viewId} ${c.entry} ${c.label} ${c.frame.scrollY}`),
+    );
+  };
+
+  it('on another tab: nothing before its report lands in a view, the view left keeps its own last frame, then a tab view', () => {
+    expect(
+      journey([
+        navigated('loader-a'),
+        frameEvent({ scrollY: 100 }),
+        sessionChanged(true),
+        frameEvent({ scrollY: 999 }), // the new tab painting before it says what it shows
+        quiet(),
+        navigated('loader-b'),
+        frameEvent({ scrollY: 7 }),
+        { type: 'stop' },
+      ]),
+    ).toEqual([
+      '1 load 00-first 100',
+      '1 load 99-before-navigation 100',
+      '2 tab 00-first 7',
+      '2 tab 99-before-navigation 7',
+    ]);
+  });
+
+  it('coming back to the document the current view shows is still a tab view', () => {
+    expect(
+      journey([
+        navigated('loader-a'),
+        frameEvent({ scrollY: 10 }),
+        sessionChanged(true),
+        navigated('loader-a'),
+        frameEvent({ scrollY: 20 }),
+      ]),
+    ).toEqual(['1 load 00-first 10', '1 load 99-before-navigation 10', '2 tab 00-first 20']);
+  });
+
+  it('on the same tab, the same document goes on as the same view', () => {
+    expect(
+      journey([
+        navigated('loader-pdf'),
+        frameEvent({ scrollY: 30 }),
+        sessionChanged(false),
+        frameEvent({ scrollY: 999 }),
+        navigated('loader-pdf'),
+        frameEvent({ scrollY: 40 }),
+        { type: 'stop' },
+      ]),
+    ).toEqual(['1 load 00-first 30', '1 load 99-before-navigation 40']);
+  });
+
+  it('on the same tab, a new document is a load', () => {
+    expect(
+      journey([navigated('loader-a'), frameEvent(), sessionChanged(false), navigated('loader-b'), frameEvent()]),
+    ).toEqual(['1 load 00-first 0', '1 load 99-before-navigation 0', '2 load 00-first 0']);
+  });
+
+  it('stop while waiting for the report still flushes the resting state', () => {
+    expect(
+      journey([navigated('loader-a'), frameEvent({ scrollY: 50 }), sessionChanged(true), { type: 'stop' }]),
+    ).toEqual(['1 load 00-first 50', '1 load 99-before-navigation 50']);
+  });
+
+  it('takes no same-document change for the report it waits for', () => {
+    const engine = new RulesEngine(defaultDocumentRules);
+    for (const event of [
+      navigated('loader-a'),
+      sessionChanged(true),
+      withinDocument(page('/elsewhere'), 'loader-a'),
+    ]) {
+      engine.processEvent(event);
+    }
+
+    expect(engine.currentState.currentView?.id).toBe(1);
+    expect(engine.currentState.sessionChanged).toEqual({ otherTab: true });
   });
 });

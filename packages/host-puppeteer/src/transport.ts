@@ -46,10 +46,19 @@ export function createPuppeteerTransport(
       params,
     );
 
+  // Puppeteer opens a `CDPSession` for every session Chrome attaches through
+  // this one, on the same connection.
+  const child = (sessionId: string): CdpTransport & { dispose: Unsubscribe } => {
+    const childSession = session.connection()?.session(sessionId);
+    if (!childSession) throw new Error(`No CDP session ${sessionId}`);
+    return createPuppeteerTransport(childSession);
+  };
+
   return {
     send: send as CdpTransport['send'],
     on,
     clock: router.clock,
+    child,
     dispose: () => {
       for (const [method, forward] of forwarders) emitter.off(method, forward);
       forwarders.clear();

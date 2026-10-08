@@ -12,7 +12,8 @@
     { "path": "../rules-document" },
     { "path": "../rules-interaction" },
     { "path": "../stream-compositor" },
-    { "path": "../stream-interaction" },
-    { "path": "../stream-lifecycle" }
+    { "path": "../stream-lifecycle" },
+    { "path": "../stream-html" },
+    { "path": "../stream-pdf" }
   ]
 }

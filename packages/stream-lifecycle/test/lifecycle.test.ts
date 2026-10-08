@@ -1,99 +1,119 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
-import type { LifecycleEvent } from '@openuji/core';
-import { createLifecycleStream } from '@openuji/stream-lifecycle';
+import { createFakeCdpTransport, type FakeCdpTransport } from '@openuji/cdp/testing';
+import type { DocumentEvent } from '@openuji/core';
+import {
+  createLifecycleStream,
+  type CommittedDocument,
+  type DocumentKind,
+} from '@openuji/stream-lifecycle';
 import {
   collect,
   frameNavigated,
-  lifecycleEvent,
   navigatedWithinDocument,
-  replayOnEnable,
   showingDocument,
 } from '../../cdp/test/events.js';
 
+/** A kind a test drives: what it was shown, and a way to report as it would. */
+interface FakeKind extends DocumentKind {
+  readonly shown: Array<string | null>;
+  readonly detached: boolean;
+  report(event: DocumentEvent): void;
+}
+
+function fakeKind(describes: (document: CommittedDocument) => boolean): FakeKind {
+  const shown: Array<string | null> = [];
+  let emit: (event: DocumentEvent) => void = () => {};
+  let detached = false;
+  return {
+    shown,
+    get detached() {
+      return detached;
+    },
+    report: (event) => emit(event),
+    describes,
+    async attach(_cdp, reportTo) {
+      emit = reportTo;
+      return {
+        shown: (document) => shown.push(document?.loaderId ?? null),
+        detach: async () => {
+          detached = true;
+        },
+      };
+    },
+  };
+}
+
+const isPdf = (document: CommittedDocument): boolean => document.mimeType === 'application/pdf';
+const settled = (loaderId: string): DocumentEvent => ({
+  type: 'milestone',
+  name: 'settled',
+  loaderId,
+  receivedAtMs: 0,
+});
+
 /** Compact view: what happened, and to which frame. */
-function summarize(events: readonly LifecycleEvent[]): string[] {
-  return events.map(
-    (e) =>
-      `${e.type === 'milestone' ? e.name : e.sameDocument ? 'navigated (same document)' : e.type} ` +
-      `${e.loaderId} ${e.isMainFrame ? 'main' : 'sub'}`,
+function summarize(events: readonly DocumentEvent[]): string[] {
+  return events.map((e) =>
+    e.type === 'navigated'
+      ? `${e.sameDocument ? 'navigated (same document)' : 'navigated'} ${e.loaderId} ${e.isMainFrame ? 'main' : 'sub'}`
+      : e.type === 'milestone'
+        ? `${e.name} ${e.loaderId}`
+        : e.type,
   );
 }
 
-describe('createLifecycleStream (standalone)', () => {
-  it('learns the main frame before enabling lifecycle reporting', async () => {
-    const cdp = createFakeCdpTransport();
-    await createLifecycleStream(cdp);
+const start = (cdp: FakeCdpTransport, kinds: readonly DocumentKind[] = []) =>
+  createLifecycleStream(cdp, kinds);
 
-    expect(cdp.sentMethods()).toEqual([
-      'Page.enable',
-      'Page.getFrameTree',
-      'Page.setLifecycleEventsEnabled',
+describe('createLifecycleStream (standalone)', () => {
+  it('learns the document showing before its kinds attach', async () => {
+    const cdp = createFakeCdpTransport();
+    showingDocument(cdp, 'loader-now');
+    const page = fakeKind(() => true);
+    const { events, stop } = await start(cdp, [page]);
+    page.report(settled('loader-now'));
+    await stop();
+
+    expect(cdp.sentMethods()).toEqual(['Page.enable', 'Page.getFrameTree']);
+    expect(page.shown).toEqual(['loader-now']);
+    expect(summarize(await collect(events))).toEqual([
+      'navigated loader-now main',
+      'settled loader-now',
     ]);
   });
 
-  it('maps live commits and milestones, telling the main frame from subframes', async () => {
+  it('maps live commits, telling the main frame from subframes', async () => {
     const cdp = createFakeCdpTransport();
-    const { events, stop } = await createLifecycleStream(cdp);
+    const { events, stop } = await start(cdp);
 
     frameNavigated(cdp, 'loader-a');
     frameNavigated(cdp, 'loader-sub', { frameId: 'child', parentId: 'main' });
-    lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
-    lifecycleEvent(cdp, 'load', 'loader-sub', 'child');
     await stop();
 
     expect(summarize(await collect(events))).toEqual([
       'navigated loader-a main',
       'navigated loader-sub sub',
-      'DOMContentLoaded loader-a main',
-      'load loader-sub sub',
-    ]);
-  });
-
-  it("reports a loaded page's document, but not the milestones it had already reached", async () => {
-    const cdp = createFakeCdpTransport();
-    showingDocument(cdp, 'loader-now');
-    replayOnEnable(cdp, () => {
-      lifecycleEvent(cdp, 'commit', 'loader-now');
-      lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-now');
-      lifecycleEvent(cdp, 'networkAlmostIdle', 'loader-now');
-    });
-
-    const { events, stop } = await createLifecycleStream(cdp);
-    lifecycleEvent(cdp, 'networkIdle', 'loader-now');
-    await stop();
-
-    expect(summarize(await collect(events))).toEqual([
-      'navigated loader-now main',
-      'networkIdle loader-now main',
     ]);
   });
 
   it("does not report a fresh tab's about:blank, but knows its frame is the main one", async () => {
     const cdp = createFakeCdpTransport();
     showingDocument(cdp, 'blank', 'about:blank');
-    replayOnEnable(cdp, () => {
-      lifecycleEvent(cdp, 'commit', 'blank');
-      lifecycleEvent(cdp, 'load', 'blank');
-    });
 
-    const { events, stop } = await createLifecycleStream(cdp);
-    // `init` of the navigation away arrives before `navigated`.
-    lifecycleEvent(cdp, 'init', 'loader-a');
+    const { events, stop } = await start(cdp);
     frameNavigated(cdp, 'loader-a');
-    lifecycleEvent(cdp, 'DOMContentLoaded', 'loader-a');
+    navigatedWithinDocument(cdp, 'https://example.com/loader-a#top');
     await stop();
 
     expect(summarize(await collect(events))).toEqual([
-      'init loader-a main',
       'navigated loader-a main',
-      'DOMContentLoaded loader-a main',
+      'navigated (same document) loader-a main',
     ]);
   });
 
   it('reports same-document navigations under the document they keep', async () => {
     const cdp = createFakeCdpTransport();
-    const { events, stop } = await createLifecycleStream(cdp);
+    const { events, stop } = await start(cdp);
 
     frameNavigated(cdp, 'loader-a', { url: 'https://app.example/' });
     navigatedWithinDocument(cdp, 'https://app.example/inbox');
@@ -138,7 +158,7 @@ describe('createLifecycleStream (standalone)', () => {
       },
     } as never);
 
-    const { events, stop } = await createLifecycleStream(cdp);
+    const { events, stop } = await start(cdp);
     navigatedWithinDocument(cdp, 'https://app.example/inbox');
     navigatedWithinDocument(cdp, 'https://ads.example/#2', { frameId: 'child' });
     await stop();
@@ -150,15 +170,13 @@ describe('createLifecycleStream (standalone)', () => {
     ]);
   });
 
-  it("stamps receipt on the transport's clock, keeping Chromium's in its own field", async () => {
+  it("stamps receipt on the transport's clock", async () => {
     const cdp = createFakeCdpTransport({ startAtMs: 1_000 });
     showingDocument(cdp, 'loader-now');
-    const { events, stop } = await createLifecycleStream(cdp);
+    const { events, stop } = await start(cdp);
 
     cdp.advance(50);
     frameNavigated(cdp, 'loader-a');
-    cdp.advance(25);
-    lifecycleEvent(cdp, 'load', 'loader-a', 'main', 405_123.25);
     await stop();
 
     expect(await collect(events)).toMatchObject([
@@ -166,21 +184,87 @@ describe('createLifecycleStream (standalone)', () => {
       // event: it is stamped with the transport's clock at attach.
       { type: 'navigated', loaderId: 'loader-now', receivedAtMs: 1_000 },
       { type: 'navigated', loaderId: 'loader-a', receivedAtMs: 1_050 },
-      { type: 'milestone', receivedAtMs: 1_075, monotonicTime: 405_123.25 },
     ]);
   });
 
-  it('disables lifecycle events, unsubscribes and ends on stop', async () => {
-    const cdp = createFakeCdpTransport();
-    const { events, stop } = await createLifecycleStream(cdp);
+  describe('document kinds', () => {
+    it('the first kind that describes a document observes it; every kind hears which shows', async () => {
+      const cdp = createFakeCdpTransport();
+      const pdf = fakeKind(isPdf);
+      const page = fakeKind(() => true);
+      const { stop } = await start(cdp, [pdf, page]);
 
-    await stop();
+      frameNavigated(cdp, 'loader-a');
+      frameNavigated(cdp, 'loader-pdf', { mimeType: 'application/pdf' });
+      frameNavigated(cdp, 'loader-sub', { frameId: 'child', parentId: 'main' });
+      frameNavigated(cdp, 'loader-b');
+      await stop();
 
-    expect(cdp.sent.at(-1)).toEqual({
-      method: 'Page.setLifecycleEventsEnabled',
-      params: { enabled: false },
+      expect(pdf.shown).toEqual([null, null, 'loader-pdf', null]);
+      expect(page.shown).toEqual([null, 'loader-a', null, 'loader-b']);
     });
-    expect(cdp.listenerCount()).toBe(0);
-    expect(await collect(events)).toEqual([]);
+
+    it("passes a kind's events only while one of its documents shows", async () => {
+      const cdp = createFakeCdpTransport();
+      const pdf = fakeKind(isPdf);
+      const page = fakeKind(() => true);
+      const { events, stop } = await start(cdp, [pdf, page]);
+
+      frameNavigated(cdp, 'loader-pdf', { mimeType: 'application/pdf' });
+      page.report(settled('loader-pdf'));
+      pdf.report(settled('loader-pdf'));
+      frameNavigated(cdp, 'loader-a');
+      pdf.report(settled('loader-pdf'));
+      page.report(settled('loader-a'));
+      await stop();
+
+      expect(summarize(await collect(events))).toEqual([
+        'navigated loader-pdf main',
+        'settled loader-pdf',
+        'navigated loader-a main',
+        'settled loader-a',
+      ]);
+    });
+
+    it('a document no kind describes is seen in pictures only', async () => {
+      const cdp = createFakeCdpTransport();
+      const pdf = fakeKind(isPdf);
+      const { events, stop } = await start(cdp, [pdf]);
+
+      frameNavigated(cdp, 'loader-a');
+      pdf.report(settled('loader-a'));
+      await stop();
+
+      expect(pdf.shown).toEqual([null, null]);
+      expect(summarize(await collect(events))).toEqual(['navigated loader-a main']);
+    });
+
+    it('unsubscribes, detaches every kind and ends on stop', async () => {
+      const cdp = createFakeCdpTransport();
+      const pdf = fakeKind(isPdf);
+      const page = fakeKind(() => true);
+      const { events, stop } = await start(cdp, [pdf, page]);
+
+      await stop();
+
+      expect(cdp.listenerCount()).toBe(0);
+      expect([pdf.detached, page.detached]).toEqual([true, true]);
+      expect(await collect(events)).toEqual([]);
+    });
+
+    it('takes the kinds that did attach off again when one fails', async () => {
+      const cdp = createFakeCdpTransport();
+      const page = fakeKind(() => true);
+      const broken: DocumentKind = {
+        describes: () => false,
+        attach: async () => {
+          throw new Error('no');
+        },
+      };
+
+      await expect(start(cdp, [page, broken])).rejects.toThrow('no');
+      expect(page.detached).toBe(true);
+      expect(cdp.listenerCount()).toBe(0);
+    });
   });
 });

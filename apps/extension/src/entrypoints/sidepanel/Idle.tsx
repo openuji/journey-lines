@@ -41,7 +41,7 @@ export function Idle({
         <span className="record-icon" aria-hidden />
         Record
       </Button>
-      <p className="hint">Records the active tab</p>
+      <p className="hint">Records the active tab, and follows you to other tabs</p>
       <label className="option">
         <input type="checkbox" checked={video} onChange={(event) => setVideo(event.target.checked)} />
         Video of each scroll

@@ -9,7 +9,7 @@ import {
 } from '@openuji/core';
 import { RulesEngine, type EngineOutput, type MilestoneRule } from '@openuji/engine';
 import { defaultRules } from './default-rules.js';
-import { createFusedStream, type FusedStreamOptions } from './fused.js';
+import { createFusedStream, type FusedStreamHandle, type FusedStreamOptions } from './fused.js';
 
 export interface RecordingOptions extends FusedStreamOptions {
   /** Defaults to `defaultRules`. */
@@ -44,7 +44,19 @@ export async function startRecording(
   cdp: CdpTransport,
   options: RecordingOptions,
 ): Promise<RecordingHandle> {
-  const { rules = defaultRules, sinks, clips = noClips, ...fusedOptions } = options;
+  return runPipeline(await createFusedStream(cdp, options), options);
+}
+
+/**
+ * Engine → sinks over a fused stream, until `stop`. `recordActiveTab`, which
+ * moves the stream's sources from tab to tab, runs this same pipeline.
+ * Internal: not exported from the package.
+ */
+export function runPipeline(
+  fused: FusedStreamHandle,
+  options: RecordingOptions,
+): RecordingHandle {
+  const { rules = defaultRules, sinks, clips = noClips } = options;
   const engine = new RulesEngine(rules);
 
   const deliver = ({ captures, clipWrites }: EngineOutput): void => {
@@ -52,7 +64,6 @@ export async function startRecording(
     for (const write of clipWrites) clips.enqueue(write);
   };
 
-  const fused = await createFusedStream(cdp, fusedOptions);
   let isStopping = false;
 
   const consumer = (async () => {

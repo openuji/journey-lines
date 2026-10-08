@@ -1,0 +1,24 @@
+{
+  "name": "@openuji/stream-probe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "What the in-page probe reports: interactions, the page's position and what starts a scroll. Run by the document kinds.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "typecheck": "tsc --build"
+  },
+  "dependencies": {
+    "@openuji/cdp": "workspace:*",
+    "@openuji/client-probe": "workspace:*",
+    "@openuji/core": "workspace:*"
+  }
+}

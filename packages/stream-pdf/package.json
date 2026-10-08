@@ -1,0 +1,25 @@
+{
+  "name": "@openuji/stream-pdf",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The PDF document kind: Chrome's PDF viewer reached through its frames, its load in the stack's terms, and the probe in the PDF.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "typecheck": "tsc --build"
+  },
+  "dependencies": {
+    "@openuji/cdp": "workspace:*",
+    "@openuji/core": "workspace:*",
+    "@openuji/stream-lifecycle": "workspace:*",
+    "@openuji/stream-probe": "workspace:*"
+  }
+}

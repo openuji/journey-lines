@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import {
+  AppWindow,
   ArrowDownUp,
   Camera,
   Globe,
@@ -20,9 +21,15 @@ const captureIcon: Record<CaptureKind, LucideIcon> = {
   leave: LogOut,
 };
 
-/** Where a view starts: a page load or an SPA route change. */
+const entryIcon: Record<ViewEntry, LucideIcon> = {
+  load: Globe,
+  route: Route,
+  tab: AppWindow,
+};
+
+/** Where a view starts: a page load, an SPA route change, or another tab. */
 export function ViewRow({ entry, url }: { entry: ViewEntry; url: string }) {
-  const Icon = entry === 'load' ? Globe : Route;
+  const Icon = entryIcon[entry];
   return (
     <li className="view-row" title={url}>
       <Icon className="view-row__mark" size={14} strokeWidth={1.75} aria-hidden />

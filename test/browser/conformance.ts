@@ -18,14 +18,15 @@ import {
   type ClipSink,
   type ClipWrite,
   type CompositorFrame,
-  type LifecycleEvent,
+  type DocumentEvent,
   type MilestoneCapture,
 } from '@openuji/core';
-import { startRecording } from '@openuji/fused';
+import { documentKinds, startRecording } from '@openuji/fused';
 import { DocumentLabel } from '@openuji/rules-document';
 import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import { createCompositorStream } from '@openuji/stream-compositor';
-import { createInteractionStream } from '@openuji/stream-interaction';
+import { PROBE_UNINSTALL } from '@openuji/client-probe';
+import { createProbeStream, PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import { createLifecycleStream } from '@openuji/stream-lifecycle';
 import { ANCHOR, BUTTON, SPA, startFixtureServer, type FixtureServer } from './fixture.js';
 import { click, press, wheel } from './input.js';
@@ -141,12 +142,18 @@ async function waitForLoaded(cdp: CdpTransport, url: string): Promise<void> {
   }, WAIT);
 }
 
-function milestonesOf(events: readonly LifecycleEvent[], loaderId: string): string[] {
+function milestonesOf(events: readonly DocumentEvent[], loaderId: string): string[] {
   return events.flatMap((event) =>
-    event.type === 'milestone' && event.isMainFrame && event.loaderId === loaderId
-      ? [event.name]
-      : [],
+    event.type === 'milestone' && event.loaderId === loaderId ? [event.name] : [],
   );
+}
+
+/** The document the main frame loaded at `url`. */
+function loaderAt(events: readonly DocumentEvent[], url: string): string | undefined {
+  for (const event of events) {
+    if (event.type === 'navigated' && event.isMainFrame && event.url === url) return event.loaderId;
+  }
+  return undefined;
 }
 
 export function describeHostConformance(name: string, host: HostUnderTest): void {
@@ -175,6 +182,9 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         await target.close();
       }
     };
+
+    const evaluate = (cdp: CdpTransport, expression: string) =>
+      cdp.send('Runtime.evaluate', { expression, returnByValue: true });
 
     it('runs the browser it was asked for', () =>
       withTarget(async ({ cdp }) => {
@@ -209,31 +219,45 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         off();
       }));
 
-    it('lifecycle: reports the navigation, then its milestones in order', () =>
+    it('lifecycle: reports the navigation, then how far the document has come, in order', () =>
       withTarget(async (target) => {
         const url = fixture.url('/');
-        const lifecycle = await createLifecycleStream(target.cdp);
+        const lifecycle = await createLifecycleStream(target.cdp, documentKinds);
         const events = collect(lifecycle.events);
 
         await target.navigate(url);
 
-        let loaderId = '';
         await vi.waitFor(() => {
-          const navigated = events.find(
-            (event) => event.type === 'navigated' && event.isMainFrame && event.url === url,
-          );
-          expect(navigated).toBeDefined();
-          loaderId = navigated!.loaderId;
-          expect(milestonesOf(events, loaderId)).toContain('networkAlmostIdle');
+          expect(milestonesOf(events, loaderAt(events, url) ?? '')).toContain('settled');
         }, WAIT);
 
-        const milestones = milestonesOf(events, loaderId);
-        expect(milestones).toEqual(
-          expect.arrayContaining(['DOMContentLoaded', 'load', 'networkAlmostIdle']),
-        );
-        expect(milestones.indexOf('DOMContentLoaded')).toBeLessThan(
-          milestones.indexOf('load'),
-        );
+        expect(milestonesOf(events, loaderAt(events, url) ?? '')).toEqual(['ready', 'settled']);
+
+        await lifecycle.stop();
+      }));
+
+    it('lifecycle: settles a page only once its image is in, though its network went almost idle before', () =>
+      withTarget(async (target) => {
+        const url = fixture.url('/slow-image');
+        const lifecycle = await createLifecycleStream(target.cdp, documentKinds);
+        const events = collect(lifecycle.events);
+
+        await target.navigate(url);
+        let settledAtMs = 0;
+        await vi.waitFor(() => {
+          const loaderId = loaderAt(events, url);
+          const settled = events.find(
+            (event) => event.type === 'milestone' && event.name === 'settled' && event.loaderId === loaderId,
+          );
+          expect(settled).toBeDefined();
+          settledAtMs = settled!.receivedAtMs;
+        }, WAIT);
+
+        const { result } = await target.cdp.send('Runtime.evaluate', {
+          expression: 'window.imageLoadedAt',
+          returnByValue: true,
+        });
+        expect(settledAtMs).toBeGreaterThanOrEqual(result.value as number);
 
         await lifecycle.stop();
       }));
@@ -241,7 +265,7 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
     it('lifecycle: reports a route change as a same-document navigation of the document it keeps', () =>
       withTarget(async (target) => {
         const spa = fixture.url('/spa');
-        const lifecycle = await createLifecycleStream(target.cdp);
+        const lifecycle = await createLifecycleStream(target.cdp, documentKinds);
         const events = collect(lifecycle.events);
 
         await target.navigate(spa);
@@ -251,9 +275,6 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         await click(target.cdp, x, y);
 
         await vi.waitFor(() => {
-          const loaded = events.find(
-            (event) => event.type === 'navigated' && event.isMainFrame && event.url === spa,
-          );
           expect(events).toContainEqual(
             expect.objectContaining({
               type: 'navigated',
@@ -261,7 +282,7 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
               url: fixture.url('/spa/b'),
               sameDocument: true,
               navigationType: 'historyApi',
-              loaderId: loaded?.loaderId,
+              loaderId: loaderAt(events, spa),
             }),
           );
         }, WAIT);
@@ -299,22 +320,55 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         await compositor.stop();
       }));
 
-    it('interaction: the probe reports clicks', () =>
+    it('probe: reports clicks, and only what the wire contract says', () =>
       withTarget(async (target) => {
         const url = fixture.url('/');
-        const interaction = await createInteractionStream(target.cdp);
-        const events = collect(interaction.events);
+        const probe = await createProbeStream(target.cdp);
+        const events = collect(probe.events);
+        const ignored = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         await target.navigate(url);
         await waitForLoaded(target.cdp, url);
 
+        // The binding is a global function: the page's own scripts can call it.
+        await evaluate(
+          target.cdp,
+          `${PROBE_BINDING_NAME}(JSON.stringify({ action: 'scroll', x: 'a', y: 0, pageTimeMs: Date.now() }))`,
+        );
         await click(target.cdp, BUTTON_CENTER.x, BUTTON_CENTER.y);
         await vi.waitFor(() => {
           const clicked = events.find((event) => event.type === 'interaction' && event.action === 'click');
           expect(clicked?.type === 'interaction' && clicked.target.selector).toBe('button#go');
         }, WAIT);
 
-        await interaction.stop();
+        await probe.stop();
+        expect(events.filter((event) => event.type === 'page-scroll')).toEqual([]);
+        expect(ignored).toHaveBeenCalledWith(expect.stringContaining('off the wire contract'), expect.stringContaining('"x":"a"'));
+        ignored.mockRestore();
+      }));
+
+    it('probe: the page sees its own functions while they are hooked, and gets them back at Stop', () =>
+      withTarget(async (target) => {
+        const url = fixture.url('/still');
+        await target.navigate(url);
+        await waitForLoaded(target.cdp, url);
+
+        const page = async (expression: string): Promise<unknown> =>
+          (await evaluate(target.cdp, expression)).result.value;
+        const hookable = `[scrollTo, Element.prototype.scrollIntoView, HTMLElement.prototype.focus,
+          Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop').set]`;
+        const looks = `${hookable}.map((f) => [f.name, f.length, Function.prototype.toString.call(f).includes('[native code]')])`;
+        const theOriginals = `${hookable}.map((f, i) => f === window.originals[i])`;
+        await page(`window.originals = ${hookable}`);
+        const lookedBefore = await page(looks);
+
+        const probe = await createProbeStream(target.cdp);
+        expect(await page(theOriginals)).toEqual([false, false, false, false]);
+        expect(await page(looks)).toEqual(lookedBefore);
+
+        await probe.stop();
+        expect(await page(theOriginals)).toEqual([true, true, true, true]);
+        expect(await page(`typeof ${PROBE_UNINSTALL}`)).toBe('undefined');
       }));
 
     it('pipeline: captures every default milestone across a navigation', () =>
@@ -372,6 +426,38 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         for (const capture of sink.captures) {
           expect(capture.frame.base64.startsWith(PNG_SIGNATURE_BASE64)).toBe(true);
         }
+      }));
+
+    it('pipeline: a page that stops painting still gets its 01 and 02, showing what is on screen', () =>
+      withTarget(async (target) => {
+        const url = fixture.url('/still');
+        const sink = new MemorySink();
+        const recording = await startRecording(target.cdp, {
+          sinks: [sink],
+          screencast: { viewport: target.viewport },
+        });
+
+        // What is on screen: the latest frame.
+        let onScreen = '';
+        const off = target.cdp.on('Page.screencastFrame', ({ data }) => {
+          onScreen = data;
+        });
+
+        await target.navigate(url);
+        // The page settles after its last paint: no frame follows it.
+        await vi.waitFor(() => expect(sink.labels(url)).toContain(DocumentLabel.settled), WAIT);
+        const shownAtSettled = onScreen;
+        await recording.stop();
+        off();
+
+        expect(sink.labels(url)).toEqual([
+          DocumentLabel.first,
+          DocumentLabel.domContentLoaded,
+          DocumentLabel.settled,
+          DocumentLabel.beforeNavigation,
+        ]);
+        const settled = sink.captures.find((capture) => capture.label === DocumentLabel.settled);
+        expect(settled?.frame.base64).toBe(shownAtSettled);
       }));
 
     it('pipeline: a scroll on a page that stops painting ends by itself, with the frames from either side', () =>
@@ -460,9 +546,6 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
       await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
       return { url, sink, recording };
     };
-
-    const evaluate = (cdp: CdpTransport, expression: string) =>
-      cdp.send('Runtime.evaluate', { expression, returnByValue: true });
 
     // Each way a person or the page starts a scroll. The touchpad gesture is
     // also the fu-berlin.de bug: one gesture recorded as two or three scrolls
@@ -634,17 +717,14 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
         const url = fixture.url('/');
 
         // Load the page fully before the recording exists.
-        const lifecycle = await createLifecycleStream(target.cdp);
+        const lifecycle = await createLifecycleStream(target.cdp, documentKinds);
         const events = collect(lifecycle.events);
         await target.navigate(url);
         await vi.waitFor(
           () =>
             expect(
               events.some(
-                (event) =>
-                  event.type === 'milestone' &&
-                  event.isMainFrame &&
-                  event.name === 'networkAlmostIdle',
+                (event) => event.type === 'milestone' && event.name === 'settled',
               ),
             ).toBe(true),
           WAIT,

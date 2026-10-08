@@ -1,6 +1,6 @@
 import type { Clip } from '@openuji/core';
 import { clipSinkOver, type ClipWorker, type FromEncoder, type ToEncoder } from '@openuji/clip-webm';
-import { attachTab } from '@openuji/host-extension';
+import { extensionTabs } from '@openuji/host-extension';
 import { defineBackground } from 'wxt/utils/define-background';
 import { CLIPS_READY, clipChannel, type ClipsReady } from '../lib/clips';
 import {
@@ -39,7 +39,8 @@ export default defineBackground(() => {
   };
 
   const recorder = new Recorder(
-    (tabId) => attachTab(chrome.debugger, tabId),
+    (windowId) => extensionTabs(chrome, windowId),
+    describeTab,
     broadcast,
     openClips,
     store,
@@ -143,5 +144,5 @@ async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorker> {
 
 async function describeTab(tabId: number): Promise<TabSummary> {
   const tab = await chrome.tabs.get(tabId);
-  return { id: tabId, title: tab.title ?? '', url: tab.url ?? '' };
+  return { id: tabId, windowId: tab.windowId, title: tab.title ?? '', url: tab.url ?? '' };
 }

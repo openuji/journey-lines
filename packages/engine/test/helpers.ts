@@ -1,4 +1,4 @@
-import type { CompositorFrame, DomainEvent, TargetElementMeta } from '@openuji/core';
+import type { CompositorFrame, DocumentProgress, DomainEvent, TargetElementMeta } from '@openuji/core';
 
 let nextFrameIndex = 0;
 
@@ -53,16 +53,8 @@ export function withinDocument(
   };
 }
 
-export function milestone(name: string, loaderId: string, receivedAtMs = 0): DomainEvent {
-  return {
-    type: 'milestone',
-    frameId: 'main',
-    isMainFrame: true,
-    loaderId,
-    name,
-    receivedAtMs,
-    monotonicTime: 0,
-  };
+export function milestone(name: DocumentProgress, loaderId: string, receivedAtMs = 0): DomainEvent {
+  return { type: 'milestone', name, loaderId, receivedAtMs };
 }
 
 export function target(selector = 'a.link'): TargetElementMeta {

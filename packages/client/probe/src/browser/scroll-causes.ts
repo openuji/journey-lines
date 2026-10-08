@@ -6,13 +6,18 @@
  * content in place: no scroll. Measured on Chrome 154, each cause below came
  * before the page's first `scroll` report (0–21 ms); a resize came with none.
  *
- * Only reports. Must never break the page: every hook calls the original
- * exactly as the page did, and reporting can never throw into it.
+ * Only reports. Must never break the page or change what it sees: a hooked
+ * function is the page's own behind a `Proxy` (same name, length and
+ * `[native code]`), and reporting can never throw into it.
  */
 
 import type { ScrollCause, ScrollCauseWirePayload } from '@openuji/core/wire';
+import { on } from './on.js';
 
 type Report = (payload: ScrollCauseWirePayload) => void;
+
+/** Called before the page's own call goes through: with its `this` and arguments. */
+type Before = (self: unknown, args: unknown[]) => void;
 
 /** Keys that scroll the page (Tab, by moving focus to an element off-screen). */
 const SCROLL_KEYS = new Set([
@@ -28,6 +33,9 @@ const SCROLL_KEYS = new Set([
   'Tab',
 ]);
 
+/** The methods that scroll a window, or an element (here: the page's scroller). */
+const SCROLL_METHODS = ['scrollTo', 'scrollBy', 'scroll'] as const;
+
 /** Overlay scrollbars (macOS) take no layout space: a press this close to the edge is on one. */
 const OVERLAY_SCROLLBAR_PX = 16;
 
@@ -41,6 +49,11 @@ function isEditable(target: EventTarget | null): boolean {
     target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   );
+}
+
+/** A key that scrolls the page, outside a field that takes it (Tab moves focus from anywhere). */
+function scrollsByKey(key: string, target: EventTarget | null): boolean {
+  return SCROLL_KEYS.has(key) && (key === 'Tab' || !isEditable(target));
 }
 
 /** The element that scrolls the page itself. */
@@ -75,115 +88,99 @@ function samePageAnchor(target: EventTarget | null): string | null {
     : null;
 }
 
-/**
- * Replaces `owner[name]` with a function that first says `onCall`, then does
- * exactly what the original did. Returns how to put the original back.
- */
-function hook(owner: object, name: string, onCall: (self: unknown, args: unknown[]) => void): () => void {
-  const target = owner as Record<string, unknown>;
-  const original = target[name];
-  if (typeof original !== 'function') return () => {};
-  const hooked = function (this: unknown, ...args: unknown[]): unknown {
-    try {
-      onCall(this, args);
-    } catch {
-      // Reporting never breaks the page.
-    }
-    return (original as (...a: unknown[]) => unknown).apply(this, args);
-  };
-  target[name] = hooked;
-  return () => {
-    if (target[name] === hooked) target[name] = original;
-  };
-}
-
-/** Like `hook`, for a property's setter on a prototype. */
-function hookSetter(owner: object, name: string, onSet: (self: unknown) => void): () => void {
-  const descriptor = Object.getOwnPropertyDescriptor(owner, name);
-  const set = descriptor?.set;
-  if (!descriptor || !set) return () => {};
-  const hooked: PropertyDescriptor = {
-    ...descriptor,
-    set(this: unknown, value: unknown) {
+/** `fn` as the page knows it (its name, length and `[native code]`), calling `before` first. */
+function telling<F extends object>(fn: F, before: Before): F {
+  return new Proxy(fn, {
+    apply(target, self, args: unknown[]) {
       try {
-        onSet(this);
+        before(self, args);
       } catch {
         // Reporting never breaks the page.
       }
-      set.call(this, value);
+      return Reflect.apply(target as (...a: unknown[]) => unknown, self, args);
     },
-  };
+  });
+}
+
+/**
+ * Puts a telling version of `owner`'s method (`value`) or setter (`set`)
+ * `name` in its place. Returns how to put the original back. Leaves a
+ * property it can't redefine alone.
+ */
+function hook(owner: object, name: string, part: 'value' | 'set', before: Before): () => void {
+  const original = Object.getOwnPropertyDescriptor(owner, name);
+  const fn: unknown = original?.[part];
+  if (!original?.configurable || typeof fn !== 'function') return () => {};
+  const hooked: PropertyDescriptor = { ...original, [part]: telling(fn, before) };
   Object.defineProperty(owner, name, hooked);
   return () => {
-    if (Object.getOwnPropertyDescriptor(owner, name)?.set === hooked.set) {
-      Object.defineProperty(owner, name, descriptor);
+    if (Object.getOwnPropertyDescriptor(owner, name)?.[part] === hooked[part]) {
+      Object.defineProperty(owner, name, original);
     }
   };
 }
 
 /** Starts observing. Returns how to stop. Run in the top document only. */
 export function observeScrollCauses(report: Report): () => void {
-  const lastSent = new Map<ScrollCause, number>();
-  const cause = (kind: ScrollCause, detail?: string, repeating = false): void => {
+  const tell = (kind: ScrollCause, detail?: string): void => {
+    report({ action: 'scroll-cause', kind, ...(detail ? { detail } : {}), pageTimeMs: Date.now() });
+  };
+  /** A cause that repeats while it lasts, told at most every `REPEAT_MS`. */
+  const lastTold = new Map<ScrollCause, number>();
+  const ongoing = (kind: ScrollCause): void => {
     const now = Date.now();
-    if (repeating && now - (lastSent.get(kind) ?? 0) < REPEAT_MS) return;
-    lastSent.set(kind, now);
-    report({ action: 'scroll-cause', kind, ...(detail ? { detail } : {}), pageTimeMs: now });
+    if (now - (lastTold.get(kind) ?? -Infinity) < REPEAT_MS) return;
+    lastTold.set(kind, now);
+    tell(kind);
   };
 
-  // The person.
   let pressingScrollbar = false;
-  const listeners: [string, (event: Event) => void][] = [
-    ['wheel', () => cause('wheel', undefined, true)],
-    ['touchstart', () => cause('touch')],
-    ['touchmove', () => cause('touch', undefined, true)],
-    [
-      'keydown',
-      (event) => {
-        const { key, target } = event as KeyboardEvent;
-        if (!SCROLL_KEYS.has(key) || (key !== 'Tab' && isEditable(target))) return;
-        cause('key', key === ' ' ? 'Space' : key);
-      },
-    ],
-    [
-      'pointerdown',
-      (event) => {
-        pressingScrollbar = onScrollbar(event as PointerEvent);
-        if (pressingScrollbar) cause('scrollbar');
-      },
-    ],
-    ['pointermove', () => pressingScrollbar && cause('scrollbar', undefined, true)],
-    ['pointerup', () => (pressingScrollbar = false)],
-    [
-      'click',
-      (event) => {
-        const hash = samePageAnchor(event.target);
-        if (hash) cause('link', hash);
-      },
-    ],
-    // The page's own code, by its URL.
-    ['hashchange', () => cause('script', 'location.hash')],
-  ];
-  const options = { capture: true, passive: true };
-  for (const [type, listener] of listeners) window.addEventListener(type, listener, options);
+  const stops = [
+    // The person.
+    on('wheel', () => ongoing('wheel')),
+    on('touchstart', () => tell('touch')),
+    on('touchmove', () => ongoing('touch')),
+    on('keydown', ({ key, target }) => {
+      if (scrollsByKey(key, target)) tell('key', key === ' ' ? 'Space' : key);
+    }),
+    on('pointerdown', (event) => {
+      pressingScrollbar = onScrollbar(event);
+      if (pressingScrollbar) tell('scrollbar');
+    }),
+    on('pointermove', () => {
+      if (pressingScrollbar) ongoing('scrollbar');
+    }),
+    on('pointerup', () => {
+      pressingScrollbar = false;
+    }),
+    on('pointercancel', () => {
+      pressingScrollbar = false;
+    }),
+    on('click', ({ target }) => {
+      const hash = samePageAnchor(target);
+      if (hash) tell('link', hash);
+    }),
 
-  // The page's own code, by the calls that scroll.
-  const unhooks = [
-    ...['scrollTo', 'scrollBy', 'scroll'].map((name) => hook(window, name, () => cause('script', name))),
-    hook(Element.prototype, 'scrollIntoView', () => cause('script', 'scrollIntoView')),
-    ...['scrollTo', 'scrollBy', 'scroll'].map((name) =>
-      hook(Element.prototype, name, (self) => isPageScroller(self) && cause('script', name)),
+    // The page's own code.
+    on('hashchange', () => tell('script', 'location.hash')),
+    ...SCROLL_METHODS.map((name) => hook(window, name, 'value', () => tell('script', name))),
+    ...SCROLL_METHODS.map((name) =>
+      hook(Element.prototype, name, 'value', (self) => {
+        if (isPageScroller(self)) tell('script', name);
+      }),
     ),
-    ...['scrollTop', 'scrollLeft'].map((name) =>
-      hookSetter(Element.prototype, name, (self) => isPageScroller(self) && cause('script', name)),
+    hook(Element.prototype, 'scrollIntoView', 'value', () => tell('script', 'scrollIntoView')),
+    ...(['scrollTop', 'scrollLeft'] as const).map((name) =>
+      hook(Element.prototype, name, 'set', (self) => {
+        if (isPageScroller(self)) tell('script', name);
+      }),
     ),
-    hook(HTMLElement.prototype, 'focus', (_self, [focusOptions]) => {
-      if (!(focusOptions as FocusOptions | undefined)?.preventScroll) cause('script', 'focus');
+    hook(HTMLElement.prototype, 'focus', 'value', (_self, [options]) => {
+      if (!(options as FocusOptions | undefined)?.preventScroll) tell('script', 'focus');
     }),
   ];
 
   return () => {
-    for (const [type, listener] of listeners) window.removeEventListener(type, listener, options);
-    for (const unhook of unhooks) unhook();
+    for (const stop of stops) stop();
   };
 }

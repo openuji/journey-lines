@@ -8,7 +8,7 @@ type Finished = Extract<RecorderStatus, { state: 'done' }>;
 
 const endedNote: Record<EndedBy, string | null> = {
   user: null,
-  'tab-closed': 'The recording ended because the tab was closed.',
+  'window-closed': 'The recording ended because its window was closed.',
   'debugging-cancelled': 'The recording ended because debugging was cancelled in Chrome.',
 };
 

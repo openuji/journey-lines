@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Clip, MilestoneCapture } from '@openuji/core';
 import { MemoryRecordingStore } from '../src/lib/recording-store';
 
-const TAB = { id: 7, title: 'Example', url: 'https://example.com/' };
+const TAB = { id: 7, windowId: 1, title: 'Example', url: 'https://example.com/' };
 const capture = { viewId: 1, label: '00-first', frame: { receivedAtMs: 1_010 } } as MilestoneCapture;
 const clip = { viewId: 1, label: '04-post-scroll-01', mimeType: 'video/webm' } as Clip;
 

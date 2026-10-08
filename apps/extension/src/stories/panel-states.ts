@@ -34,7 +34,12 @@ export const idlePanelState: PanelState = {
 
 export const recordingPanelState: PanelState = {
   connected: true,
-  status: { state: 'recording', tab: storyTab, startedAtMs: LIVE_STARTED_AT_MS },
+  status: {
+    state: 'recording',
+    tab: storyTab,
+    active: { tab: storyTab, state: 'recording' },
+    startedAtMs: LIVE_STARTED_AT_MS,
+  },
   captures: liveStoryCaptures,
   clips: [],
   error: null,
@@ -59,6 +64,7 @@ export const donePanelState: PanelState = {
 export const stoppingRecorderStatus: RecorderStatus = {
   state: 'stopping',
   tab: storyTab,
+  active: { tab: storyTab, state: 'recording' },
   startedAtMs: LIVE_STARTED_AT_MS,
 };
 
@@ -68,7 +74,7 @@ export const interruptedRecorderStatus: RecorderStatus = {
   tab: storyTab,
   startedAtMs: STORY_STARTED_AT_MS,
   endedAtMs: STORY_STARTED_AT_MS + 94_000,
-  endedBy: 'tab-closed',
+  endedBy: 'window-closed',
   droppedFrames: 0,
 };
 

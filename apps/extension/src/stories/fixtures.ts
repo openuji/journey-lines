@@ -5,6 +5,7 @@ export const STORY_STARTED_AT_MS = 1_700_000_000_000;
 
 export const storyTab: TabSummary = {
   id: 7,
+  windowId: 1,
   title: 'Journey Lines research workspace',
   url: 'https://journey-lines.example/research/current?team=fu',
 };

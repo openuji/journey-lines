@@ -12,8 +12,6 @@
  *    frame, lifecycle event and interaction carries it; it is the one clock
  *    comparable across all events. Sources never read a clock themselves.
  *  - `swapTimeMs`: Chromium's frame-swap time, Unix epoch ms (frames).
- *  - `monotonicTime`: Chromium's `MonotonicTime` — seconds since an arbitrary
- *    origin, comparable only with other `monotonicTime` values (milestones).
  *  - `pageTimeMs`: the page's `Date.now()` at the DOM event, Unix epoch ms
  *    (interactions).
  *
@@ -47,7 +45,7 @@ export type CompositorFrame = Readonly<{
   swapTimeMs?: number;
 }>;
 
-/** What the lifecycle source emits — straight into the fused stream. */
+/** A document's lifecycle: the frames it shows in, and how far it has come. */
 export type LifecycleEvent =
   /**
    * A frame now shows `url`. Either a new document — CDP `Page.frameNavigated`,
@@ -68,31 +66,26 @@ export type LifecycleEvent =
       navigationType?: 'fragment' | 'historyApi' | 'other';
       receivedAtMs: number;
     }>
-  /**
-   * Chromium's progress report about a document: CDP `Page.lifecycleEvent`.
-   * Its `commit` milestone is one of these; a new document is `navigated`.
-   */
+  /** How far the document `loaderId` has come, as its kind reports it. */
   | Readonly<{
       type: 'milestone';
-      frameId: string;
-      isMainFrame: boolean;
+      name: DocumentProgress;
       loaderId: string;
-      name:
-        | 'init'
-        | 'commit'
-        | 'DOMContentLoaded'
-        | 'load'
-        | 'firstPaint'
-        | 'firstContentfulPaint'
-        | 'firstMeaningfulPaint'
-        | 'networkAlmostIdle'
-        | 'networkIdle'
-        | (string & {});
       receivedAtMs: number;
-      monotonicTime: number;
     }>;
 
-/** What the interaction source emits for an element — straight into the fused stream. */
+/**
+ * How far a document has come, in the stack's own terms. Which of its own
+ * signals is which step is its kind's decision; nothing above the kinds knows
+ * those signals.
+ */
+export type DocumentProgress =
+  /** Its content is in place. */
+  | 'ready'
+  /** It has finished loading and shows as it will stay. */
+  | 'settled';
+
+/** What the person did to an element, as the probe reports it — straight into the fused stream. */
 export type InteractionEvent = Readonly<{
   type: 'interaction';
   action: InteractionAction;
@@ -103,9 +96,9 @@ export type InteractionEvent = Readonly<{
 
 /**
  * The page scrolled to (`x`, `y`), as the page itself reports it: one per
- * `scroll` event, then one with `ended` at its `scrollend`. Also from the
- * interaction source. Continuous where frames' offsets stall: measured on a
- * real page, never more than 61 ms apart while it scrolled.
+ * `scroll` event, then one with `ended` at its `scrollend`. From the probe.
+ * Continuous where frames' offsets stall: measured on a real page, never
+ * more than 61 ms apart while it scrolled.
  */
 export type PageScrollEvent = Readonly<{
   type: 'page-scroll';
@@ -150,10 +143,11 @@ export type ScrollStart = Readonly<{ kind: ScrollCause; detail?: string }>;
 export type PagePosition = Readonly<{ x: number; y: number }>;
 
 /**
- * How a view began: the main frame loaded a document, or the document showing
- * changed route without reloading (an SPA navigation).
+ * How a view began: the main frame loaded a document, the document showing
+ * changed route without reloading (an SPA navigation), or another tab became
+ * the one recorded.
  */
-export type ViewEntry = 'load' | 'route';
+export type ViewEntry = 'load' | 'route' | 'tab';
 
 /**
  * One step of the user's journey — what the user is looking at between two
@@ -172,7 +166,7 @@ export type ViewState = Readonly<{
   /** A frame has been seen since the document loaded. */
   firstFrameObserved: boolean;
   lastFrame: CompositorFrame | null;
-  /** Where the page last said it is; null until it reports a scroll. */
+  /** Where the page last said it is; null until it has said (the probe does when it starts). */
   position: PagePosition | null;
 }>;
 
@@ -183,17 +177,21 @@ export type ViewState = Readonly<{
  */
 export const QUIET_AFTER_MS = 250;
 
-/**
- * Everything the rules engine sees: the sources' events exactly as they emit
- * them, compositor frames tagged for the queue, and two events the engine and
- * recorder synthesize themselves.
- */
-export type DomainEvent =
+/** What a document's sources report: its lifecycle, and what the probe sees in it. */
+export type DocumentEvent =
   | LifecycleEvent
   | InteractionEvent
   | PageScrollEvent
   | PagePositionEvent
-  | ScrollCauseEvent
+  | ScrollCauseEvent;
+
+/**
+ * Everything the rules engine sees: the sources' events exactly as they emit
+ * them, compositor frames tagged for the queue, and the events the fused
+ * stream, the engine and the recorder synthesize themselves.
+ */
+export type DomainEvent =
+  | DocumentEvent
   | Readonly<{
       type: 'frame';
       frame: CompositorFrame;
@@ -210,6 +208,16 @@ export type DomainEvent =
        * The moment it describes: the last event's `receivedAtMs` plus
        * `QUIET_AFTER_MS`, on the transport's clock.
        */
+      receivedAtMs: number;
+    }>
+  /**
+   * Synthesized by the fused stream when its sources move to a new session on
+   * the active page: the same tab again, or another tab. Until that session
+   * reports the document showing, nothing that arrives belongs to a view.
+   */
+  | Readonly<{
+      type: 'session-changed';
+      otherTab: boolean;
       receivedAtMs: number;
     }>
   /**

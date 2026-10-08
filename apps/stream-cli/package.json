@@ -9,7 +9,7 @@
     "build": "tsc --build",
     "uxr-stream-compositor": "pnpm run build && node dist/compositor.js",
     "uxr-stream-lifecycle": "pnpm run build && node dist/lifecycle.js",
-    "uxr-stream-interaction": "pnpm run build && node dist/interaction.js",
+    "uxr-stream-probe": "pnpm run build && node dist/probe.js",
     "uxr-stream-fused": "pnpm run build && node dist/fused.js"
   },
   "dependencies": {
@@ -18,7 +18,7 @@
     "@openuji/fused": "workspace:*",
     "@openuji/sinks": "workspace:*",
     "@openuji/stream-compositor": "workspace:*",
-    "@openuji/stream-interaction": "workspace:*",
+    "@openuji/stream-probe": "workspace:*",
     "@openuji/stream-lifecycle": "workspace:*"
   }
 }
