@@ -260,7 +260,7 @@ describe('ClickEpisodeRule', () => {
     expect(captures[1]?.detail).toContain(`Screen ${CLICK_DEFAULTS.stillMovingMs / 1000} s after the press; observation limit reached`);
   });
 
-  it('records only the 10 when the recording stops before the response came to rest', () => {
+  it('records the last observed screen when Stop ends a moving response', () => {
     const { shown, run, read } = script();
     const captures = run([
       navigated('a'),
@@ -270,24 +270,31 @@ describe('ClickEpisodeRule', () => {
       { type: 'stop' },
     ]);
 
-    expect(read(captures)).toEqual(['10-pre-click-01 before']);
-    expect(captures[0]?.detail).toContain('the recording stopped before the response came to rest');
+    expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 moving']);
+    expect(captures[1]?.detail).toContain('Last observed screen when recording stopped');
   });
 
-  it('records only the 10 when the recording moves to another tab first, and starts afresh there', () => {
+  it.each([
+    { reportAt: 200, released: true },
+    { reportAt: 420, released: true }, // quiet would otherwise win
+    { reportAt: 2_500, released: false }, // limit would otherwise win
+  ])('records the old tab endpoint when its exit arrives at $reportAt ms, released=$released', ({ reportAt, released }) => {
     const { shown, run, read } = script();
     const captures = run([
       navigated('a'),
       shown('before', 0, 0),
-      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }),
+      press('p1', 101, { happenedAtMs: 100 }),
+      shown('moving', 120, 119),
+      ...(released ? [pressEnded('p1', 170)] : []),
       { type: 'session-changed', otherTab: true, receivedAtMs: 180 },
-      navigated('other-tab'),
-      shown('other', 190, 189),
-      quiet(440),
+      navigated('other-tab', undefined, reportAt),
+      shown('other', reportAt + 10, reportAt + 9),
+      quiet(reportAt + 260),
     ]);
 
-    expect(read(captures)).toEqual(['10-pre-click-01 before']);
-    expect(captures[0]?.detail).toContain('left for another tab');
+    expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 moving']);
+    expect(captures[1]?.detail).toContain('Last observed screen before leaving the tab');
+    expect(captures.every((capture) => capture.viewId === 1)).toBe(true);
   });
 
   it('files a click that changes the route under the view it was clicked in', () => {

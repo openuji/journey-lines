@@ -303,13 +303,14 @@ filenames remain compatible with recorded journeys.
   action, starts its own segment, and never claims the physical press. A
   browser click with no observed press retains the existing `11`-only fallback.
 - **View filing stays with the starting interaction.** A same-tab route or
-  document change can be part of its response. An unfinished segment at Stop
-  or a tab exit gets its `10` only, without video.
+  document change can be part of its response. Stop and tab exit finish an open
+  segment at its last observed frame: that becomes `11`, and the observed video
+  is kept. Its description says why observation ended; release and visual quiet
+  are not required. Frames from the new tab belong to its own interactions.
 
 Frames show what appeared between actions; they do not prove that the action
 caused every change. Motion elsewhere on the page and hover feedback can be
 included. Native popups such as a select menu are absent from the screencast.
-Evaluation notes: `changes/what-they-see.md`.
 
 ### Attaching to a page that already has a document
 

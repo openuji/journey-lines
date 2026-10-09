@@ -16,7 +16,7 @@ import { DocumentLabel } from '@openuji/rules-document';
 import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import type { Recorder } from '../../apps/extension/src/lib/recorder';
 import { launchWithExtension, type ExtensionBrowser } from './extension-browser.js';
-import { BUTTON, NEW_TAB_LINK, startFixtureServer, type FixtureServer } from './fixture.js';
+import { BUTTON, CALENDAR, MONTH_COLORS, NEW_TAB_LINK, startFixtureServer, type FixtureServer } from './fixture.js';
 import { click, wheel } from './input.js';
 
 declare global {
@@ -24,6 +24,8 @@ declare global {
   var recorder: Recorder;
   // Set by the scale-factor test: the scroll offset of the latest frame.
   var frameScrollY: number | undefined;
+  // Latest raw frame in the held-press test, to wait for visible pixels before leaving.
+  var observedPressFrame: { data: string; width: number } | undefined;
 }
 
 const WAIT = { timeout: 15_000, interval: 50 };
@@ -366,6 +368,80 @@ describe('extension host against a real browser', () => {
       await stop();
       expect((await status()).state).toBe('done');
       expect(await scaleOfIdleTab(openerId)).toBe(2);
+    });
+
+    it('saves the observed videos when held presses end at a tab exit and at Stop', async () => {
+      const secondId = await openTab(fixture.url('/calendar?second'));
+      const firstId = await openTab(fixture.url('/calendar?first'));
+      await record(firstId, { video: true });
+      await waitForLabel(DocumentLabel.first);
+
+      const pressAndObserveMonth = async (): Promise<void> => {
+        await recordedTab.send('Runtime.evaluate', {
+          expression: "document.getElementById('month').style.animation = 'none'",
+        });
+        await extension.worker.evaluate(() => {
+          observedPressFrame = undefined;
+          recorder.cdp?.on('Page.screencastFrame', ({ data, metadata }) => {
+            observedPressFrame = { data, width: metadata.deviceWidth };
+          });
+        });
+        await recordedTab.send('Input.dispatchMouseEvent', {
+          type: 'mousePressed', button: 'left', clickCount: 1,
+          x: CALENDAR.next.x + CALENDAR.next.width / 2,
+          y: CALENDAR.next.y + CALENDAR.next.height / 2,
+        });
+        // Read the actual screencast pixels in the worker. No screenshot or
+        // DOM change in the recorded page, and no sleep while the press is held.
+        await vi.waitFor(async () => {
+          const pixel = await extension.worker.evaluate(async (at) => {
+            const frame = observedPressFrame;
+            if (!frame) return null;
+            const bytes = Uint8Array.from(atob(frame.data), (char) => char.charCodeAt(0));
+            const image = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+            const canvas = new OffscreenCanvas(image.width, image.height);
+            const context = canvas.getContext('2d')!;
+            context.drawImage(image, 0, 0);
+            const scale = image.width / frame.width;
+            image.close();
+            return [...context.getImageData(Math.round(at.x * scale), Math.round(at.y * scale), 1, 1).data].slice(0, 3);
+          }, { x: CALENDAR.month.x + 20, y: CALENDAR.month.y + CALENDAR.month.height - 20 });
+          expect(pixel).not.toBeNull();
+          expect(Math.hypot(...MONTH_COLORS[1].map((value, i) => value - (pixel?.[i] ?? Infinity)))).toBeLessThan(40);
+        }, WAIT);
+      };
+
+      await pressAndObserveMonth();
+      await activate(secondId);
+      await waitForActive(secondId, 'recording');
+      await vi.waitFor(async () => expect(await journey()).toContainEqual(
+        expect.objectContaining({ viewId: 2, label: DocumentLabel.first }),
+      ), WAIT);
+      await pressAndObserveMonth();
+      await stop();
+
+      const result = await extension.worker.evaluate((pre, post) => ({
+        captures: recorder.captures.filter(({ label }) => label === pre || label === post).map(
+          ({ viewId, label, detail, frame }) => ({ viewId, label, detail, index: frame.index }),
+        ),
+        clips: recorder.clips.map(({ viewId, label, mimeType, base64, trace }) => ({
+          viewId, label, mimeType, magic: base64.slice(0, 5),
+          first: trace[0]?.frameIndex, last: trace.at(-1)?.frameIndex,
+        })),
+      }), preClick, postClick);
+      expect(result.captures).toHaveLength(4);
+      expect(result.clips).toHaveLength(2);
+      for (const [viewId, ending] of [[1, 'before leaving the tab'], [2, 'when recording stopped']] as const) {
+        const pre = result.captures.find((capture) => capture.viewId === viewId && capture.label === preClick);
+        const post = result.captures.find((capture) => capture.viewId === viewId && capture.label === postClick);
+        expect(pre).toBeDefined();
+        expect(post?.detail).toContain(ending);
+        expect(post?.index).not.toBe(pre?.index);
+        expect(result.clips.find((clip) => clip.viewId === viewId)).toMatchObject({
+          label: postClick, mimeType: 'video/webm', magic: 'GkXfo', first: pre?.index, last: post?.index,
+        });
+      }
+      expect(await hasEncoderDocument()).toBe(false);
     });
 
     it('never waits on a new tab whose page never comes: back to the first tab at once', async () => {

@@ -138,7 +138,7 @@ describe('click clip writes', () => {
     expect(read(all)).toEqual(['drag: frame rest', 'drag: frame dragged', 'drag: keep 11-post-click-01']);
   });
 
-  it('keeps the segment before the next press and omits the unfinished one at Stop', () => {
+  it('keeps both the completed and still-moving segment at Stop', () => {
     const { shown, writes, read } = script();
     const all = writes([
       navigated('a'),
@@ -153,22 +153,107 @@ describe('click clip writes', () => {
       'p1: frame before',
       'p1: frame moving',
       'p1: keep 11-post-click-01',
+      'p2: frame moving',
+      'p2: frame still moving',
+      'p2: keep 11-post-click-02',
     ]);
   });
 
-  it('omits the unfinished segment when the recording moves to another tab', () => {
+  it('keeps the old tab clip and excludes new-tab frames, including ones before its document report', () => {
     const { shown, writes, read } = script();
     const all = writes([
       navigated('a'),
-      shown('before', 0, 0),
-      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }, [shown('moving', 113, 112)]),
+      shown('before', 0, 0, 1),
+      press('p1', 101, { happenedAtMs: 100 }),
+      shown('moving', 113, 112, 2),
       { type: 'session-changed', otherTab: true, receivedAtMs: 180 },
-      navigated('other-tab'),
-      shown('other', 190, 189),
-      quiet(440),
+      shown('too early in other tab', 900, 899, 1),
+      navigated('other-tab', undefined, 1_000),
+      shown('other before', 1_010, 1_009, 2),
+      press('p2', 1_101, { happenedAtMs: 1_100 }),
+      shown('other after', 1_113, 1_112, 3),
+      { type: 'stop' },
     ]);
 
-    expect(read(all)).toEqual([]);
+    expect(read(all)).toEqual([
+      'p1: frame before', 'p1: frame moving', 'p1: keep 11-post-click-01',
+      'p2: frame other before', 'p2: frame other after', 'p2: keep 11-post-click-01',
+    ]);
+    expect(all.flatMap((write) => write.type === 'keep' ? [write.capture.viewId] : [])).toEqual([1, 2]);
+  });
+
+  it('keeps the observed clip at Stop while the new tab has not reported, and closes only once', () => {
+    const { shown, read } = script();
+    const engine = new RulesEngine([ClickEpisodeRule]);
+    for (const event of [
+      navigated('a'), shown('before', 0, 0),
+      press('p1', 101, { happenedAtMs: 100 }), shown('moving', 113, 112),
+      { type: 'session-changed', otherTab: true, receivedAtMs: 180 } as const,
+      shown('new tab excluded', 200, 199), quiet(450),
+    ]) engine.processEvent(event);
+
+    const stopped = engine.processEvent({ type: 'stop' });
+    expect(read(stopped.clipWrites)).toEqual([
+      'p1: frame before', 'p1: frame moving', 'p1: keep 11-post-click-01',
+    ]);
+    expect(stopped.captures[1]?.detail).toContain('recording stopped');
+    expect(engine.currentState.ruleStates[ClickEpisodeRule.id]).toEqual({
+      episodeCount: 1, open: null, closing: [], seen: [],
+    });
+    expect(engine.processEvent({ type: 'stop' })).toEqual({ captures: [], clipWrites: [] });
+  });
+
+  it.each(['stop', 'tab'] as const)('flushes an earlier boundary and the current still segment on %s', (ending) => {
+    const { shown, read } = script();
+    const engine = new RulesEngine([ClickEpisodeRule]);
+    for (const event of [
+      navigated('a'), shown('before', 0, 0),
+      press('p1', 101, { happenedAtMs: 100 }), shown('middle', 113, 112),
+      press('p2', 151, { happenedAtMs: 150 }),
+    ]) expect(engine.processEvent(event).clipWrites).toEqual([]);
+    if (ending === 'tab') engine.processEvent({ type: 'session-changed', otherTab: true, receivedAtMs: 160 });
+    const ended = engine.processEvent(ending === 'stop'
+      ? { type: 'stop' }
+      : navigated('b', undefined, 170));
+
+    expect(read(ended.clipWrites)).toEqual([
+      'p1: frame before', 'p1: frame middle', 'p1: keep 11-post-click-01',
+    ]);
+    expect(ended.captures.map((capture) => capture.label)).toEqual([
+      '10-pre-click-01', '11-post-click-01', '10-pre-click-02', '11-post-click-02',
+    ]);
+    expect(ended.captures[1]?.frame).toBe(ended.captures[2]?.frame);
+    expect(ended.captures[2]?.frame).toBe(ended.captures[3]?.frame);
+    expect(engine.currentState.ruleStates[ClickEpisodeRule.id]).toMatchObject({ open: null, closing: [], seen: [] });
+  });
+
+  it.each([false, true])('invents no pre-frame at Stop (response observed: %s)', (responded) => {
+    const { shown } = script();
+    const engine = new RulesEngine([ClickEpisodeRule]);
+    engine.processEvent(navigated('a'));
+    engine.processEvent(press('p1', 101, { happenedAtMs: 100 }));
+    if (responded) engine.processEvent(shown('after', 113, 112));
+    const stopped = engine.processEvent({ type: 'stop' });
+    expect(stopped.captures.map((capture) => capture.label)).toEqual(responded ? ['11-post-click-01'] : []);
+    expect(stopped.clipWrites).toEqual([]);
+  });
+
+  it('continues a held segment through same-tab reattachment and does not close a finished clip again', () => {
+    const { shown, read } = script();
+    const engine = new RulesEngine([ClickEpisodeRule]);
+    for (const event of [
+      navigated('a'), shown('before', 0, 0, 40),
+      press('p1', 101, { happenedAtMs: 100 }), shown('moving', 113, 112, 41),
+      { type: 'session-changed', otherTab: false, receivedAtMs: 180 } as const,
+      navigated('a', undefined, 190), shown('after', 200, 199, 1),
+      pressEnded('p1', 210),
+    ]) expect(engine.processEvent(event).clipWrites).toEqual([]);
+    expect(read(engine.processEvent(quiet(460)).clipWrites)).toEqual([
+      'p1: frame before', 'p1: frame moving', 'p1: frame after', 'p1: keep 11-post-click-01',
+    ]);
+    engine.processEvent({ type: 'session-changed', otherTab: true, receivedAtMs: 500 });
+    expect(engine.processEvent(navigated('b', undefined, 510))).toEqual({ captures: [], clipWrites: [] });
+    expect(engine.processEvent({ type: 'stop' })).toEqual({ captures: [], clipWrites: [] });
   });
 
   it("names a click the page's own code made by its view and number", () => {

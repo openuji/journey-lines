@@ -23,7 +23,7 @@ export function frameEvent(overrides: Partial<CompositorFrame> = {}): DomainEven
   return { type: 'frame', frame: frame(overrides) };
 }
 
-export function navigated(loaderId: string, url = `https://example.com/${loaderId}`): DomainEvent {
+export function navigated(loaderId: string, url = `https://example.com/${loaderId}`, receivedAtMs = 0): DomainEvent {
   return {
     type: 'navigated',
     frameId: 'main',
@@ -31,7 +31,7 @@ export function navigated(loaderId: string, url = `https://example.com/${loaderI
     loaderId,
     url,
     sameDocument: false,
-    receivedAtMs: 0,
+    receivedAtMs,
   };
 }
 

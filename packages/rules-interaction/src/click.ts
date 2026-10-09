@@ -106,8 +106,9 @@ function trim(state: ClickEpisodeState): ClickEpisodeState {
 /**
  * Each press starts one segment. The next independent action ends it at the
  * same frame that starts the next segment. The last segment ends after its
- * release and visual quiet, or the observation limit. A click naming a press
- * does not create another segment; a standalone page click is its own cause.
+ * release and visual quiet, the observation limit, or the end of observation
+ * at Stop/tab exit. A click naming a press does not create another segment;
+ * a standalone page click is its own cause.
  *
  * A boundary can arrive before its picture or after frames drawn beyond it.
  * Keep those frames until the boundary is known, then derive screenshots and
@@ -116,6 +117,13 @@ function trim(state: ClickEpisodeState): ClickEpisodeState {
  */
 export function clickEpisodeRule(options: ClickEpisodeOptions = {}): MilestoneRule<ClickEpisodeState> {
   const { id = 'click-episode', stillMovingMs = CLICK_DEFAULTS.stillMovingMs } = options;
+  const descriptions: Readonly<Record<Ending, string>> = {
+    rested: 'Where the visual response came to rest',
+    'next press': 'Screen before the next interaction',
+    limit: `Screen ${stillMovingMs / 1000} s after the press; observation limit reached`,
+    stopped: 'Last observed screen when recording stopped',
+    'left for another tab': 'Last observed screen before leaving the tab',
+  };
 
   return {
     id,
@@ -141,13 +149,10 @@ export function clickEpisodeRule(options: ClickEpisodeOptions = {}): MilestoneRu
             (after ? '' : `; the recording ${ending} before the response came to rest`),
           domTarget: target,
         }) : undefined;
-        const reason = ending === 'next press' ? 'Screen before the next interaction' :
-          ending === 'limit' ? `Screen ${stillMovingMs / 1000} s after the press; observation limit reached` :
-            'Where the visual response came to rest';
         const post = after ? captureFor(sameView ? view : segment.view, {
           label: episodeLabel(InteractionLabel.postClick, episode),
           frame: after,
-          detail: `${reason}, after interacting with <${target.selector}>` +
+          detail: `${descriptions[ending]}, after interacting with <${target.selector}>` +
             (before === after ? '; nothing changed on screen' : '') +
             (segment.cause === null ? '; no press was reported before this click, so no pre-click' : '') +
             arrival + (sameView ? '' : `, now showing ${view.url}`),
@@ -174,10 +179,14 @@ export function clickEpisodeRule(options: ClickEpisodeOptions = {}): MilestoneRu
         next = { ...next, closing: waiting };
       };
 
-      if (event.type === 'stop') {
+      const leaving = event.type === 'view-exit' && event.nextEntry === 'tab';
+      if (event.type === 'stop' || leaving) {
+        const ending = event.type === 'stop' ? 'stopped' : 'left for another tab';
+        // Observation ended. Preserve what arrived, even if release or rest
+        // never did; a delayed tab report must not turn the exit into rest.
         flush(Infinity, true);
-        if (next.open) finish(next.open, null, 'stopped', currentView);
-        return { nextState: trim({ ...next, open: null }), captures, clipWrites };
+        if (next.open) finish(next.open, next.seen.at(-1)?.frame ?? null, ending, currentView);
+        return { nextState: { ...next, open: null, closing: [], seen: [] }, captures, clipWrites };
       }
 
       const nowMs = arrivedAtMs(event);
@@ -193,11 +202,6 @@ export function clickEpisodeRule(options: ClickEpisodeOptions = {}): MilestoneRu
         }
       }
 
-      if (event.type === 'view-exit' && event.nextEntry === 'tab') {
-        flush(nowMs, true);
-        if (next.open) finish(next.open, null, 'left for another tab', currentView);
-        next = { ...next, open: null };
-      }
       if (currentFrame) next = seenWith(next, { frame: currentFrame, position: currentView.position });
 
       const standalone = event.type === 'interaction' && event.action === 'click' &&
