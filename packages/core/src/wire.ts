@@ -44,6 +44,54 @@ export type InteractionWirePayload = Readonly<{
   target: TargetElementMeta;
   /** The page's `Date.now()` at the DOM event — Unix epoch ms, page clock. */
   pageTimeMs: number;
+  /**
+   * The DOM event's own `timeStamp`: ms since the document's time origin. The
+   * host puts it on Chrome's clock, where frames say when they were drawn.
+   */
+  eventTimeMs?: number;
+  /** A click: the press it came from (`PressWirePayload.pressId`), if one was reported. */
+  pressId?: string;
+  /** A click: the browser made it for the person (`event.isTrusted`), not the page's own code. */
+  trusted?: boolean;
+}>;
+
+/**
+ * What starts a click: the primary button going down (`pointer`), or a key
+ * that activates (`key`: Enter, Space). Reported before the page responds to
+ * it — some pages respond already here, before the `click`.
+ */
+export const PRESS_KINDS = ['pointer', 'key'] as const;
+
+export type PressKind = (typeof PRESS_KINDS)[number];
+
+/** A press, before the click it may become. */
+export type PressWirePayload = Readonly<{
+  action: 'press';
+  kind: PressKind;
+  /** The pointer type (`mouse`, `touch`, `pen`) or the key. */
+  detail?: string;
+  /**
+   * Names this press; the click it becomes carries it. Unique per document
+   * and frame: a random token drawn when the probe starts there, and a count.
+   */
+  pressId: string;
+  /** The DOM event's own `timeStamp`: ms since the document's time origin. */
+  eventTimeMs: number;
+  /** The page's `Date.now()` at the DOM event — Unix epoch ms, page clock. */
+  pageTimeMs: number;
+}>;
+
+/**
+ * A press ended without becoming a click: its release came and went, and no
+ * `click` named it — a drag, a text selection, a date picker that closes on
+ * the press, Space scrolling the page. A press that became a click needs no
+ * end: its click is it.
+ */
+export type PressEndedWirePayload = Readonly<{
+  action: 'press-ended';
+  pressId: string;
+  /** The page's `Date.now()` when it ended — Unix epoch ms, page clock. */
+  pageTimeMs: number;
 }>;
 
 /**
@@ -86,4 +134,9 @@ export type ScrollCauseWirePayload = Readonly<{
 }>;
 
 /** Everything the probe sends. */
-export type ProbeWirePayload = InteractionWirePayload | ScrollWirePayload | ScrollCauseWirePayload;
+export type ProbeWirePayload =
+  | InteractionWirePayload
+  | PressWirePayload
+  | PressEndedWirePayload
+  | ScrollWirePayload
+  | ScrollCauseWirePayload;

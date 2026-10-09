@@ -222,7 +222,78 @@ const PNG = Buffer.from(
   'base64',
 );
 
+/**
+ * Where `/calendar` puts things, in CSS pixels: a button that turns the month
+ * on `pointerdown`, before the click — as flatpickr's arrows do — one that
+ * turns it on `click`, for the keyboard, and the month, a colour each.
+ */
+export const CALENDAR = {
+  next: { x: 100, y: 100, width: 200, height: 60 },
+  keyNext: { x: 100, y: 200, width: 200, height: 60 },
+  month: { x: 400, y: 100, width: 300, height: 200 },
+  /** Hides itself on `pointerdown`, as a date picker's day closes the picker: the release lands elsewhere. */
+  vanish: { x: 100, y: 400, width: 200, height: 60 },
+} as const;
+
+/** The month `/calendar` shows, by its colour: month 0 first. */
+export const MONTH_COLORS = [
+  [220, 40, 40],
+  [40, 160, 40],
+  [40, 40, 220],
+  [220, 160, 0],
+  [160, 0, 160],
+  [0, 160, 160],
+] as const;
+
+/**
+ * A still page, no ticker: it paints only when the month turns, then a 300 ms
+ * animation brings the new month in. The buttons look the same pressed or not,
+ * so a click changes only the month.
+ */
+const CALENDAR_PAGE = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>uxr fixture, calendar</title>
+    <style>
+      body { margin: 0; font: 16px sans-serif; }
+      button, button:hover, button:active, button:focus {
+        appearance: none; border: 0; outline: none; background: #ddd; color: #000; font: inherit;
+      }
+      #next { ${box(CALENDAR.next)} }
+      #key-next { ${box(CALENDAR.keyNext)} }
+      #month { ${box(CALENDAR.month)} background: rgb(${MONTH_COLORS[0].join(', ')}); }
+      #month.turn { animation: turn 300ms ease-out; }
+      #vanish { ${box(CALENDAR.vanish)} background: #bbb; }
+      #vanish.gone { display: none; }
+      @keyframes turn { from { opacity: 0.2; transform: translateY(-20px); } to { opacity: 1; transform: none; } }
+    </style>
+  </head>
+  <body>
+    <button id="next">Next</button>
+    <button id="key-next">Next (keyboard)</button>
+    <div id="month"></div>
+    <div id="vanish">Pick</div>
+    <script>
+      const colors = ${JSON.stringify(MONTH_COLORS)};
+      const month = document.getElementById('month');
+      let shown = 0;
+      const turn = () => {
+        shown += 1;
+        month.style.background = 'rgb(' + colors[shown % colors.length].join(', ') + ')';
+        month.classList.remove('turn');
+        void month.offsetWidth;
+        month.classList.add('turn');
+      };
+      document.getElementById('next').addEventListener('pointerdown', turn);
+      document.getElementById('key-next').addEventListener('click', turn);
+      document.getElementById('vanish').addEventListener('pointerdown', (e) => e.target.remove());
+    </script>
+  </body>
+</html>`;
+
 const PAGES: Readonly<Record<string, string>> = {
+  '/calendar': CALENDAR_PAGE,
   '/': INDEX,
   '/second': SECOND,
   '/still': STILL,

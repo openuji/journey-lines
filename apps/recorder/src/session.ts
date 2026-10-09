@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { headlessFromEnv, videoFromEnv } from '@openuji/cli-kit';
+import { chromeExecutableFromEnv, headlessFromEnv, videoFromEnv } from '@openuji/cli-kit';
 import type { CaptureSink } from '@openuji/core';
 import type { MilestoneRule } from '@openuji/engine';
 import { recordActiveTab, type ActiveTabRecording } from '@openuji/fused';
@@ -29,8 +29,9 @@ export interface StreamWatchOptions {
    */
   sinks?: readonly CaptureSink[];
   /**
-   * Also record a video of each scroll, written next to its `04`. Defaults to
-   * `UXR_VIDEO`; off unless set. Needs the default sinks, which write it.
+   * Also record a video of each scroll and each click, written next to its
+   * `04` or `11`. Defaults to `UXR_VIDEO`; off unless set. Needs the default
+   * sinks, which write it.
    */
   video?: boolean;
 }
@@ -51,7 +52,7 @@ export class StreamWatchSession {
   public sessionDir = '';
   public ndjsonPath = '';
 
-  /** Whether this session records a video of each scroll. */
+  /** Whether this session records a video of each scroll and click. */
   public get recordsVideo(): boolean {
     return this.clipWorker !== null;
   }
@@ -80,6 +81,7 @@ export class StreamWatchSession {
     const chrome = await launchPuppeteerBrowser({
       headless: this.options.headless ?? headlessFromEnv(),
       viewport: this.options.viewport ?? DEFAULT_VIEWPORT,
+      ...chromeExecutableFromEnv(),
     });
     this.chrome = chrome;
 

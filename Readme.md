@@ -30,12 +30,13 @@ starts a view, and so does an SPA route change. `nav-00001` is the first view,
 | `nav-00001-03-pre-scroll-01.png` | Last frame at rest before scroll 1 of the page |
 | `nav-00001-04-post-scroll-01.png` | Frame where scroll 1 landed (+ its path) |
 | `nav-00001-04-post-scroll-01.webm` | With `UXR_VIDEO=1`: video of scroll 1, from its `03` to its `04` (+ its trace) |
-| `nav-00001-10-pre-click-01.png` | Visual state immediately before click 1 (+ DOM target) |
-| `nav-00001-11-post-click-01.png` | Compositor response to click 1 (+ DOM target) |
+| `nav-00001-10-pre-click-01.png` | The screen before click 1's press (+ DOM target) |
+| `nav-00001-11-post-click-01.png` | Where the response to click 1 came to rest (+ DOM target) |
+| `nav-00001-11-post-click-01.webm` | With `UXR_VIDEO=1`: video of click 1, from its `10` to its `11` (+ its trace) |
 | `nav-00001-99-before-navigation.png` | Final visible frame before navigating away or ending |
 
 Set `UXR_HEADLESS=1` to run without a visible browser window, and
-`UXR_VIDEO=1` to also record a video of each scroll.
+`UXR_VIDEO=1` to also record a video of each scroll and each click.
 
 ---
 
@@ -75,7 +76,7 @@ preserve them:
    (`RecordingTarget.close()`) ends it.
 
 Rules never touch a sink. Each returns what it decided as data: captures, and
-for a span it follows (a scroll) clip writes. `startRecording` delivers
+for a span it follows (a scroll, a click's response) clip writes. `startRecording` delivers
 captures to the capture sinks and clip writes to its `clips` sink. Whether a
 recording makes videos is only which clip sink it is given: `noClips`, the
 default, discards them.
@@ -105,8 +106,9 @@ are.
 ### How the in-page probe reports
 
 The probe is a script in the document (`@openuji/client-probe`), run by the
-document kinds. It reports what the person clicks, where the page is, and what
-starts a scroll. It reaches the host through CDP alone:
+document kinds. It reports what the person clicks and the press it came
+from, where the page is, and what starts a scroll. It reaches the host through
+CDP alone:
 
 ```
 setup, host → page     Runtime.addBinding('__uxr_probe__')          a function in the page
@@ -116,8 +118,12 @@ each report            probe → __uxr_probe__(JSON)  → Chrome: Runtime.bindin
 ```
 
 - **Order.** `Runtime.bindingCalled` travels in the same ordered CDP event
-  stream as the screencast frames, so a click lands between exactly the frames
-  it came between.
+  stream as the screencast frames. That is not enough to say which frames a
+  click came between: a frame and the report of an input reach the host in
+  either order (measured: 1–35% of pointer events, Chrome 156). So a press or
+  click also carries its DOM event's own time (`event.timeStamp`), which the
+  host puts on Chrome's clock with its document's `NavigationStart`
+  (`Performance.getMetrics`).
 - **Checked against the wire contract.** The host (`@openuji/stream-probe`)
   turns a payload into an event only if it is exactly what `core/wire.ts`
   says. The binding is a global function, so the page's own scripts can call
@@ -127,26 +133,32 @@ each report            probe → __uxr_probe__(JSON)  → Chrome: Runtime.bindin
 - **The page is the session's own frame.** The probe runs in every frame of
   its session. The host takes where the page is and what scrolls it from the
   session's own frame only — the tab's top document, or the PDF's frame — and
-  clicks from any.
+  clicks and presses from any.
 - **Gone at Stop.** The host calls `window.__uxr_uninstall__()`, then removes
   the script and the binding (`Runtime.removeBinding` alone would leave both
   in the page). Frames inside the page keep their copy until they reload.
 
 ### Clocks
 
-Arrival order is the only order the pipeline uses; timestamps are diagnostic.
+Arrival order is the order the pipeline processes events in, and the only
+order it decides by, with one exception: which frames a click came between
+(see Clicks).
 Every frame, lifecycle event and interaction carries `receivedAtMs`, stamped
 by the transport when the event arrived — the one clock comparable across
 sources. Sources never read a clock themselves; the clock is injected into the
-transport, so tests run on a manual one. Source times keep their own clock under their own name: `swapTimeMs`
-(Chromium frame swap, epoch ms) and `pageTimeMs` (the page's clock, epoch ms).
-Never subtract one clock from another.
+transport, so tests run on a manual one. Source times keep their own clock
+under their own name: `swapTimeMs` (Chromium frame swap, epoch ms),
+`pageTimeMs` (the page's clock, epoch ms), and Chrome's monotonic clock in ms:
+`drawnAtMs` on a frame (when Chrome drew it, its `monotonicTimestamp`, Chrome
+156 on) and `happenedAtMs` on a press or click (its event's `timeStamp` plus
+its document's `NavigationStart`). Only those two are ever compared with each
+other; never subtract one clock from another.
 
-Time decides one thing: whether the page has stopped, after 250 ms in which
-nothing changed. Timers belong to the transport's clock too (`clock.at`), so
-the fused stream's `quiet` carries exactly the moment it describes: the last
-event's `receivedAtMs` plus 250 ms. The scroll rule then checks every event the
-same way, `quiet` included.
+Time decides whether the page has stopped, after 250 ms in which nothing
+changed. Timers belong to the transport's clock too (`clock.at`), so the fused
+stream's `quiet` carries exactly the moment it describes: the last event's
+`receivedAtMs` plus 250 ms. The scroll and click rules then check every event
+the same way, `quiet` included.
 
 ### Views: page loads and SPA routes alike
 
@@ -257,6 +269,71 @@ or three scrolls.
 Not yet: scroll depth, and elements with their own scrollbar. The steps are in
 `changes/scroll-rebuild.md`.
 
+### Clicks
+
+A click is followed the way a scroll is: from what started it, through the
+frames it produced, to where the screen came to rest. Evaluation and
+measurements: `changes/what-they-see.md`.
+
+- **It starts at the press.** A page can respond before the `click`:
+  flatpickr turns the month on `pointerdown`, 60–80 ms earlier. So the probe
+  reports the press — the primary button going down, or Enter or Space — and
+  names it; the click carries the name of the press it came from. The pairing
+  is made in the page, where the order of DOM events is exact. A click the
+  page's own code made (`el.click()`) is its own cause. A click the browser
+  made for the person with no press reported gets no `10`, and its `11` says
+  so.
+- **Frames are placed by when they were drawn**, against when the press
+  happened, on Chrome's clock. `10-pre-click` is the newest frame drawn before
+  the press. Without those times (Chrome before 156, a click in an iframe, a
+  document whose start isn't known yet) the click is placed by arrival, and
+  its captures say "placed by arrival".
+- **The screencast sends frames in the order they were drawn**: one frame in
+  flight, the newest kept rather than dropped (`maxFramesInFlight: 1,
+  sendLastFrame: true`). With Chrome's default of three, frames are encoded
+  in parallel, can arrive swapped, and the last picture of a change can be
+  lost. A frame drawn before one already passed on is left out regardless.
+- **The response has come to rest** once nothing has arrived for 250 ms since
+  the latest click or frame. `11-post-click` is the newest frame then. That is
+  what the frames show, not that the page is done: a response that comes after
+  a still stretch (a slow request, a timer) is not this click's, and shows in
+  the next capture. A screen that never stops changing (an animation, a
+  carousel) ends 2 s after the last click, and its `11` says "still
+  changing".
+- **Quick clicks keep their own pairs.** A click before the screen has rested
+  shares the response: each click has its own `10`, the screen at its press,
+  and they share the `11`, which says "shared by N clicks". Both pictures are
+  decided once, at rest. A click that changes the view is filed under the
+  view it was clicked in; one still open when the recording stops or moves to
+  another tab gets its `10` only.
+- **A press that ends without a click** is said so by the page: once its
+  release is over and no `click` named it, the probe reports `press-ended`.
+  No click can come from it then.
+- **Its frames, for a video.** Every click gets its own clip, from its `10` to
+  its `11`: quick clicks' clips overlap and end on the same `11`.
+  `click-clip.ts` reads them off the rule's state. A clip begins at the press
+  — the page may draw its response before the `click` — once a frame came
+  after the screen before it (frames arrive in the order drawn, so the `10` is
+  final then; where nothing changes, there is no clip). It is kept with its
+  click's `11` when it ends on it, and dropped otherwise: a press that ended
+  without a click, Stop, another tab. The video is made as a scroll's is,
+  with the same setting, and is `….webm` next to the `11`.
+- Known limits:
+  - Only clicks are recorded: a press with no click is not. Picking a day in
+    flatpickr is one — it selects on `mousedown` and closes the calendar, so
+    the release lands on the page beneath and no `click` fires.
+  - A press made while a response is still going, and no click (yet), makes
+    that response's `11` the screen before it. The clip of a click whose `11`
+    is that earlier screen already ran on, so it is dropped: no video for
+    that click.
+  - Two clicks naming one press (a `<label>` passing its click on) share the
+    first one's clip.
+  - Frames don't say where the screen changed: hover feedback after the press,
+    or motion elsewhere on the page, counts as response until the screen
+    rests.
+  - Native popups (a `<select>`'s menu, datalist suggestions) are not in the
+    screencast.
+
 ### Attaching to a page that already has a document
 
 Enabling lifecycle reporting makes Chromium first report every milestone the
@@ -282,14 +359,14 @@ page yields `00-first`, not a stale `01-domcontentloaded`.
 | `@openuji/engine` | `reduce()` — the whole engine as one pure function — plus a thin stateful wrapper, and `view.ts`, which decides when a view begins. |
 | `@openuji/rules-document` | One-shot rules: first frame and farewell per view, `ready`/`settled` per document. |
 | `@openuji/rules-interaction` | Repeating numbered episodes carrying DOM target metadata. |
-| `@openuji/clip-webm` | Scroll video: the clip sink's two sides, recorder (video times, trace) and encoder (in a worker), and a WebM encoder on a vendored libav.js build. Isomorphic. |
+| `@openuji/clip-webm` | Scroll and click video: the clip sink's two sides, recorder (video times, trace) and encoder (in a worker), and a WebM encoder on a vendored libav.js build. Isomorphic. |
 | `@openuji/sinks` | Optional capture destinations: console and PNG + NDJSON persistence (videos too), and `startClipWorker`, the Node host's encoder thread. |
 | `@openuji/host-puppeteer` | Puppeteer-launched Chrome for Testing as a host: `launchPuppeteerTarget()`. The only library package that depends on Puppeteer. |
 | `@openuji/host-extension` | A tab in the user's own Chrome as a host, through `chrome.debugger`: `attachTab()`. Isomorphic: `chrome.debugger` is passed in. |
 | `@openuji/cli-kit` | Shared launch, navigation and shutdown scaffolding for the Node CLIs. |
 | `@openuji/stream-cli` | Dev runners: each source on its own, and the fused detection pipeline. |
 | `@openuji/recorder` | The end-to-end session and its CLI. |
-| `@openuji/extension` | The Chrome extension (WXT): the pipeline in its service worker, the journey live in its side panel, scroll videos encoded in an offscreen document's worker. |
+| `@openuji/extension` | The Chrome extension (WXT): the pipeline in its service worker, the journey live in its side panel, scroll and click videos encoded in an offscreen document's worker. |
 
 ### Sources run alone or fused — same code
 
@@ -349,13 +426,13 @@ The extension attaches to a tab the person already has open and keeps after
 the recording. It pins the scale factor to 1 for the recording's length, so
 the tab renders at 1x on a HiDPI screen until Stop gives it its own back.
 
-Its panel has a "Video of each scroll" switch before Record, off by default.
+Its panel has a "Video of each scroll and click" switch before Record, off by default.
 On, the service worker opens an offscreen document whose only job is to start
 the encoder in a dedicated worker (a service worker cannot start one), and
 reaches that worker over a `BroadcastChannel`: no relay, and a send blocks the
 service worker 0.2–0.3 ms per frame against 0.9–1.2 ms over a `chrome.runtime`
 port (measured with real 460 KB frames at 60 fps). Each video shows as "Play
-video" on its scroll's `04` row; Stop closes the document. The manifest's CSP
+video" on its scroll's `04` row or its click's `11` row; Stop closes the document. The manifest's CSP
 adds `'wasm-unsafe-eval'`, without which Chrome refuses to compile the encoder.
 
 In this host, on a page that does not repaint by itself, the screencast never

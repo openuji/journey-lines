@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createFakeCdpTransport } from '@openuji/cdp/testing';
-import type { CaptureSink, ClipSink, ClipWrite, MilestoneCapture } from '@openuji/core';
+import { QUIET_AFTER_MS, type CaptureSink, type ClipSink, type ClipWrite, type MilestoneCapture } from '@openuji/core';
 import { defaultRules, startRecording } from '@openuji/fused';
 import { defaultDocumentRules } from '@openuji/rules-document';
 import { defaultInteractionRules } from '@openuji/rules-interaction';
@@ -72,6 +72,8 @@ describe('startRecording', () => {
     screencastFrame(cdp, { data: 'c2V0dGxlZA==' });
     bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('button#go'));
     screencastFrame(cdp, { data: 'YWZ0ZXI=' });
+    // The click's response comes to rest once nothing has arrived for a while.
+    cdp.advance(QUIET_AFTER_MS);
     await settle();
     await recording.stop();
 
@@ -103,18 +105,22 @@ describe('startRecording', () => {
     bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('a#inbox'));
     navigatedWithinDocument(cdp, 'https://app.example/inbox');
     screencastFrame(cdp, { data: 'aW5ib3g=' });
+    cdp.advance(QUIET_AFTER_MS);
+    await settle();
     navigatedWithinDocument(cdp, 'https://app.example/inbox?unread=1');
     bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('button#compose'));
     screencastFrame(cdp);
+    cdp.advance(QUIET_AFTER_MS);
     await settle();
     await recording.stop();
 
     expect(sink.captures.map((c) => `${c.viewId} ${c.url} ${c.label}`)).toEqual([
       '1 https://app.example/ 00-first',
-      '1 https://app.example/ 10-pre-click-01',
       '1 https://app.example/ 99-before-navigation',
-      // One frame, two captures, in rule order: document rules come first.
       '2 https://app.example/inbox 00-first',
+      // A click's pictures are decided once its response has come to rest;
+      // one that changed the route is filed under the view it was clicked in.
+      '1 https://app.example/ 10-pre-click-01',
       '1 https://app.example/ 11-post-click-01',
       // A query-only update keeps the view, but no stale URL.
       '2 https://app.example/inbox?unread=1 10-pre-click-01',

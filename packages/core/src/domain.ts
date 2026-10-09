@@ -14,13 +14,21 @@
  *  - `swapTimeMs`: Chromium's frame-swap time, Unix epoch ms (frames).
  *  - `pageTimeMs`: the page's `Date.now()` at the DOM event, Unix epoch ms
  *    (interactions).
+ *  - `drawnAtMs` (frames) and `happenedAtMs` (presses, clicks): Chrome's
+ *    monotonic clock, ms. A frame's is when it was drawn
+ *    (`monotonicTimestamp`, Chrome 156 on); an input's is its DOM event's
+ *    `timeStamp` plus its document's `NavigationStart`. Either is absent where
+ *    it isn't known.
  *
- * Time decides one thing: whether something has stopped (the fused stream's
- * `quiet`, and when a scroll is over), on `receivedAtMs`.
+ * Time decides two things: whether something has stopped (the fused stream's
+ * `quiet`, when a scroll is over, when a click's response has come to rest),
+ * on `receivedAtMs`; and, for a click only, which frames were drawn before
+ * its press and which after, on Chrome's monotonic clock — arrival can't
+ * tell, a frame and the report of an input reach the host in either order.
  */
 
 import type { ClipTraceSample } from './clip.js';
-import type { InteractionAction, ScrollCause, TargetElementMeta } from './wire.js';
+import type { InteractionAction, PressKind, ScrollCause, TargetElementMeta } from './wire.js';
 
 export type CompositorFrame = Readonly<{
   index: number;
@@ -43,6 +51,8 @@ export type CompositorFrame = Readonly<{
   receivedAtMs: number;
   /** Absent when Chromium does not report it. */
   swapTimeMs?: number;
+  /** When it was drawn, Chrome's monotonic clock, ms; absent before Chrome 156. */
+  drawnAtMs?: number;
 }>;
 
 /** A document's lifecycle: the frames it shows in, and how far it has come. */
@@ -90,6 +100,42 @@ export type InteractionEvent = Readonly<{
   type: 'interaction';
   action: InteractionAction;
   target: TargetElementMeta;
+  receivedAtMs: number;
+  pageTimeMs: number;
+  /** When it happened, Chrome's monotonic clock, ms; absent where that isn't known. */
+  happenedAtMs?: number;
+  /** A click: the press it came from (`PressEvent.pressId`), if one was reported. */
+  pressId?: string;
+  /** A click: made by the browser for the person, not by the page's own code. */
+  trusted?: boolean;
+}>;
+
+/**
+ * What starts a click happened: the primary button went down, or a key that
+ * activates (Enter, Space). The page may respond already here, before the
+ * `click` — so a click's "before" is the screen before its press.
+ */
+export type PressEvent = Readonly<{
+  type: 'press';
+  kind: PressKind;
+  /** The pointer type (`mouse`, `touch`, `pen`) or the key. */
+  detail?: string;
+  /** Names the press; the click it becomes carries it. Unique per document and frame. */
+  pressId: string;
+  /** When it happened, Chrome's monotonic clock, ms; absent where that isn't known. */
+  happenedAtMs?: number;
+  receivedAtMs: number;
+  pageTimeMs: number;
+}>;
+
+/**
+ * A press ended without becoming a click — a drag, a text selection, a date
+ * picker that closes on the press. Reported by the page once its release is
+ * over, so no click can name it any more.
+ */
+export type PressEndedEvent = Readonly<{
+  type: 'press-ended';
+  pressId: string;
   receivedAtMs: number;
   pageTimeMs: number;
 }>;
@@ -181,6 +227,8 @@ export const QUIET_AFTER_MS = 250;
 export type DocumentEvent =
   | LifecycleEvent
   | InteractionEvent
+  | PressEvent
+  | PressEndedEvent
   | PageScrollEvent
   | PagePositionEvent
   | ScrollCauseEvent;
@@ -309,8 +357,9 @@ export type InteractionLogRecord = Readonly<{
 }>;
 
 /**
- * The log line of a kept clip: a video of the span its capture ended (today a
- * scroll, filed under its `04`). Told from a capture's line by `videoFile`.
+ * The log line of a kept clip: a video of the span its capture ended — a
+ * scroll, filed under its `04`, or a click, under its `11`. Told from a
+ * capture's line by `videoFile`.
  */
 export type ClipLogRecord = Readonly<{
   sequence: number;
@@ -321,7 +370,7 @@ export type ClipLogRecord = Readonly<{
   documentId: number;
   loaderId: string;
   url: string;
-  /** The capture the clip belongs to, e.g. `04-post-scroll-01`. */
+  /** The capture the clip belongs to, e.g. `04-post-scroll-01`, `11-post-click-01`. */
   label: string;
   videoFile: string;
   videoPath: string;

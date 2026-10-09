@@ -1,8 +1,9 @@
 /**
  * In-page probe — the observation core.
  *
- * Observes what the person clicks, and the page scrolling itself
- * (`page-scroll.ts`), and hands each one, as a wire payload, to whatever
+ * Observes what the person clicks and the press it came from (`clicks.ts`),
+ * and the page scrolling itself (`page-scroll.ts`), and hands each one, as a
+ * wire payload, to whatever
  * `report` it was installed with. It reports; it decides nothing. It knows
  * nothing about how the payload leaves the page: the CDP binding entry
  * (`cdp-binding.ts`) is one delivery channel, an extension content script
@@ -15,7 +16,7 @@ import {
   MAX_TEXT_SNIPPET_LENGTH,
   PROBE_UNINSTALL,
 } from '../constants.js';
-import { on } from './on.js';
+import { observeClicks } from './clicks.js';
 import { observePageScroll } from './page-scroll.js';
 
 /** Receives each payload the probe sends. Must not throw into the page. */
@@ -116,11 +117,8 @@ export function installProbe(report: ProbeReporter): void {
   if (window[PROBE_UNINSTALL]) return;
 
   const stops = [
-    // Every frame of the page: what the person clicked.
-    on('click', (event) => {
-      const target = targetOf(event);
-      if (target) report({ action: 'click', target, pageTimeMs: Date.now() });
-    }),
+    // Every frame of the page: what the person clicked, and the press it came from.
+    observeClicks(report, targetOf),
     // Its document scrolling itself. Which frame's document is the page is the
     // host's call: the one its session is for (`attachProbe`).
     observePageScroll(report),

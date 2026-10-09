@@ -6,8 +6,10 @@ import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import {
   bindingCalled,
   causePayload,
+  clickPayload,
   frameNavigated,
   positionPayload,
+  pressPayload,
   screencastFrame,
   scrollPayload,
 } from '../../../packages/cdp/test/events.js';
@@ -80,6 +82,19 @@ function scroll(cdp: FakeCdpTransport): void {
   bindingCalled(cdp, PROBE_BINDING_NAME, scrollPayload(600, true));
   cdp.advance(16);
   screencastFrame(cdp);
+  cdp.advance(300);
+}
+
+/** A click on a page that responds already on the press, as flatpickr does: down, a new picture, the click. */
+function clickOnce(cdp: FakeCdpTransport): void {
+  frameNavigated(cdp, 'loader-a', { url: TAB.url });
+  screencastFrame(cdp);
+  cdp.advance(300);
+  bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('t-1', 1_000));
+  cdp.advance(16);
+  screencastFrame(cdp);
+  cdp.advance(60);
+  bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('button#next', { pressId: 't-1', trusted: true }));
   cdp.advance(300);
 }
 
@@ -266,6 +281,18 @@ describe('Recorder', () => {
       // The encoder ends after the recording has drained it.
       expect(clips.closed).toBe(1);
       expect(recorder.snapshot()).toMatchObject({ clips: recorder.clips });
+    });
+
+    it("asked for, files each click's video under its 11", async () => {
+      const { cdp, recorder, clips } = setup();
+
+      await recorder.record(TAB, { video: true });
+      clickOnce(cdp());
+      await settle();
+      await recorder.stop();
+
+      expect(clips.writes.map((w) => w.type)).toEqual(['frame', 'frame', 'keep']);
+      expect(recorder.clips.map((c) => `${c.viewId} ${c.label}`)).toEqual(['1 11-post-click-01']);
     });
 
     it('starts the next recording, and a reset, with no videos', async () => {

@@ -29,6 +29,12 @@ export interface ScreencastOptions {
   viewport?: Viewport;
   maxWidth?: number;
   maxHeight?: number;
+  /**
+   * Called for each frame left out because it was drawn before one already
+   * passed on (see `attachCompositor`); default: a warning. With one frame in
+   * flight Chrome sends them in order, so this should never be called.
+   */
+  onOutOfOrder?: (frame: CompositorFrame, totalOutOfOrder: number) => void;
 }
 
 export interface CompositorStreamOptions extends ScreencastOptions {
@@ -56,6 +62,15 @@ export interface CompositorStreamHandle {
  * Attaches the compositor source: emits a frame for every CDP
  * `Page.screencastFrame`, synchronously, from inside the event handler.
  *
+ * Frames leave in the order they were drawn. Chrome is asked for one frame in
+ * flight at a time: with more (its default is 3) it encodes them in parallel
+ * and sends each when its encoding is done, so two can arrive swapped
+ * (Chromium `page_handler.cc`, measured on Chrome 156). It is also asked to
+ * keep the newest frame while one is in flight rather than drop it, so the
+ * last picture of a change is never lost; pictures in between may be. A frame
+ * drawn before one already passed on is left out regardless, by the time it
+ * was drawn — where Chrome says it (`monotonicTimestamp`, Chrome 156 on).
+ *
  * This is the one implementation of the source. The standalone stream below
  * and the fused orchestrator both run it, so what you see in isolation is
  * exactly what the fused stream is fed.
@@ -65,7 +80,10 @@ export async function attachCompositor(
   emit: (frame: CompositorFrame) => void,
   options: ScreencastOptions = {},
 ): Promise<Detach> {
+  const { onOutOfOrder = warnOutOfOrder, ...screencast } = options;
   let frameCount = 0;
+  let newestDrawnAtMs = -Infinity;
+  let outOfOrder = 0;
 
   const unsubscribe = cdp.on('Page.screencastFrame', (raw, { receivedAtMs }) => {
     // ACK first, before any other work: Chromium withholds the next frame until
@@ -74,17 +92,27 @@ export async function attachCompositor(
       .send('Page.screencastFrameAck', { sessionId: raw.sessionId })
       .catch(() => {});
 
-    emit(toFrame(raw, ++frameCount, receivedAtMs));
+    const frame = toFrame(raw, ++frameCount, receivedAtMs);
+    if (frame.drawnAtMs !== undefined) {
+      if (frame.drawnAtMs < newestDrawnAtMs) {
+        onOutOfOrder(frame, ++outOfOrder);
+        return;
+      }
+      newestDrawnAtMs = frame.drawnAtMs;
+    }
+    emit(frame);
   });
 
   try {
-    const bounds = await screencastBounds(cdp, options);
+    const bounds = await screencastBounds(cdp, screencast);
     await cdp.send('Page.startScreencast', {
-      format: options.format ?? 'png',
-      quality: options.quality,
-      everyNthFrame: options.everyNthFrame ?? 1,
+      format: screencast.format ?? 'png',
+      quality: screencast.quality,
+      everyNthFrame: screencast.everyNthFrame ?? 1,
       maxWidth: bounds.width,
       maxHeight: bounds.height,
+      maxFramesInFlight: 1,
+      sendLastFrame: true,
     });
   } catch (err) {
     unsubscribe();
@@ -116,7 +144,25 @@ function toFrame(
     // epoch seconds.
     swapTimeMs:
       metadata.timestamp === undefined ? undefined : metadata.timestamp * 1000,
+    ...drawnAt(metadata),
   };
+}
+
+/**
+ * When Chrome drew the frame, on its monotonic clock: `monotonicTimestamp`,
+ * seconds, sent from Chrome 156 on. Newer than the protocol types pinned here.
+ */
+function drawnAt(metadata: RawFrame['metadata']): { drawnAtMs?: number } {
+  const seconds = (metadata as { monotonicTimestamp?: unknown }).monotonicTimestamp;
+  return typeof seconds === 'number' && Number.isFinite(seconds)
+    ? { drawnAtMs: seconds * 1000 }
+    : {};
+}
+
+function warnOutOfOrder(frame: CompositorFrame, total: number): void {
+  console.warn(
+    `Left out screencast frame ${frame.index}: drawn before one already passed on (${total} so far).`,
+  );
 }
 
 /**

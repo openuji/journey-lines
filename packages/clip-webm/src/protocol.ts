@@ -3,8 +3,8 @@ import type { ClipSink } from '@openuji/core';
 /**
  * What the recorder side and the encoder side of a clip sink say to each
  * other: `ClipEncoder`'s calls, carried to wherever encoding runs, one encoder
- * per `clip`. Encoder words only. Which frames belong to a scroll, and whether
- * it was recorded, is the domain's (`ClipWrite`); `clipSinkOver` is the one
+ * per `clip`. Encoder words only. Which frames belong to a scroll or a click,
+ * and whether it was recorded, is the domain's (`ClipWrite`); `clipSinkOver` is the one
  * place that translates.
  *
  * Plain JSON, so any channel carries it: a worker port, a MessagePort, an

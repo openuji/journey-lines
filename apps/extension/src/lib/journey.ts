@@ -19,7 +19,7 @@ export type JourneyRow =
       captureKind: CaptureKind;
       /** Since the recording started. */
       atMs: number;
-      /** The video of what this capture ended (a scroll's `04`), once it is ready. */
+      /** The video of what this capture ended (a scroll's `04`, a click's `11`), once it is ready. */
       clip?: Clip;
     }>;
 

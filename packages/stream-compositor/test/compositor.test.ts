@@ -86,4 +86,41 @@ describe('createCompositorStream (standalone)', () => {
     expect(cdp.listenerCount()).toBe(0);
     expect(await collect(frames)).toEqual([]);
   });
+
+  it('asks for one frame in flight, keeping the newest rather than dropping it', async () => {
+    const cdp = createFakeCdpTransport();
+    await createCompositorStream(cdp, { viewport: { width: 1280, height: 800 } });
+
+    expect(startScreencastParams(cdp)).toMatchObject({ maxFramesInFlight: 1, sendLastFrame: true });
+  });
+
+  it("says when a frame was drawn, where Chrome does (Chrome 156's monotonicTimestamp)", async () => {
+    const cdp = createFakeCdpTransport();
+    const { frames, stop } = await createCompositorStream(cdp, { viewport: { width: 1280, height: 800 } });
+
+    screencastFrame(cdp, { monotonicTimestamp: 584_119.25 });
+    screencastFrame(cdp);
+    await stop();
+
+    expect((await collect(frames)).map((f) => f.drawnAtMs)).toEqual([584_119_250, undefined]);
+  });
+
+  it('leaves out a frame drawn before one already passed on, acks it, and says so', async () => {
+    const cdp = createFakeCdpTransport();
+    const outOfOrder: [number, number][] = [];
+    const { frames, stop } = await createCompositorStream(cdp, {
+      viewport: { width: 1280, height: 800 },
+      onOutOfOrder: (frame, total) => outOfOrder.push([frame.index, total]),
+    });
+
+    screencastFrame(cdp, { sessionId: 1, monotonicTimestamp: 10.016 });
+    screencastFrame(cdp, { sessionId: 2, monotonicTimestamp: 10.008 }); // drawn earlier, arrived later
+    screencastFrame(cdp, { sessionId: 3, monotonicTimestamp: 10.024 });
+    await stop();
+
+    expect((await collect(frames)).map((f) => f.index)).toEqual([1, 3]);
+    expect(outOfOrder).toEqual([[2, 1]]);
+    const acks = cdp.sent.filter((c) => c.method === 'Page.screencastFrameAck');
+    expect(acks.map((c) => c.params)).toEqual([{ sessionId: 1 }, { sessionId: 2 }, { sessionId: 3 }]);
+  });
 });

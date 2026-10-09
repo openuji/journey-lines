@@ -28,8 +28,16 @@ import { createCompositorStream } from '@openuji/stream-compositor';
 import { PROBE_UNINSTALL } from '@openuji/client-probe';
 import { createProbeStream, PROBE_BINDING_NAME } from '@openuji/stream-probe';
 import { createLifecycleStream } from '@openuji/stream-lifecycle';
-import { ANCHOR, BUTTON, SPA, startFixtureServer, type FixtureServer } from './fixture.js';
-import { click, press, wheel } from './input.js';
+import {
+  ANCHOR,
+  BUTTON,
+  CALENDAR,
+  MONTH_COLORS,
+  SPA,
+  startFixtureServer,
+  type FixtureServer,
+} from './fixture.js';
+import { activate, click, press, wheel } from './input.js';
 
 export interface HostUnderTest {
   /** A fresh target, not yet navigated anywhere. */
@@ -120,6 +128,37 @@ class MemoryClips implements ClipSink {
         : [],
     );
   }
+}
+
+/**
+ * Which month of `/calendar` a frame shows, read from its pixels in the page
+ * itself (no image library here): the nearest month colour, or `null` for a
+ * month still coming in (its animation part-way).
+ */
+async function monthIn(cdp: CdpTransport, frame: CompositorFrame): Promise<number | null> {
+  const at = { x: CALENDAR.month.x + 20, y: CALENDAR.month.y + CALENDAR.month.height - 20 };
+  const { result } = await cdp.send('Runtime.evaluate', {
+    expression: `new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onerror = reject;
+      image.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0);
+        const scale = image.naturalWidth / ${frame.viewportWidth};
+        resolve([...context.getImageData(Math.round(${at.x} * scale), Math.round(${at.y} * scale), 1, 1).data].slice(0, 3));
+      };
+      image.src = 'data:image/png;base64,${frame.base64}';
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const pixel = result.value as number[];
+  const distances = MONTH_COLORS.map((color) => Math.hypot(...color.map((c, i) => c - (pixel[i] ?? 0))));
+  const nearest = distances.indexOf(Math.min(...distances));
+  return (distances[nearest] ?? Infinity) < 40 ? nearest : null;
 }
 
 /** Consume a stream into an array the test can poll. */
@@ -340,6 +379,15 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           const clicked = events.find((event) => event.type === 'interaction' && event.action === 'click');
           expect(clicked?.type === 'interaction' && clicked.target.selector).toBe('button#go');
         }, WAIT);
+        // The press comes first, and the click names it; a press that became a click doesn't end apart.
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(events.some((event) => event.type === 'press-ended')).toBe(false);
+        const pressed = events.find((event) => event.type === 'press');
+        const clicked = events.find((event) => event.type === 'interaction');
+        expect(pressed && events.indexOf(pressed)).toBeLessThan(clicked ? events.indexOf(clicked) : -1);
+        expect(pressed?.type === 'press' && pressed.kind).toBe('pointer');
+        expect(clicked?.type === 'interaction' && clicked.pressId).toBe(pressed?.type === 'press' && pressed.pressId);
+        expect(clicked?.type === 'interaction' && clicked.trusted).toBe(true);
 
         await probe.stop();
         expect(events.filter((event) => event.type === 'page-scroll')).toEqual([]);
@@ -427,6 +475,128 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           expect(capture.frame.base64.startsWith(PNG_SIGNATURE_BASE64)).toBe(true);
         }
       }));
+
+    describe('clicks on a page that responds already on the press', () => {
+      const next = center(CALENDAR.next);
+
+      /** Recording `/calendar`, settled, until `stop`. */
+      const recordCalendar = async (target: RecordingTarget) => {
+        const url = fixture.url('/calendar');
+        const sink = new MemorySink();
+        const clips = new MemoryClips();
+        const recording = await startRecording(target.cdp, {
+          sinks: [sink],
+          clips,
+          screencast: { viewport: target.viewport },
+        });
+        // When frames arrived: a stall shows as a gap, which reads as rest.
+        const arrivals: number[] = [];
+        target.cdp.on('Page.screencastFrame', (_, { receivedAtMs }) => arrivals.push(receivedAtMs));
+        await target.navigate(url);
+        await vi.waitFor(() => expect(sink.labels(url)).toContain(DocumentLabel.settled), WAIT);
+        const capture = (label: string) => sink.captures.find((c) => c.url === url && c.label === label);
+        const waitFor = (label: string) => vi.waitFor(() => expect(capture(label)).toBeDefined(), WAIT);
+        /** The longest wait between frames from `fromMs` on, ms. */
+        const longestGapFrom = (fromMs: number): number => {
+          const after = arrivals.filter((at) => at >= fromMs);
+          return Math.max(0, ...after.slice(1).map((at, i) => at - (after[i] ?? at)));
+        };
+        return { sink, clips, recording, capture, waitFor, longestGapFrom };
+      };
+
+      it('10 is the screen before the press, 11 where the response came to rest', () =>
+        withTarget(async (target) => {
+          const { clips, recording, capture, waitFor, longestGapFrom } = await recordCalendar(target);
+
+          // Held as a person holds it: the month turns, and the click comes 80 ms later.
+          const pressedAt = Date.now();
+          await click(target.cdp, next.x, next.y, 80);
+          await waitFor(postClick);
+          await recording.stop();
+
+          const pre = capture(preClick)!;
+          const post = capture(postClick)!;
+          console.info(
+            `[${name}] click: ${pre.detail} | ${post.detail} | longest gap between frames after the press: ${longestGapFrom(pressedAt)} ms`,
+          );
+          expect(await monthIn(target.cdp, pre.frame)).toBe(0);
+          expect(await monthIn(target.cdp, post.frame)).toBe(1);
+          expect(post.detail).toContain('came to rest');
+          // Its clip: from its 10 to its 11.
+          const [clip, ...more] = clips.kept();
+          expect(more).toEqual([]);
+          expect(clip?.capture.label).toBe(postClick);
+          expect(clip?.frames[0]).toBe(pre.frame);
+          expect(clip?.frames.at(-1)).toBe(post.frame);
+        }));
+
+      it('quick clicks keep their own 10 each and share the 11 where the screen came to rest', () =>
+        withTarget(async (target) => {
+          const { clips, recording, capture, waitFor } = await recordCalendar(target);
+
+          for (let i = 0; i < 3; i++) {
+            await click(target.cdp, next.x, next.y, 30);
+            await new Promise((resolve) => setTimeout(resolve, 70));
+          }
+          const third = (label: string) => label.replace(/01$/, '03');
+          await waitFor(third(postClick));
+          await recording.stop();
+
+          const posts = [1, 2, 3].map((n) => capture(postClick.replace(/01$/, `0${n}`))!);
+          const pres = [1, 2, 3].map((n) => capture(preClick.replace(/01$/, `0${n}`)));
+          expect(pres.every(Boolean)).toBe(true);
+          expect(new Set(posts.map((p) => p.frame.index)).size).toBe(1);
+          expect(await monthIn(target.cdp, posts[0]!.frame)).toBe(3);
+          expect(await monthIn(target.cdp, pres[0]!.frame)).toBe(0);
+          expect(posts[0]!.detail).toContain('shared by 3 clicks');
+          // A clip each: from its own 10 to the 11 they share.
+          const kept = clips.kept();
+          expect(kept.map((k) => k.capture.label)).toEqual(posts.map((p) => p.label));
+          expect(kept.map((k) => k.frames[0])).toEqual(pres.map((p) => p!.frame));
+          expect(kept.every((k) => k.frames.at(-1) === posts[0]!.frame)).toBe(true);
+        }));
+
+      it('a press that ends without a click is said to have ended, and makes no capture and no clip', () =>
+        withTarget(async (target) => {
+          const { sink, clips, recording } = await recordCalendar(target);
+          const probe = await createProbeStream(target.cdp);
+          const events = collect(probe.events);
+          const vanish = center(CALENDAR.vanish);
+
+          await click(target.cdp, vanish.x, vanish.y, 80);
+          await vi.waitFor(() => expect(events.map((e) => e.type)).toContain('press-ended'), WAIT);
+          await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+          await probe.stop();
+          await recording.stop();
+
+          const pressed = events.find((e) => e.type === 'press');
+          const ended = events.find((e) => e.type === 'press-ended');
+          expect(ended?.type === 'press-ended' && ended.pressId).toBe(pressed?.type === 'press' && pressed.pressId);
+          expect(events.some((e) => e.type === 'interaction')).toBe(false);
+          expect(sink.labels().filter((label) => label.startsWith('1'))).toEqual([]);
+          expect(clips.writes.filter((w) => w.type === 'keep')).toEqual([]);
+        }));
+
+      it('a key that activates the button is the press its click comes from', () =>
+        withTarget(async (target) => {
+          const { recording, capture, waitFor } = await recordCalendar(target);
+          await evaluate(target.cdp, `document.getElementById('key-next').focus()`);
+          await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+
+          await activate(target.cdp, 'Enter');
+          await waitFor(postClick);
+          await activate(target.cdp, 'Space');
+          await waitFor(postClick.replace(/01$/, '02'));
+          await recording.stop();
+
+          const [pre1, post1] = [capture(preClick)!, capture(postClick)!];
+          const [pre2, post2] = [capture(preClick.replace(/01$/, '02'))!, capture(postClick.replace(/01$/, '02'))!];
+          expect(pre1.detail).toContain('pressed with Enter');
+          expect(pre2.detail).toContain('pressed with Space');
+          expect([await monthIn(target.cdp, pre1.frame), await monthIn(target.cdp, post1.frame)]).toEqual([0, 1]);
+          expect([await monthIn(target.cdp, pre2.frame), await monthIn(target.cdp, post2.frame)]).toEqual([1, 2]);
+        }));
+    });
 
     it('pipeline: a page that stops painting still gets its 01 and 02, showing what is on screen', () =>
       withTarget(async (target) => {

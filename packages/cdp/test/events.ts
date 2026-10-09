@@ -1,4 +1,10 @@
-import type { InteractionWirePayload, ScrollCauseWirePayload, ScrollWirePayload } from '@openuji/core';
+import type {
+  InteractionWirePayload,
+  PressEndedWirePayload,
+  PressWirePayload,
+  ScrollCauseWirePayload,
+  ScrollWirePayload,
+} from '@openuji/core';
 import type { FakeCdpTransport } from '@openuji/cdp/testing';
 
 /**
@@ -10,7 +16,13 @@ let nextFrameSession = 0;
 
 export function screencastFrame(
   cdp: FakeCdpTransport,
-  overrides: { sessionId?: number; scrollY?: number; data?: string } = {},
+  overrides: {
+    sessionId?: number;
+    scrollY?: number;
+    data?: string;
+    /** When Chrome drew it, its monotonic clock, seconds (Chrome 156 on). */
+    monotonicTimestamp?: number;
+  } = {},
 ): number {
   const sessionId = overrides.sessionId ?? ++nextFrameSession;
   cdp.emit('Page.screencastFrame', {
@@ -24,6 +36,10 @@ export function screencastFrame(
       scrollOffsetX: 0,
       scrollOffsetY: overrides.scrollY ?? 0,
       timestamp: 1_700_000_000,
+      // Newer than the protocol types pinned here.
+      ...(overrides.monotonicTimestamp !== undefined
+        ? ({ monotonicTimestamp: overrides.monotonicTimestamp } as object)
+        : {}),
     },
   });
   return sessionId;
@@ -113,11 +129,15 @@ export function bindingCalled(
   cdp: FakeCdpTransport,
   name: string,
   payload: string,
+  executionContextId = 1,
 ): void {
-  cdp.emit('Runtime.bindingCalled', { name, payload, executionContextId: 1 });
+  cdp.emit('Runtime.bindingCalled', { name, payload, executionContextId });
 }
 
-export function clickPayload(selector = 'a.link'): string {
+export function clickPayload(
+  selector = 'a.link',
+  extra: Pick<InteractionWirePayload, 'eventTimeMs' | 'pressId' | 'trusted'> = {},
+): string {
   const payload: InteractionWirePayload = {
     action: 'click',
     target: {
@@ -128,7 +148,32 @@ export function clickPayload(selector = 'a.link'): string {
       boundingRect: { x: 0, y: 0, width: 100, height: 40 },
     },
     pageTimeMs: 1_700_000_000_000,
+    ...extra,
   };
+  return JSON.stringify(payload);
+}
+
+/** What starts a click, as the probe reports it before the page responds. */
+export function pressPayload(
+  pressId: string,
+  eventTimeMs: number,
+  kind: PressWirePayload['kind'] = 'pointer',
+  detail = kind === 'pointer' ? 'mouse' : 'Enter',
+): string {
+  const payload: PressWirePayload = {
+    action: 'press',
+    kind,
+    detail,
+    pressId,
+    eventTimeMs,
+    pageTimeMs: 1_700_000_000_000,
+  };
+  return JSON.stringify(payload);
+}
+
+/** A press that ended without a click, as the probe reports it. */
+export function pressEndedPayload(pressId: string): string {
+  const payload: PressEndedWirePayload = { action: 'press-ended', pressId, pageTimeMs: 1_700_000_000_000 };
   return JSON.stringify(payload);
 }
 
