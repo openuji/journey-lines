@@ -7,7 +7,7 @@ const pkg = (relative: string): string =>
  * Every workspace package resolved to its TypeScript sources, not its `dist`.
  *
  * Tests run against sources so `pnpm test` needs no prior build (beyond the
- * generated probe source), and the extension bundles them so DevTools shows
+ * generated browser sources), and the extension bundles them so DevTools shows
  * the packages' own TypeScript. Subpaths come before their package: a string
  * alias also matches `<alias>/...`, and the first match wins.
  */
@@ -22,6 +22,8 @@ export const workspaceAliases: Record<string, string> = {
   '@openuji/fused': pkg('./packages/fused/src/index.ts'),
   '@openuji/host-extension': pkg('./packages/host-extension/src/index.ts'),
   '@openuji/host-puppeteer': pkg('./packages/host-puppeteer/src/index.ts'),
+  '@openuji/privacy': pkg('./packages/privacy/src/index.ts'),
+  '@openuji/privacy-profiles': pkg('./packages/privacy-profiles/src/index.ts'),
   '@openuji/rules-document': pkg('./packages/rules-document/src/index.ts'),
   '@openuji/rules-interaction': pkg('./packages/rules-interaction/src/index.ts'),
   '@openuji/sinks': pkg('./packages/sinks/src/index.ts'),

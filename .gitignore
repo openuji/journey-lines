@@ -15,3 +15,6 @@ apps/web
 apps/extension/.output
 apps/extension/.wxt
 apps/extension/storybook-static
+
+# generated: standalone privacy browser runtime
+packages/privacy/src/generated

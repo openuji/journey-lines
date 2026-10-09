@@ -141,6 +141,12 @@ importers:
       '@openuji/fused':
         specifier: workspace:*
         version: link:../../packages/fused
+      '@openuji/privacy':
+        specifier: workspace:*
+        version: link:../../packages/privacy
+      '@openuji/privacy-profiles':
+        specifier: workspace:*
+        version: link:../../packages/privacy-profiles
       '@openuji/sinks':
         specifier: workspace:*
         version: link:../../packages/sinks
@@ -237,6 +243,25 @@ importers:
       puppeteer:
         specifier: 25.12.0
         version: 25.12.0(yauzl@3.4.0)
+
+  packages/privacy:
+    dependencies:
+      '@openuji/cdp':
+        specifier: workspace:*
+        version: link:../cdp
+      dom-accessibility-api:
+        specifier: 0.6.3
+        version: 0.6.3
+    devDependencies:
+      esbuild:
+        specifier: ^0.24.2
+        version: 0.24.2
+
+  packages/privacy-profiles:
+    dependencies:
+      '@openuji/privacy':
+        specifier: workspace:*
+        version: link:../privacy
 
   packages/rules-document:
     dependencies:

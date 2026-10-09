@@ -40,6 +40,48 @@ Set `UXR_HEADLESS=1` to run without a visible browser window, and
 
 ---
 
+## Privacy profile demo (stages one and two)
+
+```bash
+pnpm dev:privacy
+# Or: pnpm --filter @openuji/stream-cli uxr-privacy
+```
+
+Opens a local synthetic page in a headed browser. The runner imports `dummyProfile`
+from `@openuji/privacy-profiles` and calls `compilePrivacy(profile)`. Its compiled rule
+looks for `[data-uxr-privacy-demo="absent"]`, which the page deliberately lacks.
+The terminal reports `privacy installed`, `matched=0, overwritten=0 (unmatched)`,
+and `privacy pass completed`. The page remains unchanged. Follow its link or
+reload to exercise injection in a new document; Ctrl+C stops the runner.
+`UXR_HEADLESS=1` also works for this runner.
+
+`@openuji/privacy` is independent of recording: `attachPrivacy(cdp, program,
+onDiagnostic)` installs in the top document now and after navigation. Its `ready`
+promise reports completion of the initial document, or cancellation if that
+document is replaced or the attachment is disposed. One attachment owns each
+transport; reinjecting the browser script runs at most one pass per document.
+A completed document marker contains configuration and counts, never original
+content. Disposal cancels pending work and future injection, leaves overwritten
+text in place, and does not close the host's transport.
+
+Profiles declare origin/path scopes, UJG accessible or custom CSS locators, and
+literal replacements. The runtime selects applicable rules once and resolves all
+targets before writing. Rules explicitly select leaf text or a direct text node;
+nested controls survive. Missing and ambiguous targets warn and skip; multiple
+matches require `allowMultiple: true`. Unsupported locator definitions fail
+compilation with structured diagnostics instead of dropping constraints.
+
+See [privacy profile authoring](packages/privacy/Readme.md) for the supported
+locator subset and examples. Credential masking and recording integration remain
+Stage 3 in [the privacy plan](changes/privacy-plan.md).
+
+Focused checks after `pnpm build`:
+
+```bash
+pnpm exec vitest run packages/privacy/test
+UXR_HEADLESS=1 pnpm exec vitest run -c vitest.browser.config.ts test/browser/privacy.test.ts
+```
+
 ## Architecture
 
 ```
