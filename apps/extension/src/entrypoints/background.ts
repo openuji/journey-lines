@@ -2,6 +2,7 @@ import type { Clip } from '@openuji/core';
 import { clipSinkOver, type ClipWorker, type FromEncoder, type ToEncoder } from '@openuji/clip-webm';
 import { extensionTabs } from '@openuji/host-extension';
 import { defineBackground } from 'wxt/utils/define-background';
+import { setActionIcon } from '../lib/action-icon';
 import { CLIPS_READY, clipChannel, type ClipsReady } from '../lib/clips';
 import {
   JOURNEY_PORT,
@@ -86,7 +87,11 @@ export default defineBackground(() => {
     if (port.name !== JOURNEY_PORT) return;
 
     panels.add(port);
-    port.onDisconnect.addListener(() => panels.delete(port));
+    if (panels.size === 1) updateActionIcon(true);
+    port.onDisconnect.addListener(() => {
+      panels.delete(port);
+      if (panels.size === 0) updateActionIcon(false);
+    });
     port.postMessage(recorder.snapshot());
 
     port.onMessage.addListener((message: PanelMessage) => {
@@ -101,6 +106,12 @@ export default defineBackground(() => {
     });
   });
 });
+
+function updateActionIcon(open: boolean): void {
+  void setActionIcon(open).catch((error: unknown) => {
+    console.error('[action] Could not update extension icon', error);
+  });
+}
 
 /**
  * The video encoder for one recording: an offscreen document starts it in a

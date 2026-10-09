@@ -28,6 +28,12 @@ export default defineConfig({
   manifest: {
     name: 'OpenUJI Recorder',
     description: 'Records a UX journey in your own tab and shows it as it happens.',
+    icons: {
+      16: 'icons/action-16.png',
+      32: 'icons/action-32.png',
+      48: 'icons/action-48.png',
+      128: 'icons/action-128.png',
+    },
     // `debugger` records the tab; `tabs` reads its title and URL; `sidePanel`
     // is where the journey shows; `offscreen` hosts the video encoder's worker.
     permissions: ['sidePanel', 'debugger', 'tabs', 'offscreen'],
@@ -36,7 +42,14 @@ export default defineConfig({
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
     },
-    action: { default_title: 'OpenUJI Recorder' },
+    action: {
+      default_title: 'OpenUJI Recorder',
+      default_icon: {
+        16: 'icons/action-16.png',
+        24: 'icons/action-24.png',
+        32: 'icons/action-32.png',
+      },
+    },
   },
 
   // Readable output, also in `wxt build`: what you load unpacked is what you debug.

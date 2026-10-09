@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Chrome extension host: records the user's own tab through chrome.debugger and shows the journey live in a side panel.",
   "scripts": {
+    "build:icons": "node scripts/build-icons.mjs",
     "dev": "wxt",
     "build": "wxt build",
     "storybook": "storybook dev -p 6006",
