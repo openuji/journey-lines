@@ -1,57 +1,224 @@
 import { describe, expect, it } from 'vitest';
-import type { DomainEvent, MilestoneCapture } from '@openuji/core';
+import { QUIET_AFTER_MS, type CompositorFrame, type DomainEvent, type MilestoneCapture } from '@openuji/core';
 import { RulesEngine, type MilestoneRule } from '@openuji/engine';
-import { ClickEpisodeRule } from '@openuji/rules-interaction';
+import { CLICK_DEFAULTS, ClickEpisodeRule } from '@openuji/rules-interaction';
 import {
   click,
+  frame,
   navigated,
-  frameEvent,
+  press,
+  pressAndClick,
+  pressEnded,
+  quiet,
   withinDocument,
 } from '../../engine/test/helpers.js';
 
-function run(
-  events: readonly DomainEvent[],
-  rules: readonly MilestoneRule[] = [ClickEpisodeRule],
-): MilestoneCapture[] {
-  const engine = new RulesEngine(rules);
-  return events.flatMap((event) => [...engine.processEvent(event).captures]);
-}
-
-function episodeOf(label: string): string {
-  return label.slice(label.lastIndexOf('-') + 1);
+/**
+ * Named frames: `shown('month', 113, 112)` is a frame that arrived at 113 and
+ * was drawn at 112 on Chrome's clock (omit the draw time: Chrome before 156).
+ */
+function script() {
+  const names = new Map<CompositorFrame, string>();
+  const shown = (name: string, receivedAtMs: number, drawnAtMs?: number): DomainEvent => {
+    const f = frame({ receivedAtMs, ...(drawnAtMs !== undefined ? { drawnAtMs } : {}) });
+    names.set(f, name);
+    return { type: 'frame', frame: f };
+  };
+  const run = (events: readonly DomainEvent[], rules: readonly MilestoneRule[] = [ClickEpisodeRule]) => {
+    const engine = new RulesEngine(rules);
+    return events.flatMap((event) => [...engine.processEvent(event).captures]);
+  };
+  /** `"<label> <frame name>"` for each capture. */
+  const read = (captures: readonly MilestoneCapture[]): string[] =>
+    captures.map((c) => `${c.label} ${names.get(c.frame) ?? '?'}`);
+  return { shown, run, read };
 }
 
 describe('ClickEpisodeRule', () => {
-  it('pairs a pre- and post-click capture around each click', () => {
+  it('takes 10 from before the press, even when the page responded before the click arrived', () => {
+    // flatpickr: the month turns on pointerdown; the click comes on release.
+    const { shown, run, read } = script();
     const captures = run([
-      navigated('loader-a'),
-      frameEvent(),
-      click('button#go'),
-      frameEvent(),
+      navigated('a'),
+      shown('october', 10, 10),
+      shown('november', 104, 112), // drawn after the press, arrives before its report
+      ...pressAndClick('p1', { at: 105, drawnAt: 100, clickAt: 170 }),
+      // The click comes on release, 65 ms after the page had already responded.
+      quiet(170 + QUIET_AFTER_MS),
     ]);
 
-    expect(captures.map((c) => c.label)).toEqual([
-      '10-pre-click-01',
-      '11-post-click-01',
-    ]);
+    expect(read(captures)).toEqual(['10-pre-click-01 october', '11-post-click-01 november']);
+    expect(captures[1]?.detail).toContain('came to rest');
   });
 
-  it('numbers successive clicks independently', () => {
+  it('takes a frame drawn before the press that arrives after its report', () => {
+    const { shown, run, read } = script();
     const captures = run([
-      navigated('loader-a'),
-      frameEvent(),
-      click(),
-      frameEvent(),
-      click(),
-      frameEvent(),
+      navigated('a'),
+      shown('old', 0, 0),
+      press('p1', 101, { happenedAtMs: 100 }),
+      shown('before', 120, 95), // drawn before the press, late
+      shown('after', 125, 110),
+      click('button#go', 170, { pressId: 'p1', trusted: true }),
+      quiet(420),
     ]);
 
-    expect(captures.map((c) => c.label)).toEqual([
-      '10-pre-click-01',
-      '11-post-click-01',
-      '10-pre-click-02',
-      '11-post-click-02',
+    expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 after']);
+  });
+
+  it('keeps every click of a quick series, each with its own 10, sharing the 11', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('oct', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }, [shown('nov', 113, 112)]),
+      ...pressAndClick('p2', { at: 301, drawnAt: 300, clickAt: 370 }, [shown('dec', 313, 312)]),
+      ...pressAndClick('p3', { at: 501, drawnAt: 500, clickAt: 570 }, [shown('jan', 513, 512)]),
+      quiet(570 + QUIET_AFTER_MS),
     ]);
+
+    expect(read(captures)).toEqual([
+      '10-pre-click-01 oct',
+      '11-post-click-01 jan',
+      '10-pre-click-02 nov',
+      '11-post-click-02 jan',
+      '10-pre-click-03 dec',
+      '11-post-click-03 jan',
+    ]);
+    expect(captures[1]?.detail).toContain('shared by 3 clicks');
+  });
+
+  it('gives clicks apart in time a response each', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('oct', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }, [shown('nov', 113, 112)]),
+      quiet(420),
+      ...pressAndClick('p2', { at: 1001, drawnAt: 1000, clickAt: 1070 }, [shown('dec', 1013, 1012)]),
+      quiet(1320),
+    ]);
+
+    expect(read(captures)).toEqual([
+      '10-pre-click-01 oct',
+      '11-post-click-01 nov',
+      '10-pre-click-02 nov',
+      '11-post-click-02 dec',
+    ]);
+    expect(captures[1]?.detail).not.toContain('shared');
+  });
+
+  it("takes a click the page's own code made as its own cause", () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('before', 0, 0),
+      click('button#go', 201, { happenedAtMs: 200, trusted: false }),
+      shown('after', 213, 212),
+      quiet(463),
+    ]);
+
+    expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 after']);
+    expect(captures[0]?.detail).toContain("clicked by the page's own code");
+  });
+
+  it('gives a click the browser made with no press reported no 10, and says so', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('before', 0, 0),
+      click('button#go', 201, { happenedAtMs: 200, trusted: true }),
+      shown('after', 213, 212),
+      quiet(463),
+    ]);
+
+    expect(read(captures)).toEqual(['11-post-click-01 after']);
+    expect(captures[0]?.detail).toContain('no press was reported');
+  });
+
+  it('pairs a click with its press by name only', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('before', 0, 0),
+      press('p1', 101, { happenedAtMs: 100 }),
+      shown('after', 113, 112),
+      click('button#go', 170, { pressId: 'other', trusted: true }),
+      quiet(420),
+    ]);
+
+    expect(read(captures)).toEqual(['11-post-click-01 after']);
+  });
+
+  it('lets a press without a click hold nothing open, and no later click claim it', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('rest', 0, 0),
+      press('drag', 101, { happenedAtMs: 100 }), // a drag: no click comes
+      shown('dragged', 150, 140),
+      quiet(400),
+      click('button#go', 700, { trusted: true }), // e.g. assistive tech: no press of its own
+      quiet(950),
+    ]);
+
+    expect(read(captures)).toEqual(['11-post-click-01 dragged']);
+    expect(captures[0]?.detail).toContain('no press was reported');
+  });
+
+  it('takes a press that ended without a click as no cause: a click naming it has no 10', () => {
+    const { shown, run, read } = script();
+    const ended = run([
+      navigated('a'),
+      shown('rest', 0, 0),
+      press('p1', 101, { happenedAtMs: 100 }),
+      shown('dragged', 150, 140),
+      pressEnded('p1', 200),
+      quiet(450),
+    ]);
+    expect(ended).toEqual([]);
+
+    const late = run([
+      navigated('a'),
+      shown('rest', 0, 0),
+      press('p1', 101, { happenedAtMs: 100 }),
+      pressEnded('p1', 200),
+      // The page can't name an ended press; were it to, it is no cause.
+      click('button#go', 300, { pressId: 'p1', trusted: true }),
+      shown('after', 313, 312),
+      quiet(563),
+    ]);
+    expect(read(late)).toEqual(['11-post-click-01 after']);
+    expect(late[0]?.detail).toContain('no press was reported');
+  });
+
+  it('places by arrival where Chrome gives no draw time, and says so', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('before', 0),
+      press('p1', 101),
+      shown('after', 113),
+      click('button#go', 170, { pressId: 'p1', trusted: true }),
+      quiet(420),
+    ]);
+
+    expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 after']);
+    expect(captures[0]?.detail).toContain('placed by arrival');
+    expect(captures[1]?.detail).toContain('placed by arrival');
+  });
+
+  it('says when nothing changed on screen', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('still', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }),
+      quiet(420),
+    ]);
+
+    expect(read(captures)).toEqual(['10-pre-click-01 still', '11-post-click-01 still']);
+    expect(captures[1]?.detail).toContain('nothing changed on screen');
   });
 
   /**
@@ -60,96 +227,165 @@ describe('ClickEpisodeRule', () => {
    * incremented only the post counter, so every later pair was mismatched.
    */
   it('keeps pre/post episode numbers paired after a click with no prior frame', () => {
+    const { shown, run, read } = script();
     const captures = run([
-      navigated('loader-a'),
-      click('a#early'), // no frame seen yet: nothing to show as "before"
-      frameEvent(),
-      click('a#later'),
-      frameEvent(),
+      navigated('a'),
+      ...pressAndClick('p1', { at: 1, drawnAt: 0, clickAt: 60, selector: 'a#early' }),
+      shown('first', 80, 79),
+      quiet(330),
+      ...pressAndClick('p2', { at: 501, drawnAt: 500, clickAt: 560, selector: 'a#later' }, [
+        shown('second', 513, 512),
+      ]),
+      quiet(810),
     ]);
 
-    expect(captures.map((c) => c.label)).toEqual([
-      '11-post-click-01',
-      '10-pre-click-02',
-      '11-post-click-02',
+    expect(read(captures)).toEqual([
+      '11-post-click-01 first',
+      '10-pre-click-02 first',
+      '11-post-click-02 second',
     ]);
-
-    const pre = captures.find((c) => c.label.startsWith('10-'));
-    const post = captures.filter((c) => c.label.startsWith('11-')).at(-1);
-    expect(episodeOf(pre!.label)).toBe(episodeOf(post!.label));
-    expect(pre?.domTarget?.selector).toBe('a#later');
-    expect(post?.domTarget?.selector).toBe('a#later');
+    expect(captures.slice(1).map((c) => c.domTarget?.selector)).toEqual(['a#later', 'a#later']);
   });
 
-  it('captures the resting frame before the click and the response after it', () => {
+  it('ends a response whose screen never stops changing, and says so', () => {
+    const { shown, run, read } = script();
+    const ticks = Array.from({ length: 30 }, (_, i) => shown(`tick-${i}`, 200 + i * 100, 199 + i * 100));
     const captures = run([
-      navigated('loader-a'),
-      frameEvent({ scrollY: 10 }),
-      click(),
-      frameEvent({ scrollY: 99 }),
+      navigated('a'),
+      shown('before', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }),
+      ...ticks,
     ]);
 
-    expect(captures[0]?.frame.scrollY).toBe(10);
-    expect(captures[1]?.frame.scrollY).toBe(99);
+    // Over at the first event `stillMovingMs` after the click; its picture is the screen then.
+    expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 tick-19']);
+    expect(captures[1]?.detail).toContain(`still changing ${CLICK_DEFAULTS.stillMovingMs / 1000} s`);
   });
 
-  it('carries DOM target metadata on both captures', () => {
+  it('records only the 10 when the recording stops before the response came to rest', () => {
+    const { shown, run, read } = script();
     const captures = run([
-      navigated('loader-a'),
-      frameEvent(),
-      click('button.primary'),
-      frameEvent(),
+      navigated('a'),
+      shown('before', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }),
+      shown('moving', 180, 179),
+      { type: 'stop' },
     ]);
 
-    expect(captures).toHaveLength(2);
-    for (const capture of captures) {
-      expect(capture.domTarget?.selector).toBe('button.primary');
-    }
+    expect(read(captures)).toEqual(['10-pre-click-01 before']);
+    expect(captures[0]?.detail).toContain('the recording stopped before the response came to rest');
   });
 
-  it('fires post-click only once per click', () => {
+  it('records only the 10 when the recording moves to another tab first, and starts afresh there', () => {
+    const { shown, run, read } = script();
     const captures = run([
-      navigated('loader-a'),
-      frameEvent(),
-      click(),
-      frameEvent(),
-      frameEvent(),
-      frameEvent(),
+      navigated('a'),
+      shown('before', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }),
+      { type: 'session-changed', otherTab: true, receivedAtMs: 180 },
+      navigated('other-tab'),
+      shown('other', 190, 189),
+      quiet(440),
     ]);
 
-    expect(captures.filter((c) => c.label.startsWith('11-'))).toHaveLength(1);
+    expect(read(captures)).toEqual(['10-pre-click-01 before']);
+    expect(captures[0]?.detail).toContain('left for another tab');
   });
 
-  it('restarts numbering for a new document', () => {
+  it('files a click that changes the route under the view it was clicked in', () => {
+    const { shown, run, read } = script();
     const captures = run([
-      navigated('loader-a'),
-      frameEvent(),
-      click(),
-      frameEvent(),
-      navigated('loader-b'),
-      frameEvent(),
-      click(),
-      frameEvent(),
+      navigated('a', 'https://app.example/'),
+      shown('home', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170, selector: 'a#inbox' }),
+      // An SPA link: the route changes before anything is painted.
+      withinDocument('https://app.example/inbox', 'a'),
+      shown('inbox', 190, 189),
+      quiet(440),
+      ...pressAndClick('p2', { at: 601, drawnAt: 600, clickAt: 670, selector: 'button#compose' }),
+      shown('compose', 690, 689),
+      quiet(940),
     ]);
 
-    expect(captures.map((c) => c.label)).toEqual([
-      '10-pre-click-01',
-      '11-post-click-01',
-      '10-pre-click-01',
-      '11-post-click-01',
+    expect(read(captures)).toEqual([
+      '10-pre-click-01 home',
+      '11-post-click-01 inbox',
+      '10-pre-click-01 inbox',
+      '11-post-click-01 compose',
+    ]);
+    expect(captures.map((c) => `${c.viewId} ${c.url}`)).toEqual([
+      '1 https://app.example/',
+      '1 https://app.example/',
+      '2 https://app.example/inbox',
+      '2 https://app.example/inbox',
+    ]);
+    expect(captures[1]?.detail).toContain('now showing https://app.example/inbox');
+  });
+
+  it('files a 10 with the URL showing when it was clicked', () => {
+    const { shown, run } = script();
+    const captures = run([
+      navigated('a', 'https://app.example/list'),
+      shown('list', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }),
+      // A filter: a query-only change, same view, later URL.
+      withinDocument('https://app.example/list?q=x', 'a'),
+      shown('filtered', 190, 189),
+      quiet(440),
+    ]);
+
+    expect(captures.map((c) => `${c.label} ${c.url}`)).toEqual([
+      '10-pre-click-01 https://app.example/list',
+      '11-post-click-01 https://app.example/list?q=x',
     ]);
   });
 
-  it('restarts numbering for a new route', () => {
+  it('decides rest before a late frame counts: a change after the screen rested is not the response', () => {
+    const { shown, run, read } = script();
     const captures = run([
-      navigated('loader-a', 'https://app.example/'),
-      frameEvent(),
-      click(),
-      frameEvent(),
-      withinDocument('https://app.example/inbox'),
-      frameEvent(),
-      click(),
-      frameEvent(),
+      navigated('a'),
+      shown('oct', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }, [shown('pressed', 113, 112)]),
+      // A slow response: nothing for 600 ms, then the calendar changes.
+      shown('nov', 700, 699),
+      quiet(950),
+    ]);
+
+    expect(read(captures)).toEqual(['10-pre-click-01 oct', '11-post-click-01 pressed']);
+  });
+
+  it('ends a response before a press that holds on past the rest, and gives that press its own pair', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('oct', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }, [shown('nov', 113, 112)]),
+      press('p2', 301, { happenedAtMs: 300 }), // held down for 400 ms
+      shown('dec', 313, 312),
+      quiet(563), // rests while p2 is still held
+      click('button#go', 701, { pressId: 'p2', trusted: true }),
+      quiet(951),
+    ]);
+
+    expect(read(captures)).toEqual([
+      '10-pre-click-01 oct',
+      '11-post-click-01 nov', // not dec: that is p2's doing
+      '10-pre-click-02 nov',
+      '11-post-click-02 dec',
+    ]);
+  });
+
+  it('restarts numbering in every view', () => {
+    const { shown, run } = script();
+    const captures = run([
+      navigated('a'),
+      shown('a', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }),
+      quiet(420),
+      navigated('b'),
+      shown('b', 500, 499),
+      ...pressAndClick('p2', { at: 601, drawnAt: 600, clickAt: 670 }),
+      quiet(920),
     ]);
 
     expect(captures.map((c) => `${c.viewId} ${c.label}`)).toEqual([
@@ -158,29 +394,5 @@ describe('ClickEpisodeRule', () => {
       '2 10-pre-click-01',
       '2 11-post-click-01',
     ]);
-  });
-
-  it('keeps the post-click of a click that changes the route, under the view it was clicked in', () => {
-    const captures = run([
-      navigated('loader-a', 'https://app.example/'),
-      frameEvent({ scrollY: 1 }),
-      click('a#inbox'),
-      // An SPA link: the route changes before anything is painted.
-      withinDocument('https://app.example/inbox'),
-      frameEvent({ scrollY: 2 }),
-      click('button#compose'),
-      frameEvent({ scrollY: 3 }),
-    ]);
-
-    expect(
-      captures.map((c) => `${c.viewId} ${c.url} ${c.label} ${c.domTarget?.selector} ${c.frame.scrollY}`),
-    ).toEqual([
-      '1 https://app.example/ 10-pre-click-01 a#inbox 1',
-      // The frame after the click shows the new route; the pair stays together.
-      '1 https://app.example/ 11-post-click-01 a#inbox 2',
-      '2 https://app.example/inbox 10-pre-click-01 button#compose 2',
-      '2 https://app.example/inbox 11-post-click-01 button#compose 3',
-    ]);
-    expect(captures[1]?.detail).toContain('now showing https://app.example/inbox');
   });
 });

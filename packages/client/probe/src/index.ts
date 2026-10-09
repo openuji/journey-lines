@@ -20,6 +20,9 @@ export { PROBE_SOURCE } from './generated/probe-source.js';
 export type {
   InteractionAction,
   InteractionWirePayload,
+  PressEndedWirePayload,
+  PressKind,
+  PressWirePayload,
   ProbeWirePayload,
   ScrollCause,
   ScrollCauseWirePayload,

@@ -154,8 +154,11 @@ describe('extension host against a real browser', () => {
     await waitForLabel(postClick);
     await stop();
 
-    // Attached after the page loaded: no 01/02, which happened before.
-    expect(await labels()).toEqual([
+    // Attached after the page loaded: no 01, which happened before. A 02 may
+    // come while the click's response is followed (2 s on this ticking page):
+    // Chrome repeats networkAlmostIdle once the page calms down, and that
+    // settles a page attached after its load (stream-html).
+    expect((await labels()).filter((label) => label !== DocumentLabel.settled)).toEqual([
       DocumentLabel.first,
       preClick,
       postClick,

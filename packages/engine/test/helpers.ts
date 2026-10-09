@@ -67,14 +67,69 @@ export function target(selector = 'a.link'): TargetElementMeta {
   };
 }
 
-export function click(selector?: string, receivedAtMs = 0): DomainEvent {
+/** What a click or press may say beyond when it arrived. */
+export interface InputTimes {
+  /** When it happened on Chrome's clock; absent: placed by arrival. */
+  happenedAtMs?: number;
+  /** A click: the press it came from. */
+  pressId?: string;
+  /** A click: made by the browser for the person (`true`) or by the page's own code (`false`). */
+  trusted?: boolean;
+}
+
+export function click(selector?: string, receivedAtMs = 0, times: InputTimes = {}): DomainEvent {
   return {
     type: 'interaction',
     action: 'click',
     target: target(selector),
     receivedAtMs,
     pageTimeMs: 0,
+    ...times,
   };
+}
+
+/** What starts a click: the primary button going down, or Enter/Space. */
+export function press(
+  pressId: string,
+  receivedAtMs: number,
+  { happenedAtMs, kind = 'pointer', detail = kind === 'pointer' ? 'mouse' : 'Enter' }: {
+    happenedAtMs?: number;
+    kind?: 'pointer' | 'key';
+    detail?: string;
+  } = {},
+): DomainEvent {
+  return {
+    type: 'press',
+    kind,
+    detail,
+    pressId,
+    ...(happenedAtMs !== undefined ? { happenedAtMs } : {}),
+    receivedAtMs,
+    pageTimeMs: 0,
+  };
+}
+
+/** The page saying a press ended without a click: a drag, a date picker closing on the press. */
+export function pressEnded(pressId: string, receivedAtMs: number): DomainEvent {
+  return { type: 'press-ended', pressId, receivedAtMs, pageTimeMs: 0 };
+}
+
+/**
+ * A press and the click it became, as the person makes them: down, then the
+ * click on release. `between`: what arrives in the meantime, such as the frame
+ * a page drew on the press already.
+ */
+export function pressAndClick(
+  pressId: string,
+  { at, clickAt, drawnAt, selector }: { at: number; clickAt: number; drawnAt?: number; selector?: string },
+  between: readonly DomainEvent[] = [],
+): DomainEvent[] {
+  const happened = drawnAt === undefined ? {} : { happenedAtMs: drawnAt };
+  return [
+    press(pressId, at, happened),
+    ...between,
+    click(selector, clickAt, { pressId, trusted: true }),
+  ];
 }
 
 /** The fused stream saying nothing has arrived for a while. */

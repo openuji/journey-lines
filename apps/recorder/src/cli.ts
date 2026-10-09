@@ -13,7 +13,11 @@ runMain(async () => {
       ? '  • Scroll the page               -> 03-pre-scroll + 04-post-scroll + path + .webm with its trace'
       : '  • Scroll the page               -> 03-pre-scroll + 04-post-scroll + path (UXR_VIDEO=1 adds a video)',
   );
-  console.log('  • Click any element             -> 10-pre-click + 11-post-click + DOM metadata');
+  console.log(
+    session.recordsVideo
+      ? '  • Click any element             -> 10-pre-click (before the press) + 11-post-click (at rest) + DOM metadata + .webm'
+      : '  • Click any element             -> 10-pre-click (before the press) + 11-post-click (at rest) + DOM metadata',
+  );
   console.log('  • Navigate or press Ctrl+C      -> 99-before-navigation');
   console.log('  • Switch tabs                   -> the active tab is recorded');
   console.log(`  • Logs recorded in real time to -> ${session.ndjsonPath}\n`);

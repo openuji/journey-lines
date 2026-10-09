@@ -139,7 +139,7 @@ async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorker> {
   await chrome.offscreen.createDocument({
     url: 'offscreen.html',
     reasons: [chrome.offscreen.Reason.WORKERS],
-    justification: 'Encodes a video of each scroll in a worker.',
+    justification: 'Encodes a video of each scroll and click in a worker.',
   });
   await ready;
 

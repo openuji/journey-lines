@@ -11,7 +11,7 @@ export function Idle({
   failed: boolean;
   onRecord: (tabId: number, options: RecordOptions) => void;
 }) {
-  // Off by default: each scroll is its before and after screenshots.
+  // Off by default: each scroll and each click is its before and after screenshots.
   const [video, setVideo] = useState(false);
   // Between the click and the worker's answer, a second click would only
   // collide with the first.
@@ -44,7 +44,7 @@ export function Idle({
       <p className="hint">Records the active tab, and follows you to other tabs</p>
       <label className="option">
         <input type="checkbox" checked={video} onChange={(event) => setVideo(event.target.checked)} />
-        Video of each scroll
+        Video of each scroll and click
       </label>
     </section>
   );

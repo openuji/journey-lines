@@ -7,7 +7,7 @@ import { DocumentLabel } from '@openuji/rules-document';
 import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
 import { startClipWorker } from '@openuji/sinks';
 import { describeHostConformance } from './conformance.js';
-import { NEW_TAB_LINK, startFixtureServer } from './fixture.js';
+import { CALENDAR, NEW_TAB_LINK, startFixtureServer } from './fixture.js';
 import { click, wheel } from './input.js';
 
 const env = process.env;
@@ -233,6 +233,68 @@ describe('puppeteer host, scroll video (UXR_VIDEO)', () => {
       expect(trace.every((s, i) => i === 0 || s.atMs > (trace[i - 1]?.atMs ?? Infinity))).toBe(true);
 
       // The pictures, as Chrome decodes them: the 03 first, the 04 held at the end.
+      const end = ((trace.at(-1)?.atMs ?? NaN) + QUIET_AFTER_MS) / 1000;
+      const first = await similarity(target.cdp, clip.base64, 0.001, pre.frame.base64);
+      const last = await similarity(target.cdp, clip.base64, end - 0.05, post.frame.base64);
+      expect(first.duration).toBeCloseTo(end, 2);
+      expect(first.psnr).toBeGreaterThan(20);
+      expect(last.psnr).toBeGreaterThan(20);
+    } finally {
+      await worker.close();
+      await target.close();
+      await fixture.close();
+    }
+  });
+});
+
+describe('puppeteer host, click video (UXR_VIDEO)', () => {
+  it("records a video of a click: from its 10's picture to its 11's, its trace one sample per frame", async () => {
+    const fixture = await startFixtureServer();
+    const target = await launchPuppeteerTarget({ headless, executablePath });
+    const clips: Clip[] = [];
+    const worker = await startClipWorker((clip) => clips.push(clip));
+    const captures: MilestoneCapture[] = [];
+    const sink: CaptureSink = { name: 'memory', enqueue: (c) => captures.push(c), drain: async () => {} };
+    try {
+      await target.cdp.send('Page.bringToFront');
+      const recording = await startRecording(target.cdp, {
+        sinks: [sink],
+        clips: worker.sink,
+        screencast: { viewport: target.viewport },
+      });
+      let lastFrameAtMs = 0;
+      target.cdp.on('Page.screencastFrame', (_, { receivedAtMs }) => {
+        lastFrameAtMs = receivedAtMs;
+      });
+
+      await target.navigate(fixture.url('/calendar'));
+      await vi.waitFor(() => expect(captures.map((c) => c.label)).toContain(DocumentLabel.first), WAIT);
+      await vi.waitFor(
+        () => expect(target.cdp.clock.now() - lastFrameAtMs).toBeGreaterThan(QUIET_AFTER_MS),
+        WAIT,
+      );
+      // The month turns on the press; the click comes 80 ms later.
+      const next = { x: CALENDAR.next.x + CALENDAR.next.width / 2, y: CALENDAR.next.y + CALENDAR.next.height / 2 };
+      await click(target.cdp, next.x, next.y, 80);
+      const postLabel = episodeLabel(InteractionLabel.postClick, 1);
+      await vi.waitFor(() => expect(captures.map((c) => c.label)).toContain(postLabel), WAIT);
+      await recording.stop(); // drains the clip sink: the video is done
+
+      const pre = captures.find((c) => c.label === episodeLabel(InteractionLabel.preClick, 1));
+      const post = captures.find((c) => c.label === postLabel);
+      expect(clips).toHaveLength(1);
+      const [clip] = clips;
+      if (!clip || !pre || !post) throw new Error('no clip, or no click');
+
+      expect(clip).toMatchObject({ viewId: post.viewId, label: postLabel, mimeType: 'video/webm' });
+      // The trace: every frame from the 10 to the 11, in order, at increasing times.
+      const { trace } = clip;
+      expect(trace[0]).toMatchObject({ frameIndex: pre.frame.index, atMs: 0 });
+      expect(trace.at(-1)).toMatchObject({ frameIndex: post.frame.index });
+      expect(trace.map((s) => s.frameIndex)).toEqual(trace.map((_, i) => pre.frame.index + i));
+      expect(trace.every((s, i) => i === 0 || s.atMs > (trace[i - 1]?.atMs ?? Infinity))).toBe(true);
+
+      // The pictures, as Chrome decodes them: the 10 first, the 11 held at the end.
       const end = ((trace.at(-1)?.atMs ?? NaN) + QUIET_AFTER_MS) / 1000;
       const first = await similarity(target.cdp, clip.base64, 0.001, pre.frame.base64);
       const last = await similarity(target.cdp, clip.base64, end - 0.05, post.frame.base64);

@@ -1,7 +1,8 @@
 import type { CompositorFrame, MilestoneCapture, PagePosition } from './domain.js';
 
 /**
- * Clips: a video of a span of the page. Today the span is a scroll.
+ * Clips: a video of a span of the page: a scroll, from its `03` to its `04`,
+ * or a click's response, from its `10` to its `11`.
  *
  * A rule never makes a video. It says which frames belong to a span, as
  * `ClipWrite`s returned next to its captures, and the pipeline delivers them

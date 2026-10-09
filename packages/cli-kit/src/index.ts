@@ -22,11 +22,23 @@ export function headlessFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
 }
 
 /**
- * Off by default: each scroll is its `03`/`04` screenshots. `UXR_VIDEO=1`
- * also records a video of it.
+ * Off by default: each scroll is its `03`/`04` screenshots, each click its
+ * `10`/`11`. `UXR_VIDEO=1` also records a video of each.
  */
 export function videoFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
   return isOn(env['UXR_VIDEO']);
+}
+
+/**
+ * The Chrome to run instead of the one Puppeteer pins, if any:
+ * `UXR_CHROME_EXECUTABLE`, as the browser tests read it. A click's pictures are
+ * placed by when frames were drawn from Chrome 156 on.
+ */
+export function chromeExecutableFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): { executablePath?: string } {
+  const executablePath = env['UXR_CHROME_EXECUTABLE'];
+  return executablePath ? { executablePath } : {};
 }
 
 function isOn(value: string | undefined): boolean {
@@ -66,6 +78,7 @@ export async function runStreamCli(options: StreamCliOptions): Promise<void> {
   const target = await launchPuppeteerTarget({
     headless: options.headless ?? headlessFromEnv(),
     viewport: DEFAULT_VIEWPORT,
+    ...chromeExecutableFromEnv(),
   });
 
   const session = await options.run(target);

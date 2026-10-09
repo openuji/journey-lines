@@ -3,12 +3,12 @@ import { QUIET_AFTER_MS } from '@openuji/core';
 /**
  * Where a clip's frames sit in its video: the one place video time is decided.
  *
- *  - The first frame, the page at rest before the scroll, starts the video.
+ *  - The first frame, the page before the scroll or the click, starts the video.
  *  - It was proven at rest by being still for a while, possibly seconds, so
  *    it is shown for at most `QUIET_AFTER_MS` before the next frame.
  *  - Every later frame keeps its real spacing, by `receivedAtMs`.
- *  - The last frame, where the scroll landed, stays for `QUIET_AFTER_MS`:
- *    as long as it was proven at rest.
+ *  - The last frame, where the scroll landed or the click's response came to
+ *    rest, stays for `QUIET_AFTER_MS`: as long as it was proven at rest.
  *
  * Times are whole ms, as WebM stores them, and always increase.
  */

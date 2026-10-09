@@ -13,6 +13,8 @@ import {
   causePayload,
   clickPayload,
   collect,
+  pressEndedPayload,
+  pressPayload,
   scrollPayload,
 } from '../../cdp/test/events.js';
 
@@ -30,6 +32,7 @@ describe('createProbeStream (standalone)', () => {
       { method: 'Runtime.addBinding', params: { name: PROBE_BINDING_NAME } },
       { method: 'Page.enable', params: undefined },
       { method: 'Page.getFrameTree', params: undefined },
+      { method: 'Performance.enable', params: undefined },
       {
         method: 'Page.addScriptToEvaluateOnNewDocument',
         params: { source: PROBE_SOURCE },
@@ -168,5 +171,134 @@ describe('decodeProbePayload: the page scrolling', () => {
       receivedAtMs: 8,
       pageTimeMs: 1_000,
     });
+  });
+});
+
+describe('createProbeStream: presses, and when inputs happened on Chrome\'s clock', () => {
+  const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+  const metrics = (navigationStartSeconds: number) => ({
+    metrics: [{ name: 'NavigationStart', value: navigationStartSeconds }],
+  });
+  /** The context the page's own document runs in. */
+  const document = (cdp: ReturnType<typeof createFakeCdpTransport>, id: number, frameId = 'own') =>
+    cdp.emit('Runtime.executionContextCreated', {
+      context: { id, origin: '', name: '', uniqueId: `${id}`, auxData: { frameId, isDefault: true } },
+    });
+  const times = (events: readonly { type: string; happenedAtMs?: number }[]) =>
+    events.map((e) => `${e.type} ${e.happenedAtMs ?? '-'}`);
+
+  it('takes presses from any frame, like clicks', async () => {
+    const cdp = createFakeCdpTransport();
+    cdp.respond('Page.getFrameTree', { frameTree: { frame: { id: 'own' } } } as never);
+    const { events, stop } = await createProbeStream(cdp);
+
+    document(cdp, 2, 'inner');
+    bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('t-1', 5), 2);
+    bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('a.inner', { pressId: 't-1', trusted: true }), 2);
+    bindingCalled(cdp, PROBE_BINDING_NAME, pressEndedPayload('t-2'), 2);
+    await stop();
+
+    const out = await collect(events);
+    expect(out.map((e) => e.type)).toEqual(['press', 'interaction', 'press-ended']);
+    expect(out[0]).toMatchObject({ kind: 'pointer', detail: 'mouse', pressId: 't-1' });
+    expect(out[1]).toMatchObject({ pressId: 't-1', trusted: true });
+  });
+
+  it("puts the page's own documents' inputs on Chrome's clock, never another frame's", async () => {
+    const cdp = createFakeCdpTransport();
+    cdp.respond('Page.getFrameTree', { frameTree: { frame: { id: 'own' } } } as never);
+    cdp.respond('Performance.getMetrics', metrics(584_000) as never);
+    const { events, stop } = await createProbeStream(cdp);
+
+    document(cdp, 1);
+    document(cdp, 2, 'inner');
+    await settle();
+    bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('t-1', 1_500), 1);
+    bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('a', { eventTimeMs: 1_570, pressId: 't-1' }), 1);
+    bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('u-1', 900), 2);
+    await stop();
+
+    expect(times(await collect(events))).toEqual([
+      `press ${584_000_000 + 1_500}`,
+      `interaction ${584_000_000 + 1_570}`,
+      'press -',
+    ]);
+  });
+
+  it('says no time for a document whose start is not known yet', async () => {
+    const cdp = createFakeCdpTransport();
+    cdp.respond('Page.getFrameTree', { frameTree: { frame: { id: 'own' } } } as never);
+    cdp.respond('Performance.getMetrics', metrics(584_000) as never);
+    const { events, stop } = await createProbeStream(cdp);
+
+    document(cdp, 1);
+    bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('t-1', 1_500), 1); // before the answer
+    await stop();
+
+    expect(times(await collect(events))).toEqual(['press -']);
+  });
+
+  it('keeps no start time that may be another document\'s', async () => {
+    const cdp = createFakeCdpTransport();
+    cdp.respond('Page.getFrameTree', { frameTree: { frame: { id: 'own' } } } as never);
+    const answers: (() => void)[] = [];
+    // Answers held back until the test lets them through.
+    cdp.respond('Performance.getMetrics', (() =>
+      new Promise((resolve) => answers.push(() => resolve(metrics(584_000))))) as never);
+    const { events, stop } = await createProbeStream(cdp);
+
+    document(cdp, 1);
+    document(cdp, 3); // the page moved on before the first answer came
+    for (const answer of answers) answer();
+    await settle();
+    bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('t-1', 1_500), 1);
+    bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('v-1', 200), 3);
+    await stop();
+
+    expect(times(await collect(events))).toEqual(['press -', `press ${584_000_000 + 200}`]);
+  });
+});
+
+describe('decodeProbePayload: presses', () => {
+  it('decodes a press, with its time on Chrome\'s clock when the host knows its document\'s start', () => {
+    expect(decodeProbePayload(pressPayload('t-1', 1_500, 'key', 'Space'), 9, 584_000_000)).toEqual({
+      type: 'press',
+      kind: 'key',
+      detail: 'Space',
+      pressId: 't-1',
+      receivedAtMs: 9,
+      pageTimeMs: 1_700_000_000_000,
+      happenedAtMs: 584_001_500,
+    });
+    expect(decodeProbePayload(pressPayload('t-1', 1_500), 9)).not.toHaveProperty('happenedAtMs');
+  });
+
+  it('decodes a press that ended without a click', () => {
+    expect(decodeProbePayload(pressEndedPayload('t-1'), 9)).toEqual({
+      type: 'press-ended',
+      pressId: 't-1',
+      receivedAtMs: 9,
+      pageTimeMs: 1_700_000_000_000,
+    });
+    expect(decodeProbePayload(JSON.stringify({ action: 'press-ended', pressId: 4, pageTimeMs: 1 }), 0)).toBeNull();
+  });
+
+  it.each([
+    ['a kind not on the list', { kind: 'tap' }],
+    ['a detail that is no text', { detail: 3 }],
+    ['no name', { pressId: undefined }],
+    ['no event time', { eventTimeMs: undefined }],
+  ])('rejects a press with %s', (_, change) => {
+    const payload = { ...JSON.parse(pressPayload('t-1', 1_500)), ...change };
+    expect(decodeProbePayload(JSON.stringify(payload), 0)).toBeNull();
+  });
+
+  it.each([
+    ['a press name that is no text', { pressId: 7 }],
+    ['an event time that is no number', { eventTimeMs: 'now' }],
+    ['a trust flag that is no flag', { trusted: 'yes' }],
+  ])('rejects a click with %s', (_, change) => {
+    const payload = { ...JSON.parse(clickPayload()), ...change };
+    expect(decodeProbePayload(JSON.stringify(payload), 0)).toBeNull();
   });
 });

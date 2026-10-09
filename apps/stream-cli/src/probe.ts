@@ -18,6 +18,17 @@ runMain(async () => {
             console.log(`\x1b[36m[SCROLL CAUSE]\x1b[0m ${event.kind}${event.detail ? ` ${event.detail}` : ''}`);
             continue;
           }
+          if (event.type === 'press') {
+            console.log(
+              `\x1b[35m[PRESS]\x1b[0m ${event.kind}${event.detail ? ` ${event.detail}` : ''} ${event.pressId}` +
+                (event.happenedAtMs === undefined ? ' (no Chrome time)' : ` at ${event.happenedAtMs.toFixed(1)}`),
+            );
+            continue;
+          }
+          if (event.type === 'press-ended') {
+            console.log(`\x1b[35m[PRESS ENDED]\x1b[0m ${event.pressId}, no click`);
+            continue;
+          }
           if (event.type === 'page-scroll' || event.type === 'page-position') {
             const kind = event.type === 'page-position' ? 'PAGE AT' : event.ended ? 'PAGE SCROLL END' : 'PAGE SCROLL';
             console.log(`\x1b[36m[${kind}]\x1b[0m (${Math.round(event.x)}, ${Math.round(event.y)})`);
@@ -28,7 +39,9 @@ runMain(async () => {
             `\x1b[35m[INTERACTION: ${action.toUpperCase()}]\x1b[0m ` +
               `<${target.selector}> "${target.textSnippet ?? ''}" ` +
               `role:${target.role ?? '-'} at:(${target.clientX}, ${target.clientY}) ` +
-              `rect:[${target.boundingRect.width}x${target.boundingRect.height}]`,
+              `rect:[${target.boundingRect.width}x${target.boundingRect.height}]` +
+              (event.pressId ? ` from press ${event.pressId}` : ' (no press)') +
+              (event.trusted === false ? " by the page's own code" : ''),
           );
         }
       })();

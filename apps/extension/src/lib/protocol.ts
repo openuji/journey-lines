@@ -49,7 +49,7 @@ export type RecorderStatus =
 
 /** How a recording is made: the person's choices before Record. */
 export type RecordOptions = Readonly<{
-  /** Also record a video of each scroll. */
+  /** Also record a video of each scroll and each click. */
   video: boolean;
 }>;
 
@@ -69,7 +69,7 @@ export type WorkerMessage =
       clips: readonly Clip[];
     }>
   | Readonly<{ type: 'capture'; capture: MilestoneCapture }>
-  /** A scroll's video is ready; it belongs to the capture with its `viewId` and `label`. */
+  /** A scroll's or a click's video is ready; it belongs to the capture with its `viewId` and `label`. */
   | Readonly<{ type: 'clip'; clip: Clip }>
   | Readonly<{ type: 'status'; status: RecorderStatus }>
   /** A request from this panel failed, e.g. Chrome refused to attach. */

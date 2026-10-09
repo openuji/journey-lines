@@ -26,8 +26,9 @@ const endedByChrome: Record<'gone' | 'revoked', EndedBy> = {
  *
  * Runs the same pipeline as every other host (`recordActiveTab`) over the
  * window's tabs, and keeps the journey — every capture so far, and the video of
- * each scroll when asked for — in memory and through the injected recording
- * store. Each change goes out through `emit` as a `WorkerMessage`.
+ * each scroll and click when asked for — in memory. Each change goes out through `emit`
+ * as a `WorkerMessage`. Failures reject the call that caused them and leave the
+ * state as it was.
  *
  * No `chrome.*` in here: the tabs come from the injected `tabsOf`, the video
  * encoder from `openClips`, so this runs unchanged in tests.
@@ -176,7 +177,7 @@ export class Recorder {
 
     const failures: unknown[] = [];
     try {
-      // Drains the clip sink too: the last scroll's video is in by now.
+      // Drains the clip sink too: the last video is in by now.
       await recording.stop();
     } catch (error) {
       failures.push(error);

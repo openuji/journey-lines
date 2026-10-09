@@ -299,12 +299,13 @@ describe('ScrollEpisodeRule', () => {
       defaultInteractionRules,
     );
 
+    // Both are over at the same `quiet`; rule order is label order.
     expect(read(captures)).toEqual([
-      '10-pre-click-01 landed',
-      '11-post-click-01 menu-open',
       '03-pre-scroll-01 rest',
       // Where the scroll landed; the click's response came after it.
       '04-post-scroll-01 landed',
+      '10-pre-click-01 landed',
+      '11-post-click-01 menu-open',
     ]);
   });
 

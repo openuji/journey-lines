@@ -11,9 +11,10 @@ import { defaultInteractionRules } from '@openuji/rules-interaction';
  * The standard rule suite, in label order.
  *
  * Within one event, captures come out in rule order, so rule order is label
- * order. The first frame of a route a click just opened is the route's
- * `00-first` before it is the click's `11-post-click`. A scroll still open
- * when the view ends is flushed (`03`/`04`) before the view's
+ * order: a scroll and a click that come to rest at the same `quiet` give
+ * `03`/`04` before `10`/`11`. A click's pictures are decided once its response
+ * has come to rest, so they follow the `00-first` of a route it opened. A
+ * click still open when the recording stops gives its `10` before the view's
  * `99-before-navigation`.
  */
 export const defaultRules: readonly MilestoneRule[] = [
