@@ -76,8 +76,7 @@ describe('scroll clip writes', () => {
       quiet(550),
     ]);
 
-    const startIndex = rest.type === 'frame' ? rest.frame.index : NaN;
-    expect(new Set(all.map((w) => w.id))).toEqual(new Set([`scroll-episode-${startIndex}`]));
+    expect(new Set(all.map((w) => w.id))).toEqual(new Set(['scroll-episode-v1-s1']));
   });
 
   it('puts a picture that came ahead of the report in the clip, after its 03', () => {

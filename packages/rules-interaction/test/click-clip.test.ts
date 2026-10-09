@@ -198,7 +198,7 @@ describe('click clip writes', () => {
     ]);
     expect(stopped.captures[1]?.detail).toContain('recording stopped');
     expect(engine.currentState.ruleStates[ClickEpisodeRule.id]).toEqual({
-      episodeCount: 1, open: null, closing: [], seen: [],
+      episodeCount: 1, pending: [], frameHistory: [],
     });
     expect(engine.processEvent({ type: 'stop' })).toEqual({ captures: [], clipWrites: [] });
   });
@@ -224,7 +224,7 @@ describe('click clip writes', () => {
     ]);
     expect(ended.captures[1]?.frame).toBe(ended.captures[2]?.frame);
     expect(ended.captures[2]?.frame).toBe(ended.captures[3]?.frame);
-    expect(engine.currentState.ruleStates[ClickEpisodeRule.id]).toMatchObject({ open: null, closing: [], seen: [] });
+    expect(engine.currentState.ruleStates[ClickEpisodeRule.id]).toMatchObject({ pending: [], frameHistory: [] });
   });
 
   it.each([false, true])('invents no pre-frame at Stop (response observed: %s)', (responded) => {
@@ -429,8 +429,8 @@ describe('click clip writes', () => {
     expect(samples[0]).toBe(ended.captures[0]?.frame);
     expect(samples.at(-1)).toBe(ended.captures[1]?.frame);
     expect(ended.clipWrites.at(-1)?.type).toBe('keep');
-    expect(engine.currentState.ruleStates[ClickEpisodeRule.id]).toMatchObject({ open: null, closing: [] });
-    const seen = (engine.currentState.ruleStates[ClickEpisodeRule.id] as { seen: readonly unknown[] }).seen;
+    expect(engine.currentState.ruleStates[ClickEpisodeRule.id]).toMatchObject({ pending: [] });
+    const seen = (engine.currentState.ruleStates[ClickEpisodeRule.id] as { frameHistory: readonly unknown[] }).frameHistory;
     expect(seen.length).toBeLessThan(samples.length);
   });
 

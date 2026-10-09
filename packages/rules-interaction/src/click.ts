@@ -1,48 +1,273 @@
 import {
-  arrivedAtMs,
-  QUIET_AFTER_MS,
-  type CompositorFrame,
-  type PagePosition,
-  type PressEvent,
-  type TargetElementMeta,
-  type ViewState,
+  arrivedAtMs, QUIET_AFTER_MS,
+  type DomainEvent, type InteractionEvent, type MilestoneCapture,
+  type PressEvent, type TargetElementMeta, type ViewState,
 } from '@openuji/core';
-import { captureFor, type MilestoneRule, type RuleResult } from '@openuji/engine';
-import { episodeLabel, InteractionLabel } from './episode.js';
+import { captureFor, type MilestoneRule, type RuleContext } from '@openuji/engine';
+import { CLICK_TIMING, boundaryAt, boundarySample, commitBoundary, observeBoundary, canPublishSplit,
+  type InputBoundary, type CommittedBoundary } from './click-boundaries.js';
 import { clickClipWrites } from './click-clip.js';
-import { REPORT_SLACK_MS } from './scroll.js';
+import type { InteractionResult, InteractionOutput, FrameSample, FrameRange } from './visual.js';
+import { episodeLabel, InteractionLabel } from './episode.js';
 
-type When = Readonly<{ atMs?: number; arrivedMs: number }>;
-type Boundary = Readonly<{ when: When; before: CompositorFrame | null }>;
+type ClickSelection =
+  | (FrameRange & Readonly<{ kind: 'range' }>)
+  | Readonly<{
+      kind: 'endpoints';
+      before: FrameSample | null;
+      after: FrameSample | null;
+    }>;
 
-/** Keep the position that belonged to a frame, even when it is encoded later. */
-export type ClickFrame = Readonly<{ frame: CompositorFrame; position: PagePosition | null }>;
+/** Select from evidence before constructing captures. */
+function selectClickFrames(
+  history: readonly FrameSample[],
+  before: FrameSample | null,
+  after: FrameSample | null,
+): ClickSelection {
+  if (!before || !after || before.frame === after.frame) {
+    return { kind: 'endpoints', before, after };
+  }
+  const first = history.findIndex((sample) => sample.frame === before.frame);
+  const last = history.findIndex((sample) => sample.frame === after.frame);
+  // Preserve current best-effort still captures if a full range is unavailable.
+  // Tests must detect accidental eviction of a range that should be retained.
+  if (first < 0 || last <= first) return { kind: 'endpoints', before, after };
+  return { kind: 'range', before, between: history.slice(first + 1, last), after };
+}
 
-/** One press's visual segment. A native click is not needed to create or keep it. */
-export type OpenClick = Readonly<{
+// Provenance affects metadata/pre availability; it is not four lifecycles.
+type ClickSource =
+  | Readonly<{ kind: 'press'; pressId: string; inputKind: PressEvent['kind']; detail?: string }>
+  | Readonly<{ kind: 'script' }>
+  | Readonly<{ kind: 'browser-without-press' }>
+  | Readonly<{ kind: 'unspecified-click' }>;
+
+type ClickFacts = Readonly<{
+  clipId: string;
   episode: number;
   target: TargetElementMeta;
-  view: ViewState;
-  /** Null only for a browser click whose press was not observed. */
-  cause: Boundary | null;
-  press?: Readonly<{ pressId: string; kind: PressEvent['kind']; detail?: string }>;
-  byPage: boolean;
-  beganMs: number;
-  /** A held gesture can still change the screen on release. */
-  releasedAtMs: number | null;
+  origin: ViewState;
+  source: ClickSource;
 }>;
 
-/** A segment ended at the next action; only its boundary frame may still be in flight. */
-type Closing = Readonly<{ segment: OpenClick; boundary: Boundary; view: ViewState }>;
+type PendingSegment = Readonly<{
+  facts: ClickFacts;
+  start: InputBoundary; // Exists even when the action's own pre-capture is unavailable.
+  beganMs: number;
+  /** Null while held; release time or standalone-action arrival otherwise. */
+  quietEligibleAtMs: number | null;
+}>;
 
 export type ClickEpisodeState = Readonly<{
   episodeCount: number;
-  /** Frames for the active segment and any boundary still awaiting its picture. */
-  seen: readonly ClickFrame[];
-  open: OpenClick | null;
-  closing: readonly Closing[];
+  frameHistory: readonly FrameSample[];
+  // Last entry is observing. Each earlier entry ends at its successor's start.
+  pending: readonly PendingSegment[];
 }>;
 
+type ClickEndReason = 'visual-rest' | 'next-action' | 'observation-limit' | 'recording-stopped' | 'tab-left';
+type ResolvedClick = Readonly<{
+  facts: ClickFacts;
+  placement: CommittedBoundary['placement'];
+  selection: ClickSelection;
+  ending: ClickEndReason;
+  endedIn: ViewState;
+}>;
+type ClickProgress = Readonly<{ state: ClickEpisodeState; completed: readonly ResolvedClick[] }>;
+const INITIAL: ClickEpisodeState = { episodeCount: 0, frameHistory: [], pending: [] };
+
+function sourceOf(event: PressEvent | InteractionEvent): ClickSource | null {
+  if (event.type === 'press') return {
+    kind: 'press', pressId: event.pressId, inputKind: event.kind, detail: event.detail,
+  };
+  if (event.action !== 'click') return null;
+  if (event.trusted === false) return { kind: 'script' };
+  if (event.pressId !== undefined) return null;
+  return event.trusted === true
+    ? { kind: 'browser-without-press' } : { kind: 'unspecified-click' };
+}
+
+function resolveClick(
+  click: PendingSegment, end: FrameSample | null, ending: ClickEndReason,
+  endedIn: ViewState, history: readonly FrameSample[],
+): ResolvedClick {
+  const start = commitBoundary(click.start);
+  const before = click.facts.source.kind === 'browser-without-press' ? null : start.sample;
+  return {
+    facts: click.facts, placement: start.placement,
+    selection: selectClickFrames(history, before, end), ending, endedIn,
+  };
+}
+
+/** Consume only ready splits, installing the final cut on the successor. */
+function completeReadySplits(state: ClickEpisodeState, nowMs: number): ClickProgress {
+  let pending = state.pending;
+  const completed: ResolvedClick[] = [];
+  while (pending.length >= 2) {
+    const predecessor = pending[0]!;
+    const successor = pending[1]!;
+    if (!canPublishSplit(successor.start, state.frameHistory.at(-1), nowMs)) break;
+    const end = boundarySample(successor.start);
+    completed.push(resolveClick(predecessor, end, 'next-action', successor.facts.origin, state.frameHistory));
+    // A missing endpoint publishes no shared picture. The successor can still
+    // acquire its pre-frame; no already-published endpoint would be revised.
+    const start = end === null ? successor.start : commitBoundary(successor.start);
+    pending = [{ ...successor, start }, ...pending.slice(2)];
+  }
+  return { state: { ...state, pending }, completed };
+}
+
+/** Publishing the tail seals the chain of shared cuts leading to it. */
+function completePendingSegments(state: ClickEpisodeState, ending: ClickEndReason, view: ViewState): ClickProgress {
+  const committed = state.pending.map((click) => ({ ...click, start: commitBoundary(click.start) }));
+  const last = state.frameHistory.at(-1) ?? null;
+  const completed = committed.map((click, index): ResolvedClick => {
+    const successor = committed[index + 1];
+    return successor
+      ? resolveClick(click, successor.start.sample, 'next-action', successor.facts.origin, state.frameHistory)
+      : resolveClick(click, last, ending, view, state.frameHistory);
+  });
+  return { state: { ...state, pending: [] }, completed };
+}
+
+function elapsedEndReason(state: ClickEpisodeState, nowMs: number, limitMs: number): ClickEndReason | null {
+  const observing = state.pending.at(-1);
+  if (!observing) return null;
+  const lastFrameMs = state.frameHistory.at(-1)?.frame.receivedAtMs ?? -Infinity;
+  const rested = observing.quietEligibleAtMs !== null &&
+    nowMs - Math.max(observing.quietEligibleAtMs, lastFrameMs) >= QUIET_AFTER_MS;
+  if (rested) return 'visual-rest';
+  return nowMs - observing.beganMs >= limitMs ? 'observation-limit' : null;
+}
+
+function observeFrame(state: ClickEpisodeState, sample: FrameSample): ClickEpisodeState {
+  return {
+    ...state,
+    frameHistory: [...state.frameHistory, sample],
+    pending: state.pending.map((click) => ({ ...click, start: observeBoundary(click.start, sample) })),
+  };
+}
+
+function startSegment(
+  state: ClickEpisodeState, event: PressEvent | InteractionEvent,
+  source: ClickSource, view: ViewState, ruleId: string,
+): ClickEpisodeState {
+  const episode = state.episodeCount + 1;
+  const clipId = source.kind === 'press'
+    ? `${ruleId}-${source.pressId}` : `${ruleId}-v${view.id}-c${episode}`;
+  return {
+    ...state, episodeCount: episode,
+    pending: [...state.pending, {
+      facts: { clipId, episode, target: event.target, origin: view, source },
+      start: boundaryAt(state.frameHistory, event),
+      beganMs: event.receivedAtMs,
+      quietEligibleAtMs: source.kind === 'press' ? null : event.receivedAtMs,
+    }],
+  };
+}
+
+function releasePress(state: ClickEpisodeState, pressId: string, atMs: number): ClickEpisodeState {
+  const observing = state.pending.at(-1);
+  if (!observing || observing.facts.source.kind !== 'press' || observing.facts.source.pressId !== pressId) return state;
+  return {
+    ...state,
+    pending: [...state.pending.slice(0, -1), { ...observing, quietEligibleAtMs: atMs }],
+  };
+}
+
+function trimHistory(state: ClickEpisodeState): ClickEpisodeState {
+  const last = state.frameHistory.at(-1);
+  if (!last) return state;
+  const recent = state.frameHistory.findIndex((sample) =>
+    last.frame.receivedAtMs - sample.frame.receivedAtMs < CLICK_TIMING.reportLookbackMs);
+  let from = Math.max(0, recent - 1);
+  for (const click of state.pending) {
+    const sample = boundarySample(click.start);
+    const index = sample ? state.frameHistory.indexOf(sample) : -1;
+    if (index >= 0) from = Math.min(from, index);
+  }
+  return { ...state, frameHistory: state.frameHistory.slice(from) };
+}
+
+function advanceClick(
+  state: ClickEpisodeState, event: DomainEvent, context: RuleContext,
+  ruleId: string, limitMs: number,
+): ClickProgress {
+  const { currentView, currentFrame } = context;
+  if (event.type === 'stop' || (event.type === 'view-exit' && event.nextEntry === 'tab')) {
+    const result = completePendingSegments(state, event.type === 'stop' ? 'recording-stopped' : 'tab-left', currentView);
+    return { ...result, state: { ...result.state, frameHistory: [] } };
+  }
+  const nowMs = arrivedAtMs(event);
+  const earlier = completeReadySplits(state, nowMs);
+  const ending = elapsedEndReason(earlier.state, nowMs, limitMs);
+  const elapsed = ending ? completePendingSegments(earlier.state, ending, currentView)
+    : { state: earlier.state, completed: [] };
+  let next = elapsed.state;
+  if (currentFrame) next = observeFrame(next, { frame: currentFrame, position: currentView.position });
+  if (event.type === 'press' || event.type === 'interaction') {
+    const source = sourceOf(event);
+    if (source) next = startSegment(next, event, source, currentView, ruleId);
+  }
+  if (event.type === 'press-ended') next = releasePress(next, event.pressId, event.receivedAtMs);
+  const ready = completeReadySplits(next, nowMs);
+  return {
+    state: trimHistory(ready.state),
+    completed: [...earlier.completed, ...elapsed.completed, ...ready.completed],
+  };
+}
+
+/** Presentation has no pending-state, frame-history, or lifecycle access. */
+function presentClick(click: ResolvedClick, limitMs: number): InteractionOutput {
+  const { facts, selection, ending, endedIn, placement } = click;
+  const { origin, episode, target, source } = facts;
+  const { before, after } = selection;
+  const arrival = source.kind !== 'browser-without-press' && placement === 'arrival'
+    ? '; placed by arrival' : '';
+  const pressedWith = source.kind === 'press' && source.inputKind === 'key'
+    ? `, pressed with ${source.detail ?? 'a key'}` : '';
+  const descriptions: Record<ClickEndReason, string> = {
+    'visual-rest': 'Where the visual response came to rest',
+    'next-action': 'Screen before the next interaction',
+    'observation-limit': `Screen ${limitMs / 1000} s after the press; observation limit reached`,
+    'recording-stopped': 'Last observed screen when recording stopped',
+    'tab-left': 'Last observed screen before leaving the tab',
+  };
+  const legacyEndDescription: Record<ClickEndReason, string> = {
+    'visual-rest': 'rested',
+    'next-action': 'next press',
+    'observation-limit': 'limit',
+    'recording-stopped': 'stopped',
+    'tab-left': 'left for another tab',
+  };
+  const pre = before ? captureFor(origin, {
+    label: episodeLabel(InteractionLabel.preClick, episode), frame: before.frame, position: before.position ?? undefined,
+    detail: `Before interacting with <${target.selector}> "${target.textSnippet ?? ''}"${pressedWith}` +
+      (source.kind === 'script' ? ", clicked by the page's own code" : '') + arrival +
+      (after ? '' : `; the recording ${legacyEndDescription[ending]} before the response came to rest`),
+    domTarget: target,
+  }) : undefined;
+  const sameView = origin.id === endedIn.id;
+  const postOf = (sample: FrameSample): MilestoneCapture => captureFor(sameView ? endedIn : origin, {
+    label: episodeLabel(InteractionLabel.postClick, episode), frame: sample.frame, position: sample.position ?? undefined,
+    detail: `${descriptions[ending]}, after interacting with <${target.selector}>` +
+      (before?.frame === sample.frame ? '; nothing changed on screen' : '') +
+      (source.kind === 'browser-without-press' ? '; no press was reported before this click, so no pre-click' : '') +
+      arrival + (sameView ? '' : `, now showing ${endedIn.url}`),
+    domTarget: target,
+  });
+  // Narrowing selection guarantees a post, without assertions or missing-post flags.
+  if (selection.kind === 'range') {
+    const post = postOf(selection.after);
+    return {
+      captures: [...(pre ? [pre] : []), post],
+      clipWrites: clickClipWrites(facts.clipId, selection, post),
+    };
+  }
+  return { captures: [...(pre ? [pre] : []), ...(after ? [postOf(after)] : [])], clipWrites: [] };
+}
+
+export type ClickFrame = FrameSample;
 export interface ClickEpisodeOptions {
   readonly id?: string;
   /** Maximum observation window after a press, ms. */
@@ -50,59 +275,6 @@ export interface ClickEpisodeOptions {
 }
 
 export const CLICK_DEFAULTS = { stillMovingMs: 2_000 } as const;
-const INITIAL: ClickEpisodeState = { episodeCount: 0, seen: [], open: null, closing: [] };
-type Ending = 'rested' | 'next press' | 'limit' | 'stopped' | 'left for another tab';
-
-function comparable(frame: CompositorFrame, when: When): boolean {
-  return when.atMs !== undefined && frame.drawnAtMs !== undefined;
-}
-
-/** The frame before an input, by draw time where known and by arrival otherwise. */
-function boundaryAt(seen: readonly ClickFrame[], when: When): Boundary {
-  const before = [...seen].reverse().find(({ frame }) =>
-    !comparable(frame, when) || frame.drawnAtMs! <= when.atMs!,
-  )?.frame ?? null;
-  return { when, before };
-}
-
-/** Ordered frames let a late picture correct a boundary until the first one drawn after it. */
-function later(boundary: Boundary, frame: CompositorFrame): Boundary {
-  return comparable(frame, boundary.when) && frame.drawnAtMs! <= boundary.when.atMs!
-    ? { ...boundary, before: frame }
-    : boundary;
-}
-
-function seenWith(state: ClickEpisodeState, sample: ClickFrame): ClickEpisodeState {
-  const update = (segment: OpenClick): OpenClick => ({
-    ...segment,
-    cause: segment.cause && later(segment.cause, sample.frame),
-  });
-  return {
-    ...state,
-    seen: [...state.seen, sample],
-    open: state.open && update(state.open),
-    closing: state.closing.map(({ segment, boundary, view }) => ({
-      segment: update(segment), boundary: later(boundary, sample.frame), view,
-    })),
-  };
-}
-
-/** Release completed spans, retaining the short lookback needed for the next press's report. */
-function trim(state: ClickEpisodeState): ClickEpisodeState {
-  const { seen } = state;
-  const last = seen.at(-1)?.frame;
-  if (!last) return state;
-  let from = Math.max(0, seen.findIndex(({ frame }) => last.receivedAtMs - frame.receivedAtMs < REPORT_SLACK_MS) - 1);
-  for (const segment of [...state.closing.map((end) => end.segment), ...(state.open ? [state.open] : [])]) {
-    const before = segment.cause?.before;
-    if (before) {
-      const index = seen.findIndex(({ frame }) => frame === before);
-      if (index >= 0) from = Math.min(from, index);
-    }
-  }
-  return { ...state, seen: seen.slice(from) };
-}
-
 /**
  * Each press starts one segment. The next independent action ends it at the
  * same frame that starts the next segment. The last segment ends after its
@@ -115,124 +287,22 @@ function trim(state: ClickEpisodeState): ClickEpisodeState {
  * video from the same range. Nothing is encoded beyond a still-undecided end.
  * Existing 10/11 labels are retained for recordings and their consumers.
  */
-export function clickEpisodeRule(options: ClickEpisodeOptions = {}): MilestoneRule<ClickEpisodeState> {
-  const { id = 'click-episode', stillMovingMs = CLICK_DEFAULTS.stillMovingMs } = options;
-  const descriptions: Readonly<Record<Ending, string>> = {
-    rested: 'Where the visual response came to rest',
-    'next press': 'Screen before the next interaction',
-    limit: `Screen ${stillMovingMs / 1000} s after the press; observation limit reached`,
-    stopped: 'Last observed screen when recording stopped',
-    'left for another tab': 'Last observed screen before leaving the tab',
-  };
-
+export function clickEpisodeRule(
+  { id = 'click-episode', stillMovingMs = CLICK_DEFAULTS.stillMovingMs }: ClickEpisodeOptions = {},
+): MilestoneRule<ClickEpisodeState> {
   return {
     id,
-    init: (view, previous) =>
-      !previous || view.entry === 'tab' ? INITIAL : { ...previous, episodeCount: 0 },
-    evaluate: (state, event, { currentView, currentFrame }): RuleResult<ClickEpisodeState> => {
-      let next = state;
-      const captures: RuleResult<ClickEpisodeState>['captures'][number][] = [];
-      const clipWrites: NonNullable<RuleResult<ClickEpisodeState>['clipWrites']>[number][] = [];
-
-      const finish = (segment: OpenClick, after: CompositorFrame | null, ending: Ending, view: ViewState): void => {
-        const before = segment.cause?.before ?? null;
-        const { target, episode } = segment;
-        const sameView = segment.view.id === view.id;
-        const arrival = segment.cause && (segment.cause.when.atMs === undefined || before?.drawnAtMs === undefined)
-          ? '; placed by arrival' : '';
-        const pressedWith = segment.press?.kind === 'key' ? `, pressed with ${segment.press.detail ?? 'a key'}` : '';
-        const pre = before ? captureFor(segment.view, {
-          label: episodeLabel(InteractionLabel.preClick, episode),
-          frame: before,
-          detail: `Before interacting with <${target.selector}> "${target.textSnippet ?? ''}"${pressedWith}` +
-            (segment.byPage ? ", clicked by the page's own code" : '') + arrival +
-            (after ? '' : `; the recording ${ending} before the response came to rest`),
-          domTarget: target,
-        }) : undefined;
-        const post = after ? captureFor(sameView ? view : segment.view, {
-          label: episodeLabel(InteractionLabel.postClick, episode),
-          frame: after,
-          detail: `${descriptions[ending]}, after interacting with <${target.selector}>` +
-            (before === after ? '; nothing changed on screen' : '') +
-            (segment.cause === null ? '; no press was reported before this click, so no pre-click' : '') +
-            arrival + (sameView ? '' : `, now showing ${view.url}`),
-          domTarget: target,
-        }) : undefined;
-        if (pre) captures.push(pre);
-        if (post) captures.push(post);
-        const clipId = segment.press ? `${id}-${segment.press.pressId}` : `${id}-v${segment.view.id}-c${episode}`;
-        clipWrites.push(...clickClipWrites(clipId, next.seen, pre, post));
+    init: (view, previous) => !previous || view.entry === 'tab'
+      ? INITIAL : { ...previous, episodeCount: 0 },
+    evaluate: (state, event, context): InteractionResult<ClickEpisodeState> => {
+      const result = advanceClick(state, event, context, id, stillMovingMs);
+      const output = result.completed.map((click) => presentClick(click, stillMovingMs));
+      return {
+        nextState: result.state,
+        captures: output.flatMap((part) => part.captures),
+        clipWrites: output.flatMap((part) => part.clipWrites),
       };
-
-      const flush = (nowMs: number, force = false): void => {
-        const last = next.seen.at(-1)?.frame;
-        const waiting: Closing[] = [];
-        for (const ended of next.closing) {
-          const { boundary, segment, view } = ended;
-          // Once a later frame arrived, the boundary is final. If no more
-          // pictures arrive, the normal quiet allowance sees out delivery.
-          const ready = force || nowMs - boundary.when.arrivedMs >= QUIET_AFTER_MS ||
-            (last && (!comparable(last, boundary.when) || last.drawnAtMs! > boundary.when.atMs!));
-          if (ready) finish(segment, boundary.before, 'next press', view);
-          else waiting.push(ended);
-        }
-        next = { ...next, closing: waiting };
-      };
-
-      const leaving = event.type === 'view-exit' && event.nextEntry === 'tab';
-      if (event.type === 'stop' || leaving) {
-        const ending = event.type === 'stop' ? 'stopped' : 'left for another tab';
-        // Observation ended. Preserve what arrived, even if release or rest
-        // never did; a delayed tab report must not turn the exit into rest.
-        flush(Infinity, true);
-        if (next.open) finish(next.open, next.seen.at(-1)?.frame ?? null, ending, currentView);
-        return { nextState: { ...next, open: null, closing: [], seen: [] }, captures, clipWrites };
-      }
-
-      const nowMs = arrivedAtMs(event);
-      flush(nowMs);
-      const open = next.open;
-      if (open) {
-        const lastFrameMs = next.seen.at(-1)?.frame.receivedAtMs ?? -Infinity;
-        const rested = open.releasedAtMs !== null && nowMs - Math.max(open.releasedAtMs, lastFrameMs) >= QUIET_AFTER_MS;
-        const limited = nowMs - open.beganMs >= stillMovingMs;
-        if (rested || limited) {
-          finish(open, next.seen.at(-1)?.frame ?? null, rested ? 'rested' : 'limit', currentView);
-          next = { ...next, open: null };
-        }
-      }
-
-      if (currentFrame) next = seenWith(next, { frame: currentFrame, position: currentView.position });
-
-      const standalone = event.type === 'interaction' && event.action === 'click' &&
-        (event.trusted === false || event.pressId === undefined);
-      if (event.type === 'press' || standalone) {
-        const boundary = boundaryAt(next.seen, { atMs: event.happenedAtMs, arrivedMs: event.receivedAtMs });
-        const episode = next.episodeCount + 1;
-        const segment: OpenClick = {
-          episode,
-          target: event.target,
-          view: currentView,
-          cause: event.type === 'press' || event.trusted !== true ? boundary : null,
-          ...(event.type === 'press' ? { press: { pressId: event.pressId, kind: event.kind, detail: event.detail } } : {}),
-          byPage: event.type === 'interaction' && event.trusted === false,
-          beganMs: event.receivedAtMs,
-          releasedAtMs: event.type === 'press' ? null : event.receivedAtMs,
-        };
-        next = {
-          ...next,
-          episodeCount: episode,
-          closing: next.open ? [...next.closing, { segment: next.open, boundary, view: currentView }] : next.closing,
-          open: segment,
-        };
-      }
-      if (event.type === 'press-ended' && next.open?.press?.pressId === event.pressId) {
-        next = { ...next, open: { ...next.open, releasedAtMs: event.receivedAtMs } };
-      }
-      flush(nowMs);
-      return { nextState: trim(next), captures, clipWrites };
     },
   };
 }
-
 export const ClickEpisodeRule = clickEpisodeRule();
