@@ -60,13 +60,14 @@ describe('ClickEpisodeRule', () => {
       shown('before', 120, 95), // drawn before the press, late
       shown('after', 125, 110),
       click('button#go', 170, { pressId: 'p1', trusted: true }),
+      pressEnded('p1', 170),
       quiet(420),
     ]);
 
     expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 after']);
   });
 
-  it('keeps every click of a quick series, each with its own 10, sharing the 11', () => {
+  it('splits a quick series at each press, with a separate 10 and 11', () => {
     const { shown, run, read } = script();
     const captures = run([
       navigated('a'),
@@ -79,13 +80,13 @@ describe('ClickEpisodeRule', () => {
 
     expect(read(captures)).toEqual([
       '10-pre-click-01 oct',
-      '11-post-click-01 jan',
+      '11-post-click-01 nov',
       '10-pre-click-02 nov',
-      '11-post-click-02 jan',
+      '11-post-click-02 dec',
       '10-pre-click-03 dec',
       '11-post-click-03 jan',
     ]);
-    expect(captures[1]?.detail).toContain('shared by 3 clicks');
+    expect(captures[1]?.detail).toContain('before the next interaction');
   });
 
   it('gives clicks apart in time a response each', () => {
@@ -136,60 +137,56 @@ describe('ClickEpisodeRule', () => {
     expect(captures[0]?.detail).toContain('no press was reported');
   });
 
-  it('pairs a click with its press by name only', () => {
+  it('records a press and release without any click, using the target at press time', () => {
+    const { shown, run, read } = script();
+    const captures = run([
+      navigated('a'),
+      shown('rest', 0, 0),
+      press('drag', 101, { happenedAtMs: 100, selector: 'div#vanish' }),
+      shown('changed', 150, 140),
+      pressEnded('drag', 200),
+      quiet(450),
+    ]);
+    expect(read(captures)).toEqual(['10-pre-click-01 rest', '11-post-click-01 changed']);
+    expect(captures.map((c) => c.domTarget?.selector)).toEqual(['div#vanish', 'div#vanish']);
+  });
+
+  it('does not create another interaction for a native click after its press segment closed', () => {
     const { shown, run, read } = script();
     const captures = run([
       navigated('a'),
       shown('before', 0, 0),
       press('p1', 101, { happenedAtMs: 100 }),
       shown('after', 113, 112),
-      click('button#go', 170, { pressId: 'other', trusted: true }),
+      pressEnded('p1', 170),
       quiet(420),
+      click('button#go', 500, { pressId: 'p1', trusted: true }),
+      quiet(750),
     ]);
-
-    expect(read(captures)).toEqual(['11-post-click-01 after']);
+    expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 after']);
   });
 
-  it('lets a press without a click hold nothing open, and no later click claim it', () => {
+  it('keeps a script click independent from a held physical press', () => {
     const { shown, run, read } = script();
     const captures = run([
       navigated('a'),
-      shown('rest', 0, 0),
-      press('drag', 101, { happenedAtMs: 100 }), // a drag: no click comes
-      shown('dragged', 150, 140),
-      quiet(400),
-      click('button#go', 700, { trusted: true }), // e.g. assistive tech: no press of its own
-      quiet(950),
+      shown('X', 0, 0),
+      press('p1', 101, { happenedAtMs: 100, selector: 'button#physical' }),
+      shown('Y', 113, 112),
+      // Even an incorrectly supplied pressId cannot make a script click claim it.
+      click('button#script', 150, { pressId: 'p1', trusted: false, happenedAtMs: 149 }),
+      shown('Z', 160, 159),
+      click('button#physical', 170, { pressId: 'p1', trusted: true }),
+      pressEnded('p1', 171),
+      quiet(421),
     ]);
-
-    expect(read(captures)).toEqual(['11-post-click-01 dragged']);
-    expect(captures[0]?.detail).toContain('no press was reported');
-  });
-
-  it('takes a press that ended without a click as no cause: a click naming it has no 10', () => {
-    const { shown, run, read } = script();
-    const ended = run([
-      navigated('a'),
-      shown('rest', 0, 0),
-      press('p1', 101, { happenedAtMs: 100 }),
-      shown('dragged', 150, 140),
-      pressEnded('p1', 200),
-      quiet(450),
+    expect(read(captures)).toEqual([
+      '10-pre-click-01 X', '11-post-click-01 Y',
+      '10-pre-click-02 Y', '11-post-click-02 Z',
     ]);
-    expect(ended).toEqual([]);
-
-    const late = run([
-      navigated('a'),
-      shown('rest', 0, 0),
-      press('p1', 101, { happenedAtMs: 100 }),
-      pressEnded('p1', 200),
-      // The page can't name an ended press; were it to, it is no cause.
-      click('button#go', 300, { pressId: 'p1', trusted: true }),
-      shown('after', 313, 312),
-      quiet(563),
+    expect(captures.map((c) => c.domTarget?.selector)).toEqual([
+      'button#physical', 'button#physical', 'button#script', 'button#script',
     ]);
-    expect(read(late)).toEqual(['11-post-click-01 after']);
-    expect(late[0]?.detail).toContain('no press was reported');
   });
 
   it('places by arrival where Chrome gives no draw time, and says so', () => {
@@ -200,6 +197,7 @@ describe('ClickEpisodeRule', () => {
       press('p1', 101),
       shown('after', 113),
       click('button#go', 170, { pressId: 'p1', trusted: true }),
+      pressEnded('p1', 170),
       quiet(420),
     ]);
 
@@ -259,7 +257,7 @@ describe('ClickEpisodeRule', () => {
 
     // Over at the first event `stillMovingMs` after the click; its picture is the screen then.
     expect(read(captures)).toEqual(['10-pre-click-01 before', '11-post-click-01 tick-19']);
-    expect(captures[1]?.detail).toContain(`still changing ${CLICK_DEFAULTS.stillMovingMs / 1000} s`);
+    expect(captures[1]?.detail).toContain(`Screen ${CLICK_DEFAULTS.stillMovingMs / 1000} s after the press; observation limit reached`);
   });
 
   it('records only the 10 when the recording stops before the response came to rest', () => {
@@ -364,6 +362,7 @@ describe('ClickEpisodeRule', () => {
       shown('dec', 313, 312),
       quiet(563), // rests while p2 is still held
       click('button#go', 701, { pressId: 'p2', trusted: true }),
+      pressEnded('p2', 701),
       quiet(951),
     ]);
 

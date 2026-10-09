@@ -379,11 +379,14 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           const clicked = events.find((event) => event.type === 'interaction' && event.action === 'click');
           expect(clicked?.type === 'interaction' && clicked.target.selector).toBe('button#go');
         }, WAIT);
-        // The press comes first, and the click names it; a press that became a click doesn't end apart.
+        // The press comes first; both its click and its release name it.
         await new Promise((resolve) => setTimeout(resolve, 100));
-        expect(events.some((event) => event.type === 'press-ended')).toBe(false);
         const pressed = events.find((event) => event.type === 'press');
         const clicked = events.find((event) => event.type === 'interaction');
+        const releases = events.filter((event) => event.type === 'press-ended');
+        expect(releases).toHaveLength(1);
+        expect(releases[0]?.pressId).toBe(pressed?.type === 'press' && pressed.pressId);
+        expect(pressed?.type === 'press' && pressed.target.selector).toBe('button#go');
         expect(pressed && events.indexOf(pressed)).toBeLessThan(clicked ? events.indexOf(clicked) : -1);
         expect(pressed?.type === 'press' && pressed.kind).toBe('pointer');
         expect(clicked?.type === 'interaction' && clicked.pressId).toBe(pressed?.type === 'press' && pressed.pressId);
@@ -530,9 +533,13 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           expect(clip?.frames.at(-1)).toBe(post.frame);
         }));
 
-      it('quick clicks keep their own 10 each and share the 11 where the screen came to rest', () =>
+      it('quick presses split into consecutive clips, each ending where the next starts', () =>
         withTarget(async (target) => {
           const { clips, recording, capture, waitFor } = await recordCalendar(target);
+          // Show each month immediately so the exact October → November →
+          // December boundaries are visible, with presses still <250 ms apart.
+          // Other calendar tests keep the animation and exercise its frames.
+          await evaluate(target.cdp, `document.getElementById('month').style.animation = 'none'`);
 
           for (let i = 0; i < 3; i++) {
             await click(target.cdp, next.x, next.y, 30);
@@ -545,27 +552,28 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           const posts = [1, 2, 3].map((n) => capture(postClick.replace(/01$/, `0${n}`))!);
           const pres = [1, 2, 3].map((n) => capture(preClick.replace(/01$/, `0${n}`)));
           expect(pres.every(Boolean)).toBe(true);
-          expect(new Set(posts.map((p) => p.frame.index)).size).toBe(1);
-          expect(await monthIn(target.cdp, posts[0]!.frame)).toBe(3);
-          expect(await monthIn(target.cdp, pres[0]!.frame)).toBe(0);
-          expect(posts[0]!.detail).toContain('shared by 3 clicks');
-          // A clip each: from its own 10 to the 11 they share.
+          expect(await Promise.all(posts.map((p) => monthIn(target.cdp, p.frame)))).toEqual([1, 2, 3]);
+          expect(await Promise.all(pres.map((p) => monthIn(target.cdp, p!.frame)))).toEqual([0, 1, 2]);
+          expect(posts[0]!.frame).toBe(pres[1]!.frame);
+          expect(posts[1]!.frame).toBe(pres[2]!.frame);
+          expect(posts[0]!.detail).toContain('before the next interaction');
+          // A clip each: exactly its own screenshot pair.
           const kept = clips.kept();
           expect(kept.map((k) => k.capture.label)).toEqual(posts.map((p) => p.label));
           expect(kept.map((k) => k.frames[0])).toEqual(pres.map((p) => p!.frame));
-          expect(kept.every((k) => k.frames.at(-1) === posts[0]!.frame)).toBe(true);
+          expect(kept.map((k) => k.frames.at(-1))).toEqual(posts.map((p) => p.frame));
         }));
 
-      it('a press that ends without a click is said to have ended, and makes no capture and no clip', () =>
+      it('a press on an element removed before click keeps its captures and video', () =>
         withTarget(async (target) => {
-          const { sink, clips, recording } = await recordCalendar(target);
+          const { sink, clips, recording, waitFor } = await recordCalendar(target);
           const probe = await createProbeStream(target.cdp);
           const events = collect(probe.events);
           const vanish = center(CALENDAR.vanish);
 
           await click(target.cdp, vanish.x, vanish.y, 80);
           await vi.waitFor(() => expect(events.map((e) => e.type)).toContain('press-ended'), WAIT);
-          await new Promise((resolve) => setTimeout(resolve, QUIET_AFTER_MS * 2));
+          await waitFor(postClick);
           await probe.stop();
           await recording.stop();
 
@@ -573,8 +581,60 @@ export function describeHostConformance(name: string, host: HostUnderTest): void
           const ended = events.find((e) => e.type === 'press-ended');
           expect(ended?.type === 'press-ended' && ended.pressId).toBe(pressed?.type === 'press' && pressed.pressId);
           expect(events.some((e) => e.type === 'interaction')).toBe(false);
-          expect(sink.labels().filter((label) => label.startsWith('1'))).toEqual([]);
-          expect(clips.writes.filter((w) => w.type === 'keep')).toEqual([]);
+          const captures = sink.captures.filter((c) => c.label.startsWith('1'));
+          expect(captures.map((c) => c.label)).toEqual([preClick, postClick]);
+          expect(captures.map((c) => c.domTarget?.selector)).toEqual(['div#vanish', 'div#vanish']);
+          const kept = clips.kept();
+          expect(kept).toHaveLength(1);
+          expect(kept[0]?.frames[0]).toBe(captures[0]?.frame);
+          expect(kept[0]?.frames.at(-1)).toBe(captures[1]?.frame);
+        }));
+
+      it('a script click during a held press has its own segment, followed by no duplicate native click', () =>
+        withTarget(async (target) => {
+          const { clips, recording, capture, waitFor } = await recordCalendar(target);
+          await evaluate(target.cdp, `document.getElementById('month').style.animation = 'none'`);
+          const probe = await createProbeStream(target.cdp);
+          const events = collect(probe.events);
+          await target.cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: next.x, y: next.y });
+          let frames = 0;
+          const off = target.cdp.on('Page.screencastFrame', () => frames++);
+          await target.cdp.send('Input.dispatchMouseEvent', {
+            type: 'mousePressed', x: next.x, y: next.y, button: 'left', clickCount: 1,
+          });
+          await vi.waitFor(() => expect(frames).toBeGreaterThan(0), WAIT);
+          await evaluate(target.cdp, `document.getElementById('key-next').click()`);
+          await target.cdp.send('Input.dispatchMouseEvent', {
+            type: 'mouseReleased', x: next.x, y: next.y, button: 'left', clickCount: 1,
+          });
+          await waitFor(postClick.replace(/01$/, '02'));
+          off();
+          await probe.stop();
+          await recording.stop();
+
+          const pressed = events.find((event) => event.type === 'press');
+          const clicks = events.filter((event) => event.type === 'interaction');
+          expect(clicks).toHaveLength(2);
+          expect(clicks[0]).toMatchObject({ trusted: false, target: { selector: 'button#key-next' } });
+          expect(clicks[0]).not.toHaveProperty('pressId');
+          expect(clicks[1]?.pressId).toBe(pressed?.type === 'press' && pressed.pressId);
+          expect(events.filter((event) => event.type === 'press-ended')).toHaveLength(1);
+          expect(clips.kept()).toHaveLength(2);
+          const posts = [capture(postClick)!, capture(postClick.replace(/01$/, '02'))!];
+          expect(await Promise.all(posts.map((post) => monthIn(target.cdp, post.frame)))).toEqual([1, 2]);
+          expect(capture(postClick.replace(/01$/, '03'))).toBeUndefined();
+        }));
+
+      it('a held press keeps the response drawn on release after a quiet stretch', () =>
+        withTarget(async (target) => {
+          const { recording, capture, waitFor } = await recordCalendar(target);
+          const button = center(CALENDAR.keyNext);
+          // This button turns the month on click (release), not pointerdown.
+          await click(target.cdp, button.x, button.y, 500);
+          await waitFor(postClick);
+          await recording.stop();
+          expect(await monthIn(target.cdp, capture(preClick)!.frame)).toBe(0);
+          expect(await monthIn(target.cdp, capture(postClick)!.frame)).toBe(1);
         }));
 
       it('a key that activates the button is the press its click comes from', () =>

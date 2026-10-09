@@ -79,8 +79,8 @@ function isTarget(value: unknown): value is TargetElementMeta {
   return (
     isText(tagName) &&
     isText(selector) &&
-    isNumber(clientX) &&
-    isNumber(clientY) &&
+    optional(isNumber)(clientX) &&
+    optional(isNumber)(clientY) &&
     [rect.x, rect.y, rect.width, rect.height].every(isNumber) &&
     TARGET_TEXT_FIELDS.every((key) => value[key] === undefined || isText(value[key]))
   );
@@ -125,11 +125,12 @@ const DECODE: Readonly<Record<ProbeWirePayload['action'], Decode>> = {
   },
   scroll: pageScroll(false),
   scrollend: pageScroll(true),
-  press: ({ kind, detail, pressId, eventTimeMs }, at, navigationStartMs) =>
-    isPressKind(kind) && optional(isText)(detail) && isText(pressId) && isNumber(eventTimeMs)
+  press: ({ kind, detail, target, pressId, eventTimeMs }, at, navigationStartMs) =>
+    isPressKind(kind) && isTarget(target) && optional(isText)(detail) && isText(pressId) && isNumber(eventTimeMs)
       ? {
           type: 'press',
           kind,
+          target,
           ...(detail ? { detail } : {}),
           pressId,
           ...at,

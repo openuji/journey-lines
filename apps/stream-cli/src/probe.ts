@@ -20,13 +20,13 @@ runMain(async () => {
           }
           if (event.type === 'press') {
             console.log(
-              `\x1b[35m[PRESS]\x1b[0m ${event.kind}${event.detail ? ` ${event.detail}` : ''} ${event.pressId}` +
+              `\x1b[35m[PRESS]\x1b[0m ${event.kind}${event.detail ? ` ${event.detail}` : ''} ${event.pressId} <${event.target.selector}>` +
                 (event.happenedAtMs === undefined ? ' (no Chrome time)' : ` at ${event.happenedAtMs.toFixed(1)}`),
             );
             continue;
           }
           if (event.type === 'press-ended') {
-            console.log(`\x1b[35m[PRESS ENDED]\x1b[0m ${event.pressId}, no click`);
+            console.log(`\x1b[35m[PRESS ENDED]\x1b[0m ${event.pressId}, released or cancelled`);
             continue;
           }
           if (event.type === 'page-scroll' || event.type === 'page-position') {
@@ -38,7 +38,7 @@ runMain(async () => {
           console.log(
             `\x1b[35m[INTERACTION: ${action.toUpperCase()}]\x1b[0m ` +
               `<${target.selector}> "${target.textSnippet ?? ''}" ` +
-              `role:${target.role ?? '-'} at:(${target.clientX}, ${target.clientY}) ` +
+              `role:${target.role ?? '-'} at:(${target.clientX ?? '-'}, ${target.clientY ?? '-'}) ` +
               `rect:[${target.boundingRect.width}x${target.boundingRect.height}]` +
               (event.pressId ? ` from press ${event.pressId}` : ' (no press)') +
               (event.trusted === false ? " by the page's own code" : ''),

@@ -1,5 +1,9 @@
 # Click clips: a video of each click, from its `10` to its `11`
 
+**Historical plan (2026-10-08).** The click-confirmation requirement, overlapping
+clips, and overshoot-drop behavior are superseded by the implemented
+[split-by-press change](click-clip-fixes-plan.md) of 2026-10-09.
+
 ## Context
 
 The click rule (`packages/rules-interaction/src/click.ts`, uncommitted, built 2026-10-08) follows a click the way the scroll rule follows a scroll:

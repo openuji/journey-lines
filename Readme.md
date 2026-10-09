@@ -269,70 +269,47 @@ or three scrolls.
 Not yet: scroll depth, and elements with their own scrollbar. The steps are in
 `changes/scroll-rebuild.md`.
 
-### Clicks
+### Presses and their visual segments
 
-A click is followed the way a scroll is: from what started it, through the
-frames it produced, to where the screen came to rest. Evaluation and
-measurements: `changes/what-they-see.md`.
+Each primary pointer press or Enter/Space press starts an interaction. The
+probe describes its target before the page can change or remove it. A DOM
+`click` is not required: day selections, drags, and presses on disappearing
+elements are recorded too. The existing `10-pre-click` / `11-post-click`
+filenames remain compatible with recorded journeys.
 
-- **It starts at the press.** A page can respond before the `click`:
-  flatpickr turns the month on `pointerdown`, 60–80 ms earlier. So the probe
-  reports the press — the primary button going down, or Enter or Space — and
-  names it; the click carries the name of the press it came from. The pairing
-  is made in the page, where the order of DOM events is exact. A click the
-  page's own code made (`el.click()`) is its own cause. A click the browser
-  made for the person with no press reported gets no `10`, and its `11` says
-  so.
-- **Frames are placed by when they were drawn**, against when the press
-  happened, on Chrome's clock. `10-pre-click` is the newest frame drawn before
-  the press. Without those times (Chrome before 156, a click in an iframe, a
-  document whose start isn't known yet) the click is placed by arrival, and
-  its captures say "placed by arrival".
-- **The screencast sends frames in the order they were drawn**: one frame in
-  flight, the newest kept rather than dropped (`maxFramesInFlight: 1,
-  sendLastFrame: true`). With Chrome's default of three, frames are encoded
-  in parallel, can arrive swapped, and the last picture of a change can be
-  lost. A frame drawn before one already passed on is left out regardless.
-- **The response has come to rest** once nothing has arrived for 250 ms since
-  the latest click or frame. `11-post-click` is the newest frame then. That is
-  what the frames show, not that the page is done: a response that comes after
-  a still stretch (a slow request, a timer) is not this click's, and shows in
-  the next capture. A screen that never stops changing (an animation, a
-  carousel) ends 2 s after the last click, and its `11` says "still
-  changing".
-- **Quick clicks keep their own pairs.** A click before the screen has rested
-  shares the response: each click has its own `10`, the screen at its press,
-  and they share the `11`, which says "shared by N clicks". Both pictures are
-  decided once, at rest. A click that changes the view is filed under the
-  view it was clicked in; one still open when the recording stops or moves to
-  another tab gets its `10` only.
-- **A press that ends without a click** is said so by the page: once its
-  release is over and no `click` named it, the probe reports `press-ended`.
-  No click can come from it then.
-- **Its frames, for a video.** Every click gets its own clip, from its `10` to
-  its `11`: quick clicks' clips overlap and end on the same `11`.
-  `click-clip.ts` reads them off the rule's state. A clip begins at the press
-  — the page may draw its response before the `click` — once a frame came
-  after the screen before it (frames arrive in the order drawn, so the `10` is
-  final then; where nothing changes, there is no clip). It is kept with its
-  click's `11` when it ends on it, and dropped otherwise: a press that ended
-  without a click, Stop, another tab. The video is made as a scroll's is,
-  with the same setting, and is `….webm` next to the `11`.
-- Known limits:
-  - Only clicks are recorded: a press with no click is not. Picking a day in
-    flatpickr is one — it selects on `mousedown` and closes the calendar, so
-    the release lands on the page beneath and no `click` fires.
-  - A press made while a response is still going, and no click (yet), makes
-    that response's `11` the screen before it. The clip of a click whose `11`
-    is that earlier screen already ran on, so it is dropped: no video for
-    that click.
-  - Two clicks naming one press (a `<label>` passing its click on) share the
-    first one's clip.
-  - Frames don't say where the screen changed: hover feedback after the press,
-    or motion elsewhere on the page, counts as response until the screen
-    rests.
-  - Native popups (a `<select>`'s menu, datalist suggestions) are not in the
-    screencast.
+- **Split at the next press.** October → November → December produces two
+  segments: October → November, then November → December. The first segment's
+  `11` is the next segment's `10`. Rapid presses do not share a final frame.
+  If the screen is still animating at the next press, that intermediate screen
+  is the boundary; the capture says "before the next interaction".
+- **End the last segment after release and visual quiet.** `press-ended` now
+  reports every release/cancellation, with or without a click. After that,
+  250 ms without another frame ends the response. A held gesture remains open
+  because release may change the screen. The observation window is capped at
+  2 s from its press and says when that limit was reached.
+- **One frame range for screenshots and video.** Frames are retained until the
+  segment's boundaries are known, then that exact range is sent to the encoder.
+  A later press never makes an already-encoded clip overshoot its screenshot
+  and get dropped. Completed frame ranges are released, keeping the short
+  lookback needed for delayed press reports. A still segment has its captures
+  but no video.
+- **Place frames by draw time where available.** On Chrome 156+, the newest
+  frame drawn before a press is its `10`. Late frames can correct the shared
+  boundary before it is finalized. Without comparable times, placement uses
+  arrival order and the capture says so. Frame indices can restart on attach;
+  ranges use frame order and identity.
+- **Native clicks do not duplicate a press.** A native click naming a press
+  does not start another segment. A page-generated `.click()` is an independent
+  action, starts its own segment, and never claims the physical press. A
+  browser click with no observed press retains the existing `11`-only fallback.
+- **View filing stays with the starting interaction.** A same-tab route or
+  document change can be part of its response. An unfinished segment at Stop
+  or a tab exit gets its `10` only, without video.
+
+Frames show what appeared between actions; they do not prove that the action
+caused every change. Motion elsewhere on the page and hover feedback can be
+included. Native popups such as a select menu are absent from the screencast.
+Evaluation notes: `changes/what-they-see.md`.
 
 ### Attaching to a page that already has a document
 
@@ -426,7 +403,7 @@ The extension attaches to a tab the person already has open and keeps after
 the recording. It pins the scale factor to 1 for the recording's length, so
 the tab renders at 1x on a HiDPI screen until Stop gives it its own back.
 
-Its panel has a "Video of each scroll and click" switch before Record, off by default.
+Its panel has a "Video of each scroll and press" switch before Record, off by default.
 On, the service worker opens an offscreen document whose only job is to start
 the encoder in a dedicated worker (a service worker cannot start one), and
 reaches that worker over a `BroadcastChannel`: no relay, and a send blocks the

@@ -27,8 +27,9 @@ export type TargetElementMeta = Readonly<
   {
     tagName: string;
     selector: string;
-    clientX: number;
-    clientY: number;
+    /** Pointer coordinates; absent for a keyboard press. */
+    clientX?: number;
+    clientY?: number;
     boundingRect: Readonly<{
       x: number;
       y: number;
@@ -64,10 +65,12 @@ export const PRESS_KINDS = ['pointer', 'key'] as const;
 
 export type PressKind = (typeof PRESS_KINDS)[number];
 
-/** A press, before the click it may become. */
+/** A press starts an interaction, whether or not a click follows. */
 export type PressWirePayload = Readonly<{
   action: 'press';
   kind: PressKind;
+  /** Described before the page can change or remove the pressed element. */
+  target: TargetElementMeta;
   /** The pointer type (`mouse`, `touch`, `pen`) or the key. */
   detail?: string;
   /**
@@ -82,10 +85,8 @@ export type PressWirePayload = Readonly<{
 }>;
 
 /**
- * A press ended without becoming a click: its release came and went, and no
- * `click` named it — a drag, a text selection, a date picker that closes on
- * the press, Space scrolling the page. A press that became a click needs no
- * end: its click is it.
+ * The press was released or cancelled. Reported after the release task,
+ * whether or not it dispatched a click. Its visual response can continue.
  */
 export type PressEndedWirePayload = Readonly<{
   action: 'press-ended';

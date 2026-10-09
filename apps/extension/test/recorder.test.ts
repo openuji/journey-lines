@@ -10,6 +10,7 @@ import {
   frameNavigated,
   positionPayload,
   pressPayload,
+  pressEndedPayload,
   screencastFrame,
   scrollPayload,
 } from '../../../packages/cdp/test/events.js';
@@ -93,11 +94,12 @@ function clickOnce(cdp: FakeCdpTransport): void {
   frameNavigated(cdp, 'loader-a', { url: TAB.url });
   screencastFrame(cdp);
   cdp.advance(300);
-  bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('t-1', 1_000));
+  bindingCalled(cdp, PROBE_BINDING_NAME, pressPayload('t-1', 1_000, 'pointer', 'mouse', 'button#next'));
   cdp.advance(16);
   screencastFrame(cdp);
   cdp.advance(60);
   bindingCalled(cdp, PROBE_BINDING_NAME, clickPayload('button#next', { pressId: 't-1', trusted: true }));
+  bindingCalled(cdp, PROBE_BINDING_NAME, pressEndedPayload('t-1'));
   cdp.advance(300);
 }
 

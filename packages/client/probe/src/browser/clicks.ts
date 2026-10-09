@@ -31,7 +31,7 @@ const ACTIVATING: Readonly<Record<string, string>> = { Enter: 'Enter', ' ': 'Spa
 /** Starts observing. Returns how to stop. Run in every frame: a click counts wherever it is. */
 export function observeClicks(
   report: Report,
-  describe: (event: MouseEvent) => TargetElementMeta | null,
+  describe: (event: MouseEvent | KeyboardEvent) => TargetElementMeta | null,
 ): () => void {
   // Names this document's presses: a token drawn once here, and a count. A
   // press of another document or frame can never have the same name.
@@ -39,18 +39,20 @@ export function observeClicks(
   let count = 0;
   /** The press a click now would come from. */
   let pending: Pending | undefined;
-  /** The press the latest click named. */
-  let clicked: string | undefined;
   /** The press whose release is being seen out: it ends once. */
   let ending: string | undefined;
+  const timers = new Set<ReturnType<typeof setTimeout>>();
 
-  const press = (event: Event, kind: PressKind, detail: string): void => {
+  const press = (event: MouseEvent | KeyboardEvent, kind: PressKind, detail: string): void => {
+    const target = describe(event);
+    if (!target) return;
     const pressId = `${token}-${++count}`;
     pending = { id: pressId, endedBy: kind === 'pointer' ? 'pointer' : detail };
     report({
       action: 'press',
       kind,
       detail,
+      target,
       pressId,
       eventTimeMs: event.timeStamp,
       pageTimeMs: Date.now(),
@@ -59,26 +61,28 @@ export function observeClicks(
 
   // The browser dispatches a press's click in the task that releases it
   // (`pointerup`, or the key's own events). Once that task is over the press
-  // names nothing: one that ended without a click — a drag, Space scrolling
-  // the page — can't be claimed by a later click, and the page says so.
+  // names nothing. Release ends the physical gesture, even for a drag or an
+  // element removed on pointerdown; a click is never needed to confirm it.
   const released = (endedBy: string): void => {
     const was = pending;
     if (was?.endedBy !== endedBy || ending === was.id) return;
     ending = was.id;
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      timers.delete(timer);
       if (pending === was) pending = undefined;
-      if (clicked !== was.id) report({ action: 'press-ended', pressId: was.id, pageTimeMs: Date.now() });
+      report({ action: 'press-ended', pressId: was.id, pageTimeMs: Date.now() });
     }, 0);
+    timers.add(timer);
   };
   const keyOf = (event: KeyboardEvent): string => ACTIVATING[event.key] ?? event.key;
 
   return stopAll([
     on('pointerdown', (event) => {
-      if (event.isPrimary && event.button === 0) press(event, 'pointer', event.pointerType);
+      if (event.isTrusted && event.isPrimary && event.button === 0) press(event, 'pointer', event.pointerType);
     }),
     on('keydown', (event) => {
       const key = ACTIVATING[event.key];
-      if (key && !event.repeat) press(event, 'key', key);
+      if (event.isTrusted && key && !event.repeat) press(event, 'key', key);
     }),
     on('pointerup', () => released('pointer')),
     on('pointercancel', () => released('pointer')),
@@ -86,16 +90,17 @@ export function observeClicks(
     on('click', (event) => {
       const target = describe(event);
       if (!target) return;
-      if (pending) clicked = pending.id;
+      const source = event.isTrusted ? pending : undefined;
       report({
         action: 'click',
         target,
         pageTimeMs: Date.now(),
         eventTimeMs: event.timeStamp,
-        ...(pending ? { pressId: pending.id } : {}),
+        ...(source ? { pressId: source.id } : {}),
         trusted: event.isTrusted,
       });
     }),
+    () => { for (const timer of timers) clearTimeout(timer); },
   ]);
 }
 

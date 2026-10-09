@@ -159,11 +159,13 @@ export function pressPayload(
   eventTimeMs: number,
   kind: PressWirePayload['kind'] = 'pointer',
   detail = kind === 'pointer' ? 'mouse' : 'Enter',
+  selector = 'a.link',
 ): string {
   const payload: PressWirePayload = {
     action: 'press',
     kind,
     detail,
+    target: JSON.parse(clickPayload(selector)).target,
     pressId,
     eventTimeMs,
     pageTimeMs: 1_700_000_000_000,

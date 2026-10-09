@@ -1,8 +1,8 @@
 # What they see: recording interaction inside one view
 
 An evaluation protocol: the problem, the user's decisions, what was measured and
-how, what the measurements decide, and what is still open. It is written to be
-handed to another session or model; nothing here is built yet.
+how, what the measurements decide, and what is still open. The sections follow
+the work chronologically; later implementation notes supersede earlier plans.
 
 - Started 2026-10-08, branch `feature/decouple-playwright`.
 - Measured on Chrome for Testing **156.0.8078.4** (macOS arm64), Puppeteer host,
@@ -1163,3 +1163,28 @@ Recording: `…/scratchpad/cal/fu-video-156/` (PNG, WebM, NDJSON with traces).
 - Two clicks naming one press (a `<label>` passing its click on) share the first one's clip.
 - **Touch (untested):** a tap's `click` may come after the press is reported ended, which leaves it unpaired.
 - **Separate finding, not changed here:** `scroll-clip.ts` picks a scroll's early frames by `index` (`f.index > now.start.index`). Index restarts when the compositor is attached again to the same tab, so those frames can be missed or mis-ordered. `click-clip.ts` goes by arrival position instead.
+
+---
+
+## Press splitting — implemented 2026-10-09
+
+This supersedes the shared endings, click confirmation, and overshoot-drop rules
+above. A press starts its segment with the target described at press time. The
+next independent press ends it and starts the next at the same frame. The last
+segment ends after release and 250 ms of visual quiet, or the existing finite
+observation limit. A native click adds no segment; a script click is independent.
+
+Screenshots and video now use the same completed frame range. October → November
+and November → December stay as two clips, including when the second press never
+dispatches a click. Unchanged frames still produce captures without video.
+
+Verification: 355 unit tests, typechecking, package and extension builds, 9 focused
+Puppeteer tests each on Chrome 154 and CfT 156, and all 14 extension tests on Chrome
+154 passed. Browser coverage includes a disappearing target, script clicks during
+a held press, keyboard presses, release-triggered changes, consecutive clips, and
+an encoded WebM with matching screenshot endpoints. Exact month assertions use
+immediate updates; animated responses are tested separately. The external FU
+calendar measurements above were not repeated for this change.
+
+The new-tab orphan investigation, lifecycle `02`, and broader timer/scroll changes
+are deferred. The engine's tab handoff and document/scroll rules were not changed.

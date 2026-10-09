@@ -265,6 +265,7 @@ describe('decodeProbePayload: presses', () => {
       type: 'press',
       kind: 'key',
       detail: 'Space',
+      target: JSON.parse(clickPayload()).target,
       pressId: 't-1',
       receivedAtMs: 9,
       pageTimeMs: 1_700_000_000_000,
@@ -273,7 +274,7 @@ describe('decodeProbePayload: presses', () => {
     expect(decodeProbePayload(pressPayload('t-1', 1_500), 9)).not.toHaveProperty('happenedAtMs');
   });
 
-  it('decodes a press that ended without a click', () => {
+  it('decodes the release of a press, with or without a click', () => {
     expect(decodeProbePayload(pressEndedPayload('t-1'), 9)).toEqual({
       type: 'press-ended',
       pressId: 't-1',
@@ -283,11 +284,22 @@ describe('decodeProbePayload: presses', () => {
     expect(decodeProbePayload(JSON.stringify({ action: 'press-ended', pressId: 4, pageTimeMs: 1 }), 0)).toBeNull();
   });
 
+  it('keeps a keyboard press target without inventing pointer coordinates', () => {
+    const payload = JSON.parse(pressPayload('key-1', 100, 'key', 'Enter'));
+    delete payload.target.clientX;
+    delete payload.target.clientY;
+    const event = decodeProbePayload(JSON.stringify(payload), 120);
+    expect(event).toMatchObject({ type: 'press', kind: 'key', target: { selector: 'a.link' } });
+    expect(event?.type === 'press' && event.target).not.toHaveProperty('clientX');
+  });
+
   it.each([
     ['a kind not on the list', { kind: 'tap' }],
     ['a detail that is no text', { detail: 3 }],
     ['no name', { pressId: undefined }],
     ['no event time', { eventTimeMs: undefined }],
+    ['no target', { target: undefined }],
+    ['an invalid target', { target: { selector: '#gone' } }],
   ])('rejects a press with %s', (_, change) => {
     const payload = { ...JSON.parse(pressPayload('t-1', 1_500)), ...change };
     expect(decodeProbePayload(JSON.stringify(payload), 0)).toBeNull();

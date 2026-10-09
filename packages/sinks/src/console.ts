@@ -54,7 +54,7 @@ export class ConsoleSink implements CaptureSink {
     if (this.showDomTarget && target) {
       console.log(
         `    ${GREY}↳ DOM: <${target.selector}> text:"${target.textSnippet ?? ''}" ` +
-          `role:${target.role ?? '-'} at:(${target.clientX}, ${target.clientY}) ` +
+          `role:${target.role ?? '-'} at:(${target.clientX ?? '-'}, ${target.clientY ?? '-'}) ` +
           `rect:[${target.boundingRect.width}x${target.boundingRect.height}]${RESET}`,
       );
     }

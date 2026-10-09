@@ -80,13 +80,14 @@ describe('click clip writes', () => {
       shown('before', 120, 95), // drawn before the press, late: it is the 10
       shown('after', 125, 110),
       click('button#go', 170, { pressId: 'p1', trusted: true }),
+      pressEnded('p1', 170),
       quiet(420),
     ]);
 
     expect(read(all)).toEqual(['p1: frame before', 'p1: frame after', 'p1: keep 11-post-click-01']);
   });
 
-  it('gives each of quick clicks its own clip, from its own 10 to the shared 11', () => {
+  it('splits quick presses into consecutive clips with a shared boundary frame', () => {
     const { shown, writes, read } = script();
     const all = writes([
       navigated('a'),
@@ -100,15 +101,12 @@ describe('click clip writes', () => {
     expect(read(all)).toEqual([
       'p1: frame oct',
       'p1: frame nov',
-      'p1: frame dec',
+      'p1: keep 11-post-click-01',
       'p2: frame nov',
       'p2: frame dec',
-      'p1: frame jan',
-      'p2: frame jan',
+      'p2: keep 11-post-click-02',
       'p3: frame dec',
       'p3: frame jan',
-      'p1: keep 11-post-click-01',
-      'p2: keep 11-post-click-02',
       'p3: keep 11-post-click-03',
     ]);
   });
@@ -125,7 +123,7 @@ describe('click clip writes', () => {
     expect(all).toEqual([]);
   });
 
-  it('drops the clip of a press that ended without a click', () => {
+  it('keeps the clip of a press that ended without a click', () => {
     const { shown, writes, read } = script();
     const all = writes([
       navigated('a'),
@@ -133,13 +131,14 @@ describe('click clip writes', () => {
       press('drag', 101, { happenedAtMs: 100 }),
       shown('dragged', 150, 140),
       pressEnded('drag', 200),
-      shown('later', 300, 299),
+      quiet(450),
+      shown('later', 500, 499),
     ]);
 
-    expect(read(all)).toEqual(['drag: frame rest', 'drag: frame dragged', 'drag: drop']);
+    expect(read(all)).toEqual(['drag: frame rest', 'drag: frame dragged', 'drag: keep 11-post-click-01']);
   });
 
-  it('drops what is going when the recording stops, a press still down too', () => {
+  it('keeps the segment before the next press and omits the unfinished one at Stop', () => {
     const { shown, writes, read } = script();
     const all = writes([
       navigated('a'),
@@ -153,15 +152,11 @@ describe('click clip writes', () => {
     expect(read(all)).toEqual([
       'p1: frame before',
       'p1: frame moving',
-      'p1: frame still moving',
-      'p2: frame moving',
-      'p2: frame still moving',
-      'p1: drop',
-      'p2: drop',
+      'p1: keep 11-post-click-01',
     ]);
   });
 
-  it('drops what is going when the recording moves to another tab, and writes nothing there', () => {
+  it('omits the unfinished segment when the recording moves to another tab', () => {
     const { shown, writes, read } = script();
     const all = writes([
       navigated('a'),
@@ -173,7 +168,7 @@ describe('click clip writes', () => {
       quiet(440),
     ]);
 
-    expect(read(all)).toEqual(['p1: frame before', 'p1: frame moving', 'p1: drop']);
+    expect(read(all)).toEqual([]);
   });
 
   it("names a click the page's own code made by its view and number", () => {
@@ -244,7 +239,7 @@ describe('click clip writes', () => {
     expect(read(all)).toEqual(['p1: frame oct', 'p1: frame nov', 'p1: keep 11-post-click-01']);
   });
 
-  it('drops a clip that ran past its 11: a later press made the 11 the screen before it', () => {
+  it('keeps October to November and November to December even when the second press has no click', () => {
     const { shown, writes, read } = script();
     const all = writes([
       navigated('a'),
@@ -253,18 +248,16 @@ describe('click clip writes', () => {
       press('p2', 301, { happenedAtMs: 300 }), // held down past the rest
       shown('dec', 313, 312),
       quiet(563),
-      click('button#go', 701, { pressId: 'p2', trusted: true }),
+      pressEnded('p2', 701),
       quiet(951),
     ]);
 
     expect(read(all)).toEqual([
       'p1: frame oct',
       'p1: frame nov',
-      'p1: frame dec',
+      'p1: keep 11-post-click-01',
       'p2: frame nov',
       'p2: frame dec',
-      // p1's 11 is nov, the screen before p2, but its clip ran on to dec.
-      'p1: drop',
       'p2: keep 11-post-click-02',
     ]);
   });
@@ -277,10 +270,83 @@ describe('click clip writes', () => {
       press('p1', 101, { happenedAtMs: 100 }),
       shown('reattached', 113, 112, 1),
       click('button#go', 170, { pressId: 'p1', trusted: true }),
+      pressEnded('p1', 170),
       quiet(420),
     ]);
 
     expect(read(all)).toEqual(['p1: frame before', 'p1: frame reattached', 'p1: keep 11-post-click-01']);
+  });
+
+  it.each(['before', 'after'] as const)('places the shared boundary when its picture arrives %s the next press report', (arrival) => {
+    const { shown, writes, read } = script();
+    const boundary = shown('boundary', arrival === 'before' ? 295 : 310, 290);
+    const nextResponse = shown('next response', arrival === 'before' ? 299 : 315, 305);
+    const second = press('p2', 301, { happenedAtMs: 300 });
+    const all = writes([
+      navigated('a'),
+      shown('oct', 0, 0),
+      ...pressAndClick('p1', { at: 101, drawnAt: 100, clickAt: 170 }, [shown('nov', 113, 112)]),
+      ...(arrival === 'before' ? [boundary, nextResponse, second] : [second, boundary, nextResponse]),
+      pressEnded('p2', 350),
+      quiet(600),
+    ]);
+    expect(read(all)).toEqual([
+      'p1: frame oct', 'p1: frame nov', 'p1: frame boundary', 'p1: keep 11-post-click-01',
+      'p2: frame boundary', 'p2: frame next response', 'p2: keep 11-post-click-02',
+    ]);
+  });
+
+  it('keeps multiple presses before the next frame as separate, non-overlapping segments', () => {
+    const { shown, writes, read } = script();
+    const all = writes([
+      navigated('a'), shown('before', 0, 0),
+      press('p1', 101, { happenedAtMs: 100 }),
+      shown('middle', 113, 112),
+      press('p2', 151, { happenedAtMs: 150 }),
+      press('p3', 161, { happenedAtMs: 160 }),
+      shown('after', 180, 179),
+      pressEnded('p3', 200), quiet(450),
+    ]);
+    // p2 has the same before/after picture, so it has captures but no still video.
+    expect(read(all)).toEqual([
+      'p1: frame before', 'p1: frame middle', 'p1: keep 11-post-click-01',
+      'p3: frame middle', 'p3: frame after', 'p3: keep 11-post-click-03',
+    ]);
+  });
+
+  it('gives a script click during a held press its own segment and clip ID', () => {
+    const { shown, writes, read } = script();
+    const all = writes([
+      navigated('a'), shown('X', 0, 0),
+      press('physical', 101, { happenedAtMs: 100 }), shown('Y', 113, 112),
+      click('button#script', 150, { happenedAtMs: 149, pressId: 'physical', trusted: false }),
+      shown('Z', 160, 159),
+      click('button#physical', 170, { pressId: 'physical', trusted: true }),
+      pressEnded('physical', 171), quiet(421),
+    ]);
+    expect(read(all)).toEqual([
+      'physical: frame X', 'physical: frame Y', 'physical: keep 11-post-click-01',
+      'v1-c2: frame Y', 'v1-c2: frame Z', 'v1-c2: keep 11-post-click-02',
+    ]);
+  });
+
+  it('does not encode a segment until its boundary is known, then releases its frames', () => {
+    const { shown } = script();
+    const engine = new RulesEngine([ClickEpisodeRule]);
+    const initial = [navigated('a'), shown('before', 0, 0), press('p1', 101, { happenedAtMs: 100 })];
+    for (const event of initial) expect(engine.processEvent(event).clipWrites).toEqual([]);
+    for (let i = 0; i < 10; i++) {
+      expect(engine.processEvent(shown(`frame-${i}`, 120 + i * 20, 119 + i * 20)).clipWrites).toEqual([]);
+    }
+    engine.processEvent(pressEnded('p1', 310));
+    const ended = engine.processEvent(quiet(560));
+    const samples = ended.clipWrites.flatMap((write) => write.type === 'frame' ? [write.frame] : []);
+    expect(samples[0]).toBe(ended.captures[0]?.frame);
+    expect(samples.at(-1)).toBe(ended.captures[1]?.frame);
+    expect(ended.clipWrites.at(-1)?.type).toBe('keep');
+    expect(engine.currentState.ruleStates[ClickEpisodeRule.id]).toMatchObject({ open: null, closing: [] });
+    const seen = (engine.currentState.ruleStates[ClickEpisodeRule.id] as { seen: readonly unknown[] }).seen;
+    expect(seen.length).toBeLessThan(samples.length);
   });
 
   it('ends every clip that got a frame exactly once, with its last write', () => {

@@ -92,16 +92,18 @@ export function click(selector?: string, receivedAtMs = 0, times: InputTimes = {
 export function press(
   pressId: string,
   receivedAtMs: number,
-  { happenedAtMs, kind = 'pointer', detail = kind === 'pointer' ? 'mouse' : 'Enter' }: {
+  { happenedAtMs, kind = 'pointer', detail = kind === 'pointer' ? 'mouse' : 'Enter', selector }: {
     happenedAtMs?: number;
     kind?: 'pointer' | 'key';
     detail?: string;
+    selector?: string;
   } = {},
 ): DomainEvent {
   return {
     type: 'press',
     kind,
     detail,
+    target: target(selector),
     pressId,
     ...(happenedAtMs !== undefined ? { happenedAtMs } : {}),
     receivedAtMs,
@@ -109,7 +111,7 @@ export function press(
   };
 }
 
-/** The page saying a press ended without a click: a drag, a date picker closing on the press. */
+/** The page saying a press was released or cancelled, with or without a click. */
 export function pressEnded(pressId: string, receivedAtMs: number): DomainEvent {
   return { type: 'press-ended', pressId, receivedAtMs, pageTimeMs: 0 };
 }
@@ -126,9 +128,10 @@ export function pressAndClick(
 ): DomainEvent[] {
   const happened = drawnAt === undefined ? {} : { happenedAtMs: drawnAt };
   return [
-    press(pressId, at, happened),
+    press(pressId, at, { ...happened, selector }),
     ...between,
     click(selector, clickAt, { pressId, trusted: true }),
+    pressEnded(pressId, clickAt),
   ];
 }
 

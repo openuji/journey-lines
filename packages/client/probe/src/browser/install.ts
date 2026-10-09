@@ -73,7 +73,7 @@ function optionalAttribute(
 
 function describeElement(
   element: Element,
-  coordinates: { clientX: number; clientY: number },
+  coordinates: { clientX?: number; clientY?: number },
 ): TargetElementMeta {
   const rect = element.getBoundingClientRect();
   const tag = element.tagName.toLowerCase();
@@ -103,8 +103,10 @@ function describeElement(
   };
 }
 
-function targetOf({ target, clientX, clientY }: MouseEvent): TargetElementMeta | null {
-  return target instanceof Element ? describeElement(target, { clientX, clientY }) : null;
+function targetOf(event: MouseEvent | KeyboardEvent): TargetElementMeta | null {
+  return event.target instanceof Element
+    ? describeElement(event.target, event instanceof MouseEvent ? event : {})
+    : null;
 }
 
 /**

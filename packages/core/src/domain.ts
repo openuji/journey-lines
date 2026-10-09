@@ -111,16 +111,17 @@ export type InteractionEvent = Readonly<{
 }>;
 
 /**
- * What starts a click happened: the primary button went down, or a key that
- * activates (Enter, Space). The page may respond already here, before the
- * `click` — so a click's "before" is the screen before its press.
+ * An interaction began: the primary button went down, or Enter/Space was
+ * pressed. The page may respond here and never dispatch a `click`.
  */
 export type PressEvent = Readonly<{
   type: 'press';
   kind: PressKind;
+  /** The target as it was when pressed, even if the page removes it later. */
+  target: TargetElementMeta;
   /** The pointer type (`mouse`, `touch`, `pen`) or the key. */
   detail?: string;
-  /** Names the press; the click it becomes carries it. Unique per document and frame. */
+  /** Names the press; a native click from it carries it. Unique per document and frame. */
   pressId: string;
   /** When it happened, Chrome's monotonic clock, ms; absent where that isn't known. */
   happenedAtMs?: number;
@@ -129,9 +130,8 @@ export type PressEvent = Readonly<{
 }>;
 
 /**
- * A press ended without becoming a click — a drag, a text selection, a date
- * picker that closes on the press. Reported by the page once its release is
- * over, so no click can name it any more.
+ * A press was released or cancelled. This ends the physical gesture;
+ * the visual response can continue, with or without a click event.
  */
 export type PressEndedEvent = Readonly<{
   type: 'press-ended';
