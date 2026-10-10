@@ -23,6 +23,7 @@ try {
       await page.screenshot({
         path: path.join(outputRoot, `${name}-${size}.png`),
         type: 'png',
+        omitBackground: true,
       });
     }
   }

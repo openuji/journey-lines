@@ -1,23 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs>
-    <linearGradient id="spectrum" x1="2" y1="6" x2="98" y2="66" gradientUnits="userSpaceOnUse">
+    <linearGradient id="spectrum" x1="0" y1="0" x2="82" y2="60" gradientUnits="userSpaceOnUse">
       <stop stop-color="#ff2b05" />
       <stop offset=".24" stop-color="#ff7000" />
       <stop offset=".49" stop-color="#b9f228" />
       <stop offset=".73" stop-color="#409fe9" />
       <stop offset="1" stop-color="#8e77d2" />
     </linearGradient>
-    <linearGradient id="fold" x1="56" y1="6" x2="68" y2="66" gradientUnits="userSpaceOnUse">
+    <linearGradient id="fold" x1="35" y1="0" x2="47" y2="60" gradientUnits="userSpaceOnUse">
       <stop stop-color="#ff2b05" />
       <stop offset=".38" stop-color="#ff7000" />
       <stop offset=".68" stop-color="#8e77d2" />
       <stop offset="1" stop-color="#409fe9" />
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="6" fill="#171714" />
-  <g transform="translate(0 6) scale(.28)">
-    <path d="M50 6H62V54L50 54Z" fill="url(#fold)" />
-    <path d="M62 54H20V66H50Z" fill="url(#spectrum)" />
-    <path d="M50 54H92V66H62Z" fill="url(#spectrum)" />
+  <g transform="translate(0 4.293) scale(.390244)">
+    <path d="M35 0H47V48H35V0Z" fill="url(#fold)" />
+    <path d="M42 48H0V60H30L42 48Z" fill="url(#spectrum)" />
+    <path d="M40 48H82V60H52L40 48Z" fill="url(#spectrum)" />
   </g>
 </svg>
