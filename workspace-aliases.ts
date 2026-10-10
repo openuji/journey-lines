@@ -23,7 +23,6 @@ export const workspaceAliases: Record<string, string> = {
   '@openuji/host-extension': pkg('./packages/host-extension/src/index.ts'),
   '@openuji/host-puppeteer': pkg('./packages/host-puppeteer/src/index.ts'),
   '@openuji/privacy': pkg('./packages/privacy/src/index.ts'),
-  '@openuji/privacy-profiles': pkg('./packages/privacy-profiles/src/index.ts'),
   '@openuji/rules-document': pkg('./packages/rules-document/src/index.ts'),
   '@openuji/rules-interaction': pkg('./packages/rules-interaction/src/index.ts'),
   '@openuji/sinks': pkg('./packages/sinks/src/index.ts'),

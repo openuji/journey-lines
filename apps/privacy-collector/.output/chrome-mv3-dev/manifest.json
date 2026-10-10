@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "OpenUJI Privacy Collector",
+  "description": "Collects reviewed privacy selectors into a UJG JSON-LD profile.",
+  "version": "0.1.0",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "downloads",
+    "clipboardWrite",
+    "tabs"
+  ],
+  "action": {
+    "default_title": "Privacy Collector",
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "wxt:reload-extension": {
+      "description": "Reload the extension during development",
+      "suggested_key": {
+        "default": "Alt+R"
+      }
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "http://localhost/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://localhost:3002; object-src 'self';",
+    "sandbox": "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:3002; sandbox allow-scripts allow-forms allow-popups allow-modals; child-src 'self';"
+  }
+}

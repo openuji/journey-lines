@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script type="module" src="http://localhost:3002/@vite/client"></script>
+<script src="http://localhost:3002/@id/virtual:wxt-html-plugins" type="module"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Collector</title>  <script type="module" crossorigin="" src="/chunks/popup-DRBGwhAB.js"></script>
+</head>
+  <body>
+    <main>
+      <h1>Privacy Collector</h1>
+      <p class="intro">Pick an element, review its selector and operation, then export a recorder-ready profile.</p>
+      <label for="tenant">Tenant</label>
+      <input id="tenant" spellcheck="false" required>
+      <button id="pick" class="primary">Pick element on this page</button>
+      <div class="heading"><h2>Collected slots</h2><span id="count"></span></div>
+      <div id="slots"></div>
+      <p id="empty">No selectors collected yet.</p>
+      <div class="exports">
+        <button id="copy">Copy JSON-LD</button>
+        <button id="download">Download profiles.jsonld</button>
+      </div>
+      <button id="clear" class="danger">Clear catalog</button>
+      <p id="status" role="status"></p>
+    </main>
+    <script type="module" src="http://localhost:3002/src/entrypoints/popup/main.ts"></script>
+  </body>
+</html>

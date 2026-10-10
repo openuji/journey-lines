@@ -12,6 +12,6 @@
     "build:source": "node build.mjs",
     "typecheck": "tsc --build && tsc --noEmit -p tsconfig.browser.json"
   },
-  "dependencies": { "@openuji/cdp": "workspace:*", "dom-accessibility-api": "0.6.3" },
+  "dependencies": { "@openuji/cdp": "workspace:*", "@openuji/core": "workspace:*", "dom-accessibility-api": "0.6.3" },
   "devDependencies": { "esbuild": "^0.24.2" }
 }

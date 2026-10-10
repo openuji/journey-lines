@@ -15,6 +15,12 @@ import type {
 /** The tabs of one window, as the recording follows them. */
 export type TabsOf = (windowId: number) => TabHost<number>;
 export type DescribeTab = (tabId: number) => Promise<TabSummary>;
+export type RecordingFunction = typeof recordActiveTab<number>;
+export type PrepareRecording = (tab: TabSummary) => Promise<{
+  tab: TabSummary;
+  describeTab: DescribeTab;
+  recordUsing: RecordingFunction;
+}>;
 
 const endedByChrome: Record<'gone' | 'revoked', EndedBy> = {
   gone: 'window-closed',
@@ -42,6 +48,7 @@ export class Recorder {
   private sessionId: string | null = null;
   /** Set while a tab is being attached, so a second Record waits its turn. */
   private starting = false;
+  private describeCurrentTab: DescribeTab;
 
   constructor(
     private readonly tabsOf: TabsOf,
@@ -49,7 +56,9 @@ export class Recorder {
     private readonly emit: (message: WorkerMessage) => void,
     private readonly openClips?: OpenClips,
     private readonly store: RecordingStore = new MemoryRecordingStore(),
-  ) {}
+    private readonly recordUsing: RecordingFunction = recordActiveTab,
+    private readonly prepareRecording?: PrepareRecording,
+  ) { this.describeCurrentTab = describeTab; }
 
   get status(): RecorderStatus {
     return this.current;
@@ -104,6 +113,9 @@ export class Recorder {
     };
 
     try {
+      // Read application settings once, before any output or browser attachment.
+      const prepared = await this.prepareRecording?.(tab);
+      if (prepared) tab = prepared.tab;
       // The one place the video setting is read: whether there is a clip sink.
       clipWorker = options.video
         ? await this.startClips(videos, (clip) => append({
@@ -112,7 +124,7 @@ export class Recorder {
             clip,
           }))
         : null;
-      recording = await recordActiveTab(this.tabsOf(tab.windowId), tab.id, {
+      recording = await (prepared?.recordUsing ?? this.recordUsing)(this.tabsOf(tab.windowId), tab.id, {
         sinks: [this.sink(journey, (capture) => append({
           kind: 'capture',
           epochMs: capture.frame.receivedAtMs,
@@ -131,6 +143,7 @@ export class Recorder {
       }
 
       this.recording = recording;
+      this.describeCurrentTab = prepared?.describeTab ?? this.describeTab;
       this.clipWorker = clipWorker;
       this.sessionId = sessionId;
       this.journey = journey;
@@ -240,7 +253,7 @@ export class Recorder {
 
   /** What the recording does with the active tab, out to the panels. */
   private async showActive(status: FollowStatus<number>): Promise<void> {
-    const tab = await this.describeTab(status.active.tab).catch(() => null);
+    const tab = await this.describeCurrentTab(status.active.tab).catch(() => null);
     // Gone meanwhile (a closed tab), or no longer the recording's status.
     if (!tab || this.recording?.status !== status) return;
     const current = this.current;

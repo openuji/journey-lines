@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Dev runners: each CDP source on its own, and the fused detection pipeline — live in the terminal, no disk writes.",
-  "files": ["dist"],
+  "files": ["dist", "privacy"],
   "scripts": {
     "uxr-privacy": "pnpm -w run build && node dist/privacy.js",
     "build": "tsc --build",
@@ -18,7 +18,6 @@
     "@openuji/core": "workspace:*",
     "@openuji/fused": "workspace:*",
     "@openuji/privacy": "workspace:*",
-    "@openuji/privacy-profiles": "workspace:*",
     "@openuji/sinks": "workspace:*",
     "@openuji/stream-compositor": "workspace:*",
     "@openuji/stream-probe": "workspace:*",

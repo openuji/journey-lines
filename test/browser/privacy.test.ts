@@ -3,13 +3,13 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { launchPuppeteerTarget, type PuppeteerTarget } from '@openuji/host-puppeteer';
 import { attachPrivacy, compilePrivacy, type PrivacyAttachment, type PrivacyDiagnostic, type PrivacyProgram } from '@openuji/privacy';
-import { dummyProfile } from '@openuji/privacy-profiles';
-import { startPrivacyDemo } from '../../apps/stream-cli/src/privacy-demo.js';
+import { loadPrivacyDemoProfile, startPrivacyDemo } from '../../apps/stream-cli/src/privacy-demo.js';
 import { PRIVACY_SOURCE } from '../../packages/privacy/src/generated/privacy-source.js';
 import { PRIVACY_INSTALL, PRIVACY_STATE } from '../../packages/privacy/src/constants.js';
 import { css, label, locatorId, profile, rule } from '../../packages/privacy/test/fixtures.js';
 
 const WAIT = { timeout: 5_000, interval: 25 };
+const dummyProfile = loadPrivacyDemoProfile();
 const DUMMY_PRIVACY_PROGRAM = compilePrivacy(dummyProfile);
 const nameProgram: PrivacyProgram = {
   id: 'fixture.name.v1', rules: [{ id: 'name', selector: '#identity', replacement: 'Don Joe' }],
@@ -40,15 +40,26 @@ const identity = () => target.page.$eval('#identity', (element) => element.textC
 const completions = (diagnostics: PrivacyDiagnostic[]) => diagnostics.filter((d) => d.type === 'completed');
 
 describe('standalone privacy injection', () => {
-  it('runs successfully on an already loaded document while the dummy rule matches nothing', async () => {
+  it('runs the currently selected bundled demo on an already loaded document', async () => {
     await target.navigate(demo.url, { waitUntil: 'domcontentloaded' });
     const before = await target.page.content();
     const diagnostics: PrivacyDiagnostic[] = [];
     const attachment = await attach(DUMMY_PRIVACY_PROGRAM, (d) => diagnostics.push(d));
-    await expect(attachment.ready).resolves.toEqual({ status: 'completed', matched: 0, overwritten: 0 });
+    await expect(attachment.ready).resolves.toEqual({ status: 'completed', matched: 1, overwritten: 1 });
     expect(diagnostics.map((d) => d.type)).toEqual(['installed', 'rule', 'completed']);
-    expect(diagnostics[1]).toMatchObject({ ruleId: 'demo.missing-name', status: 'unmatched', matched: 0, overwritten: 0 });
+    expect(diagnostics[1]).toMatchObject({ ruleId: 'demo.missing-name', status: 'overwritten', matched: 1, overwritten: 1 });
     expect(diagnostics.every((d) => d.profileId === dummyProfile.id)).toBe(true);
+    expect(await target.page.content()).toBe(before.replace('Example Participant', 'Don Joe'));
+  });
+
+  it('retains the Stage 1 zero-match behavior with an absent selector', async () => {
+    await target.navigate(demo.url, { waitUntil: 'domcontentloaded' });
+    const before = await target.page.content();
+    const diagnostics: PrivacyDiagnostic[] = [];
+    const program = compilePrivacy(profile([css('absent', '[data-uxr-privacy-demo="absent"]')], [rule('absent')]));
+    const attachment = await attach(program, (d) => diagnostics.push(d));
+    await expect(attachment.ready).resolves.toEqual({ status: 'completed', matched: 0, overwritten: 0 });
+    expect(diagnostics[1]).toMatchObject({ status: 'unmatched', level: 'warning' });
     expect(await target.page.content()).toBe(before);
   });
 
@@ -164,6 +175,38 @@ describe('compiled privacy profiles', () => {
     await target.navigate(demo.url, { waitUntil: 'domcontentloaded' });
     await target.page.setContent(html);
   }
+
+  it('masks credentials without reading their values, types or names being changed', async () => {
+    await fixture('<input id="user" name="username" type="text" value="synthetic-user"><input id="password" name="password" type="password" value="synthetic-secret">');
+    await target.page.evaluate(() => {
+      for (const element of Array.from(document.querySelectorAll('input'))) Object.defineProperty(element, 'value', {
+        configurable: true, get() { throw new Error('Credential value was read'); },
+      });
+    });
+    const program = compilePrivacy(profile([css('user', '#user'), css('password', '#password')],
+      ['user', 'password'].map((id) => ({ id, locatorRef: locatorId(id), scopeRefs: ['page'], action: 'mask-input' }))));
+    const diagnostics: PrivacyDiagnostic[] = [];
+    const attachment = await attach(program, (d) => diagnostics.push(d));
+    await expect(attachment.ready).resolves.toEqual({ status: 'completed', matched: 2, overwritten: 2 });
+    expect(diagnostics.filter((d) => d.type === 'rule').every((d) => d.status === 'masked')).toBe(true);
+    expect(await target.page.evaluate(() => Array.from(document.querySelectorAll('input'), (el) => {
+      Reflect.deleteProperty(el, 'value');
+      return [el.type, el.name, el.value, getComputedStyle(el).getPropertyValue('-webkit-text-security')];
+    }))).toEqual([['text', 'username', 'synthetic-user', 'disc'], ['password', 'password', 'synthetic-secret', 'disc']]);
+  });
+
+  it('installs and disposes every accessible existing document context', async () => {
+    await fixture('<p id="identity">Top identity</p><iframe srcdoc="<p id=identity>Child identity</p>"></iframe>');
+    const diagnostics: PrivacyDiagnostic[] = [];
+    const attachment = await attachPrivacy(target.cdp, nameProgram, (d) => diagnostics.push(d), { allFrames: true });
+    attachments.push(attachment);
+    await attachment.ready;
+    expect(await identity()).toBe('Don Joe');
+    expect(await target.page.evaluate(() => document.querySelector('iframe')!.contentDocument!.querySelector('#identity')!.textContent)).toBe('Don Joe');
+    expect(completions(diagnostics)).toHaveLength(2);
+    await attachment.dispose();
+    expect(await target.page.evaluate(() => typeof (document.querySelector('iframe')!.contentWindow as unknown as Record<string, unknown>).__uxr_privacy_dispose__)).toBe('undefined');
+  });
 
   it('resolves accessible roles, names, descriptions, and all ancestor contexts', async () => {
     await fixture(`<section aria-label="Account"><div role="group" aria-label="Details">

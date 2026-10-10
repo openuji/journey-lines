@@ -10,7 +10,7 @@
  */
 
 import type { Clip } from '@openuji/core';
-import type { Channel, ClipWorker } from '@openuji/clip-webm';
+import { clipSinkOver, type Channel, type ClipWorker, type FromEncoder, type ToEncoder } from '@openuji/clip-webm';
 
 export const CLIPS_CHANNEL = 'openuji-clips';
 
@@ -35,5 +35,45 @@ export function clipChannel<In, Out>(): Channel<In, Out> & { close(): void } {
       return () => channel.removeEventListener('message', handler);
     },
     close: () => channel.close(),
+  };
+}
+
+/**
+ * The video encoder for one recording: an offscreen document starts it in a
+ * worker, and the clip sink's recorder side talks to it over the clip channel.
+ * `close` ends both.
+ */
+export async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorker> {
+  // A document left over from a recording the worker did not see end.
+  if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
+
+  const ready = new Promise<void>((resolve, reject) => {
+    const settle = (error?: string): void => {
+      chrome.runtime.onMessage.removeListener(listener);
+      clearTimeout(timer);
+      if (error) reject(new Error(error));
+      else resolve();
+    };
+    const listener = (message: ClipsReady): void => {
+      if (message?.type === CLIPS_READY) settle(message.error);
+    };
+    // Never wait forever: a recording that cannot make videos says so.
+    const timer = setTimeout(() => settle('The video encoder did not start within 15 s'), 15_000);
+    chrome.runtime.onMessage.addListener(listener);
+  });
+  await chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: [chrome.offscreen.Reason.WORKERS],
+    justification: 'Encodes a video of each scroll and click in a worker.',
+  });
+  await ready;
+
+  const channel = clipChannel<FromEncoder, ToEncoder>();
+  return {
+    sink: clipSinkOver(channel, onClip),
+    close: async () => {
+      channel.close();
+      await chrome.offscreen.closeDocument();
+    },
   };
 }

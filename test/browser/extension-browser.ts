@@ -25,7 +25,7 @@ export interface ExtensionBrowser {
  * Web pages are opened, driven and closed through the worker instead.
  */
 export async function launchWithExtension(
-  options: { executablePath?: string | undefined; args?: string[] } = {},
+  options: { executablePath?: string | undefined; args?: string[]; inspectAllPages?: boolean } = {},
 ): Promise<ExtensionBrowser> {
   const browser = await puppeteer.launch({
     headless: false,
@@ -36,7 +36,7 @@ export async function launchWithExtension(
     // The first tab is a web page too, so there is none to wait for.
     waitForInitialPage: false,
     targetFilter: (target) =>
-      target.type() !== 'page' || target.url().startsWith('chrome-extension://'),
+      options.inspectAllPages === true || target.type() !== 'page' || target.url().startsWith('chrome-extension://'),
   });
 
   try {

@@ -1,9 +1,9 @@
-import type { Clip } from '@openuji/core';
-import { clipSinkOver, type ClipWorker, type FromEncoder, type ToEncoder } from '@openuji/clip-webm';
 import { extensionTabs } from '@openuji/host-extension';
+import { recordActiveTab } from '@openuji/fused';
+import { createPrivacy } from '@openuji/privacy';
 import { defineBackground } from 'wxt/utils/define-background';
 import { setActionIcon } from '../lib/action-icon';
-import { CLIPS_READY, clipChannel, type ClipsReady } from '../lib/clips';
+import { openClips } from '../lib/clips';
 import {
   JOURNEY_PORT,
   type PanelMessage,
@@ -12,6 +12,7 @@ import {
 } from '../lib/protocol';
 import { Recorder } from '../lib/recorder';
 import { MemoryRecordingStore } from '../lib/recording-store';
+import { loadSettings, loadPrivacyProfile } from '../lib/settings';
 import { REPORT_PORT, reportUrl, type ReportRequest, type ReportResponse } from '../lib/report-protocol';
 
 /**
@@ -45,6 +46,19 @@ export default defineBackground(() => {
     broadcast,
     openClips,
     store,
+    undefined,
+    async (tab) => {
+      const privacy = createPrivacy(await loadPrivacyProfile(await loadSettings()));
+      return {
+        tab: privacy.sanitizeLocation(tab),
+        describeTab: async (id) => privacy.sanitizeLocation(await describeTab(id)),
+        recordUsing: (host, active, options) => recordActiveTab(privacy.wrapHost(host), active, {
+          ...options,
+          sinks: options.sinks.map((sink) => privacy.wrapCaptureSink(sink)),
+          ...(options.clips ? { clips: privacy.wrapClipSink(options.clips) } : {}),
+        }),
+      };
+    },
   );
 
   // Debug handle: chrome://extensions → "Inspect views: service worker", then
@@ -111,46 +125,6 @@ function updateActionIcon(open: boolean): void {
   void setActionIcon(open).catch((error: unknown) => {
     console.error('[action] Could not update extension icon', error);
   });
-}
-
-/**
- * The video encoder for one recording: an offscreen document starts it in a
- * worker, and the clip sink's recorder side talks to it over the clip channel.
- * `close` ends both.
- */
-async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorker> {
-  // A document left over from a recording the worker did not see end.
-  if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
-
-  const ready = new Promise<void>((resolve, reject) => {
-    const settle = (error?: string): void => {
-      chrome.runtime.onMessage.removeListener(listener);
-      clearTimeout(timer);
-      if (error) reject(new Error(error));
-      else resolve();
-    };
-    const listener = (message: ClipsReady): void => {
-      if (message?.type === CLIPS_READY) settle(message.error);
-    };
-    // Never wait forever: a recording that cannot make videos says so.
-    const timer = setTimeout(() => settle('The video encoder did not start within 15 s'), 15_000);
-    chrome.runtime.onMessage.addListener(listener);
-  });
-  await chrome.offscreen.createDocument({
-    url: 'offscreen.html',
-    reasons: [chrome.offscreen.Reason.WORKERS],
-    justification: 'Encodes a video of each scroll and click in a worker.',
-  });
-  await ready;
-
-  const channel = clipChannel<FromEncoder, ToEncoder>();
-  return {
-    sink: clipSinkOver(channel, onClip),
-    close: async () => {
-      channel.close();
-      await chrome.offscreen.closeDocument();
-    },
-  };
 }
 
 async function describeTab(tabId: number): Promise<TabSummary> {

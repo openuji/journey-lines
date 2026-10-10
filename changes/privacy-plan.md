@@ -50,14 +50,14 @@ The browser page stays unchanged. CDP installation failures remain distinguishab
 
 **Deliverable:** the runner obtains its program from a bundled profile, while the injector and its observable behavior remain the same.
 
-**Implemented:** `@openuji/privacy-profiles` supplies `dummyProfile`; the runner
+**Implemented:** the [demo JSON-LD](../apps/stream-cli/privacy/demo.jsonld) supplies the profile; the runner
 compiles it through `compilePrivacy`. See [profile authoring and supported locator
 features](../packages/privacy/Readme.md). Compiler/adapter unit tests and the real
 Chromium privacy suite cover this stage's acceptance criteria.
 
 ### Profile and compilation boundary
 
-Add `@openuji/privacy-profiles` for declarative profile data. A profile contains:
+Keep declarative profile data with its consuming application. A profile contains:
 
 - A stable ID and version.
 - Page scopes based on origin and path.
@@ -67,7 +67,7 @@ Add `@openuji/privacy-profiles` for declarative profile data. A profile contains
 
 Introduce `PrivacyProfile` and a pure `compilePrivacy(profile)` function. Compilation validates supported target definitions and produces the browser command format consumed in stage 1. The runtime receives only the compiled program.
 
-The development runner imports `dummyProfile`, compiles it, and passes the result to `attachPrivacy`. Each application will later select its profile through an import in its composition root.
+The development runner loads its demo JSON-LD, compiles it, and passes the result to `attachPrivacy`. Recording applications select their profile through settings.
 
 ### Target definitions
 
@@ -96,19 +96,38 @@ Implement the supported accessible-locator subset using `dom-accessibility-api`.
 
 **Deliverable:** a bundled FU profile changes covered identity displays in the live browser and recorded output, while credentials remain usable and visually masked.
 
+**Implementation status:** recording composition, credential masking, display
+attribute replacement, output metadata transforms, and readiness coordination
+are implemented for the extension and Puppeteer hosts. Synthetic browser tests
+verify page, screenshot, encoded clip, stored metadata, and export behavior.
+Credential tests use typing, CDP bulk insertion, and programmatic autofill-style
+assignment; native password-manager and OS clipboard behavior remain manual checks.
+
+**FU coverage partial:** the booking account header and SSO username now use selectors
+visible in the supplied DevTools screenshots, including the `/index.php` booking page
+scope. Recorded session IDs and SSO flow identifiers are redacted without changing
+live authentication values. The other 11 selectors remain pending. At the user's request, the five supplied URL targets
+have explicit selector placeholders. This includes the Service Portal in addition
+to the four sites below. See the [13-slot selector handoff](../apps/extension/privacy/fu/Readme.md).
+The user is supplying selectors incrementally; real-site masking still needs
+confirmation in the browser. Unfilled slots report incomplete coverage. Stages 1 and 2 above
+describe their original no-op acceptance; the current demo profile has since
+been changed to target `#identity`, with the absent-target case tested separately.
+
 ### Module responsibilities
 
 | Component | Responsibility |
 |---|---|
 | `@openuji/privacy` | Compile profiles, resolve targets, overwrite displays, mask credentials, coordinate injection, sanitize output metadata |
-| `@openuji/privacy-profiles` | Bundled dummy and FU profiles, UJG locators, replacement literals |
-| Application composition roots | Select a profile and connect privacy adapters to existing host and sink interfaces |
+| `apps/stream-cli/privacy/demo.jsonld` | Bundled demo profile |
+| `apps/extension/privacy/fu/profiles.jsonld` | Extension-owned FU scopes, UJG locators, replacement literals, and metadata rules |
+| Application composition roots | Load the configured profile and connect privacy adapters to existing host and sink interfaces |
 | Recording stack | Continue handling browser events, journey decisions, captures, and clips through its existing contracts |
 
 Expose a composition factory:
 
 ```ts
-const privacy = createPrivacy(fuProfile, { onDiagnostic });
+const privacy = createPrivacy(profile, { onDiagnostic });
 ```
 
 It supplies:
@@ -118,7 +137,7 @@ It supplies:
 - `wrapClipSink(sink)` — sanitizes metadata carried separately by clip writes.
 - `sanitizeLocation(...)` — sanitizes reported URLs and tab titles.
 
-The extension’s `Recorder` gains a generic injectable recording function, defaulting to `recordActiveTab`. Its background composition root supplies the privacy-composed implementation. The recorder CLI composes the same adapters directly. Neither needs tenant-specific branches.
+The extension’s `Recorder` gains a generic injectable recording function, defaulting to `recordActiveTab`. Its background composition root supplies the privacy-composed implementation after reading settings at recording start. The recorder CLI composes the same adapters directly. Neither needs tenant-specific branches or imports. Packaged defaults live in `apps/extension/settings.defaults.json`; Chrome Options stores overrides in `chrome.storage.local`. A recording keeps its selected profile until it ends.
 
 ### FU profile
 
@@ -130,6 +149,7 @@ Cover:
 - Continuing education: profile heading and account initials.
 - my.FU: account name and username.
 - Identity provider: credential fields and explicitly identified identity-bearing messages.
+- Service Portal: account display, avatar initials, and welcome heading.
 
 Use consistent literals such as `Don Joe`, `donjoe`, `DJ`, and `don.joe@example.invalid`. Declare individual text nodes and identity-bearing display attributes explicitly.
 
@@ -172,4 +192,4 @@ Run browser conformance tests against both extension and Puppeteer hosts:
 
 Targets are present when the initial ready pass runs and remain stable afterward. Each document receives one pass; there is no `MutationObserver`, polling, or continuous rescan. Later DOM replacement and reintroduced personal data are outside this version’s coverage.
 
-Profiles are developer-selected, versioned, and bundled. The privacy module keeps no original-value snapshots, identity maps, hidden originals, or restoration mechanism. Its coverage is limited to declared targets and supported recording surfaces.
+Profiles are versioned and bundled; settings select the profile for each recording. The privacy module keeps no original-value snapshots, identity maps, hidden originals, or restoration mechanism. Its coverage is limited to declared targets and supported recording surfaces.

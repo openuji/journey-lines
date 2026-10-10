@@ -1,5 +1,12 @@
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
+import { privacyProfileFromDocument } from '@openuji/privacy';
+
+export function loadPrivacyDemoProfile() {
+  const document = JSON.parse(readFileSync(new URL('../privacy/demo.jsonld', import.meta.url), 'utf8'));
+  return privacyProfileFromDocument(document);
+}
 
 export const PRIVACY_DEMO_HTML = `<!doctype html>
 <html lang="en">
@@ -7,8 +14,8 @@ export const PRIVACY_DEMO_HTML = `<!doctype html>
 <style>body { max-width: 48rem; margin: 4rem auto; font: 18px/1.5 system-ui; padding: 0 1rem; }</style></head>
 <body><h1>Privacy injection demo</h1>
 <p id="identity">Example Participant</p>
-<p>The dummy rule targets an element that is absent. This page should stay unchanged.</p>
-<p>The terminal should report <code>matched=0, overwritten=0</code>.</p>
+<p>The bundled profile selects which elements to replace on this page.</p>
+<p>The terminal reports how many elements matched and were overwritten.</p>
 <a href="/second">Open another document</a></body></html>`;
 
 export async function startPrivacyDemo(): Promise<{ url: string; close(): Promise<void> }> {

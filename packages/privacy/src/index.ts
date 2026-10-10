@@ -1,15 +1,25 @@
 import type { CdpTransport } from '@openuji/cdp';
 import { PRIVACY_BINDING, PRIVACY_DISPOSE, PRIVACY_INSTALL } from './constants.js';
-import type { PrivacyDiagnostic, PrivacyInitialResult, PrivacyProgram } from './contract.js';
-import { decodeDiagnostic, decodeSnapshot } from './decode.js';
+import type { PrivacyDiagnostic, PrivacyInitialResult, PrivacyProgram, PrivacyRendered } from './contract.js';
+import { decodeDiagnostic, decodeSnapshot, decodeRendered } from './decode.js';
 import { PRIVACY_SOURCE } from './generated/privacy-source.js';
 
-export type { PrivacyProgram, PrivacyTextRule, PrivacyDiagnostic, PrivacyInitialResult } from './contract.js';
+export type { PrivacyProgram, PrivacyRule, PrivacyTextRule, PrivacyDiagnostic, PrivacyInitialResult } from './contract.js';
 export { compilePrivacy, PrivacyCompileError } from './compile.js';
+export { privacyProfileFromDocument } from './document.js';
+export { createPrivacy } from './composition.js';
+export type { PrivacyCoverageDiagnostic, PrivacyRecordingDiagnostic } from './recording-host.js';
 export type { PrivacyCompileDiagnostic, PrivacyCompileStatus } from './compile.js';
 export { PRIVACY_CATALOG_CONTEXT, PRIVACY_CSS_EXTENSION } from './profile.js';
 export type { PrivacyProfile, PrivacyPageScope, PrivacyReplacementRule, PrivacyTextTarget,
-  PrivacyCatalogNode, AccessibleLocator, CustomLocator } from './profile.js';
+  PrivacyCatalogNode, AccessibleLocator, CustomLocator, PrivacyMetadataRule, PrivacyDisplayAttribute } from './profile.js';
+
+export interface PrivacyAttachmentOptions {
+  readonly allFrames?: boolean;
+  readonly onRendered?: (contextId: number, evidence: PrivacyRendered) => void;
+  readonly onContextUnavailable?: (contextId: number) => void;
+  readonly onContext?: (contextId: number, frameId: string) => void;
+}
 
 export interface PrivacyAttachment {
   /** The document showing at attachment: completion or explicit cancellation. */
@@ -25,11 +35,13 @@ export async function attachPrivacy(
   cdp: CdpTransport,
   program: PrivacyProgram,
   onDiagnostic: (diagnostic: PrivacyDiagnostic) => void,
+  options: PrivacyAttachmentOptions = {},
 ): Promise<PrivacyAttachment> {
   if (attached.has(cdp)) throw new Error('Privacy is already attached to this transport');
   // Copy configuration so later caller mutations cannot change the wire decoder.
-  const configuration: PrivacyProgram = JSON.parse(JSON.stringify(program));
-  const source = `${PRIVACY_SOURCE}\n;globalThis.${PRIVACY_INSTALL}(${JSON.stringify(configuration)})`;
+  const configuration: PrivacyProgram = JSON.parse(JSON.stringify({ id: program.id, profileId: program.profileId, rules: program.rules }));
+  const installOptions = { allFrames: options.allFrames === true, readiness: options.onRendered !== undefined };
+  const source = `${PRIVACY_SOURCE}\n;globalThis.${PRIVACY_INSTALL}(${JSON.stringify(configuration)},${JSON.stringify(installOptions)})`;
   const contextRequest = JSON.stringify({ type: 'context', programId: configuration.id });
   attached.add(cdp);
 
@@ -60,9 +72,12 @@ export async function attachPrivacy(
       if (event.payload === contextRequest) {
         initialContext = event.executionContextId;
         contexts.set(initialContext, ownFrame);
+        options.onContext?.(initialContext, ownFrame);
         return;
       }
-      if (contexts.get(event.executionContextId) !== ownFrame) return;
+      if (!contexts.has(event.executionContextId) || !options.allFrames && contexts.get(event.executionContextId) !== ownFrame) return;
+      const rendered = options.onRendered && decodeRendered(event.payload, configuration.id);
+      if (rendered) { options.onRendered!(event.executionContextId, rendered); return; }
       const diagnostic = decodeDiagnostic(event.payload, configuration);
       if (!diagnostic) return;
       if (event.executionContextId === initialContext && diagnostic.type === 'completed') {
@@ -78,7 +93,10 @@ export async function attachPrivacy(
     // Unregister first so navigation during cleanup cannot install another runtime.
     if (scriptId) await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: scriptId }).catch(() => {});
     if (bindingAdded) {
-      await cdp.send('Runtime.evaluate', { expression: `globalThis.${PRIVACY_DISPOSE}?.(); delete globalThis.${PRIVACY_INSTALL}; delete globalThis.${PRIVACY_DISPOSE}; delete globalThis.${PRIVACY_BINDING};` }).catch(() => {});
+      const expression = `globalThis.${PRIVACY_DISPOSE}?.(); delete globalThis.${PRIVACY_INSTALL}; delete globalThis.${PRIVACY_DISPOSE}; delete globalThis.${PRIVACY_BINDING};`;
+      if (options.allFrames) {
+        await Promise.all([...contexts.keys()].map((contextId) => cdp.send('Runtime.evaluate', { expression, contextId }).catch(() => {})));
+      } else await cdp.send('Runtime.evaluate', { expression }).catch(() => {});
       await cdp.send('Runtime.removeBinding', { name: PRIVACY_BINDING }).catch(() => {});
     }
     contexts.clear();
@@ -109,6 +127,14 @@ export async function attachPrivacy(
     const snapshot = decodeSnapshot(result.result.value);
     if (!snapshot) throw new Error('Privacy runtime returned an invalid installation result');
     if (snapshot.status === 'completed') settle({ status: 'completed', matched: snapshot.matched, overwritten: snapshot.overwritten });
+    if (options.allFrames) {
+      await Promise.all([...contexts.keys()].filter((id) => id !== initialContext).map(async (contextId) => {
+        try {
+          const reply = await cdp.send('Runtime.evaluate', { expression: source, contextId });
+          if (reply.exceptionDetails) options.onContextUnavailable?.(contextId);
+        } catch { options.onContextUnavailable?.(contextId); }
+      }));
+    }
     return { ready, dispose };
   } catch (error) {
     await dispose();

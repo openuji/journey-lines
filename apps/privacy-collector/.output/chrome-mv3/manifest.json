@@ -1,0 +1,1 @@
+{"manifest_version":3,"name":"OpenUJI Privacy Collector","description":"Collects reviewed privacy selectors into a UJG JSON-LD profile.","version":"0.1.0","permissions":["activeTab","scripting","storage","downloads","clipboardWrite"],"action":{"default_title":"Privacy Collector","default_popup":"popup.html"},"background":{"service_worker":"background.js"}}

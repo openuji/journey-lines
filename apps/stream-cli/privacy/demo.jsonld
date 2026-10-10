@@ -1,0 +1,37 @@
+{
+  "@context": [
+    "https://ujg.specs.openuji.org/ed/ns/core.context.jsonld",
+    "https://ujg.specs.openuji.org/ed/ns/surface.context.jsonld",
+    "https://ujg.specs.openuji.org/ed/ns/l10n.context.jsonld",
+    "https://ujg.specs.openuji.org/ed/ns/observability.context.jsonld"
+  ],
+  "@id": "urn:privacy:demo:profiles",
+  "@type": "UJGDocument",
+  "extensions": {
+    "org.openuji.privacy": {
+      "id": "demo",
+      "version": "1",
+      "scopes": [
+        { "id": "demo.pages", "origin": "http://127.0.0.1:*", "path": { "prefix": "/" } }
+      ],
+      "rules": [
+        {
+          "id": "demo.missing-name",
+          "scopeRefs": ["demo.pages"],
+          "locatorRef": "urn:privacy:demo:missing-name",
+          "replacement": "Don Joe",
+          "text": { "kind": "leaf" }
+        }
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "@id": "urn:privacy:demo:missing-name",
+      "@type": "CustomLocator",
+      "extensions": {
+        "org.openuji.privacy.css": { "selector": "#identity" }
+      }
+    }
+  ]
+}

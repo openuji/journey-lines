@@ -8,7 +8,6 @@
   "references": [
     { "path": "../../packages/core" },
     { "path": "../../packages/privacy" },
-    { "path": "../../packages/privacy-profiles" },
     { "path": "../../packages/cli-kit" },
     { "path": "../../packages/fused" },
     { "path": "../../packages/sinks" },

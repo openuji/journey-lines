@@ -1,18 +1,17 @@
 #!/usr/bin/env node
 import { runMain, runStreamCli } from '@openuji/cli-kit';
 import { attachPrivacy, compilePrivacy } from '@openuji/privacy';
-import { dummyProfile } from '@openuji/privacy-profiles';
-import { startPrivacyDemo } from './privacy-demo.js';
+import { loadPrivacyDemoProfile, startPrivacyDemo } from './privacy-demo.js';
 
 runMain(async () => {
-  const program = compilePrivacy(dummyProfile);
+  const program = compilePrivacy(loadPrivacyDemoProfile());
   const demo = await startPrivacyDemo();
   try {
     await runStreamCli({
       label: 'standalone privacy injection',
       targetUrl: demo.url,
       waitUntil: 'domcontentloaded',
-      ready: 'The dummy target is absent: the page stays unchanged. Follow its link or reload to see another pass. Ctrl+C to stop.',
+      ready: 'The bundled profile has run. Check the rule counts above; follow the link or reload to see another pass. Ctrl+C to stop.',
       run: async (target) => {
         // The harness attaches before navigation; omit the blank document's diagnostics.
         let showingDemo = false;

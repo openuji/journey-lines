@@ -1,4 +1,5 @@
-import type { PrivacyAccessibleTarget, PrivacyCompiledScope, PrivacyProgram, PrivacyTextRule } from './contract.js';
+import type { PrivacyAccessibleTarget, PrivacyCompiledScope, PrivacyCompiledMetadataRule, PrivacyProgram, PrivacyRule, PrivacyTextRule } from './contract.js';
+import type { PrivacyMetadataField, PrivacyDisplayAttribute } from './profile.js';
 import { PRIVACY_CATALOG_CONTEXT, PRIVACY_CSS_EXTENSION, type PrivacyProfile } from './profile.js';
 
 export type PrivacyCompileStatus = 'invalid-profile' | 'invalid-scope' | 'invalid-rule'
@@ -73,14 +74,15 @@ export function compilePrivacy(profile: PrivacyProfile): PrivacyProgram {
   const diagnostic = (status: PrivacyCompileStatus, ruleId?: string): PrivacyCompileDiagnostic =>
     ({ profileId, ...(ruleId === undefined ? {} : { ruleId }), status, level: 'error' });
   try {
-    keys(profile, ['id', 'version', 'scopes', 'catalog', 'localeRef', 'rules'], 'invalid-profile');
+    keys(profile, ['id', 'version', 'scopes', 'catalog', 'localeRef', 'rules', 'metadata'], 'invalid-profile');
     require(string(profile.id) && string(profile.version), 'invalid-profile');
     const scopes = new Map([...index(profile.scopes, 'invalid-scope')].map(([id, value]) => [id, scope(value)]));
     require(scopes.size > 0, 'invalid-scope');
     keys(profile.catalog, ['@context', '@graph'], 'invalid-profile');
     const contexts = profile.catalog['@context'];
     require(Array.isArray(contexts) && contexts.length === PRIVACY_CATALOG_CONTEXT.length &&
-      contexts.every((context, i) => context === PRIVACY_CATALOG_CONTEXT[i]), 'invalid-profile');
+      contexts.every((context, i) => context === PRIVACY_CATALOG_CONTEXT[i] ||
+        i === 0 && context === 'https://ujg.specs.openuji.org/ed/ns/core.context.jsonld'), 'invalid-profile');
     const nodes = index(profile.catalog['@graph'], 'invalid-profile', '@id');
     for (const [id, node] of nodes) {
       require(iri(id), 'invalid-profile');
@@ -134,25 +136,39 @@ export function compilePrivacy(profile: PrivacyProfile): PrivacyProgram {
       };
     };
 
-    const rules: PrivacyTextRule[] = [];
+    const rules: PrivacyRule[] = [];
     const errors: PrivacyCompileDiagnostic[] = [];
     for (const [id, rule] of index(profile.rules, 'invalid-rule')) {
       try {
-        keys(rule, ['id', 'scopeRefs', 'locatorRef', 'replacement', 'text', 'allowMultiple'], 'invalid-rule');
+        const action = rule.action ?? 'replace-text';
+        require(['replace-text', 'replace-attribute', 'mask-input'].includes(action as string), 'invalid-rule');
+        keys(rule, ['id', 'scopeRefs', 'locatorRef', 'allowMultiple', 'action',
+          ...(action === 'mask-input' ? [] : ['replacement', action === 'replace-text' ? 'text' : 'attribute'])], 'invalid-rule');
         refs(rule.scopeRefs, 'invalid-scope');
         const ruleScopes = rule.scopeRefs.map((ref) => {
           const found = scopes.get(ref);
           require(found, 'invalid-reference');
           return found;
         });
-        require(typeof rule.replacement === 'string' &&
-          (rule.allowMultiple === undefined || typeof rule.allowMultiple === 'boolean'), 'invalid-rule');
-        keys(rule.text, ['kind', 'childNodeIndex'], 'invalid-rule');
-        require(rule.text.kind === 'leaf' ? !('childNodeIndex' in rule.text) :
-          rule.text.kind === 'direct-text' && Number.isSafeInteger(rule.text.childNodeIndex) &&
-            (rule.text.childNodeIndex as number) >= 0, 'invalid-rule');
-        const text = rule.text.kind === 'leaf' ? { kind: 'leaf' as const } :
-          { kind: 'direct-text' as const, childNodeIndex: rule.text.childNodeIndex as number };
+        require(rule.allowMultiple === undefined || typeof rule.allowMultiple === 'boolean', 'invalid-rule');
+        let operation: Pick<PrivacyTextRule, 'replacement' | 'text'> | { action: 'mask-input' } |
+          { action: 'replace-attribute'; replacement: string; attribute: 'aria-label' | 'title' | 'alt' | 'placeholder' };
+        if (action === 'mask-input') operation = { action: 'mask-input' };
+        else {
+          require(typeof rule.replacement === 'string', 'invalid-rule');
+          if (action === 'replace-attribute') {
+            require(['aria-label', 'title', 'alt', 'placeholder'].includes(rule.attribute as string), 'invalid-rule');
+            operation = { action, replacement: rule.replacement, attribute: rule.attribute as PrivacyDisplayAttribute };
+          } else {
+            keys(rule.text, ['kind', 'childNodeIndex'], 'invalid-rule');
+            require(rule.text.kind === 'leaf' ? !('childNodeIndex' in rule.text) :
+              rule.text.kind === 'direct-text' && Number.isSafeInteger(rule.text.childNodeIndex) &&
+                (rule.text.childNodeIndex as number) >= 0, 'invalid-rule');
+            const text = rule.text.kind === 'leaf' ? { kind: 'leaf' as const } :
+              { kind: 'direct-text' as const, childNodeIndex: rule.text.childNodeIndex as number };
+            operation = { replacement: rule.replacement, text };
+          }
+        }
         require(typeof rule.locatorRef === 'string', 'invalid-reference');
         const node = nodes.get(rule.locatorRef);
         require(node, 'invalid-reference');
@@ -165,15 +181,38 @@ export function compilePrivacy(profile: PrivacyProfile): PrivacyProgram {
           require(string(extension.selector), 'unsupported-locator');
           target = { selector: extension.selector };
         } else target = { target: accessible(rule.locatorRef) };
-        rules.push({ id, scopes: ruleScopes, ...target, replacement: rule.replacement,
-          text, allowMultiple: rule.allowMultiple === true });
+        rules.push({ id, scopes: ruleScopes, ...target, ...operation, allowMultiple: rule.allowMultiple === true });
+      } catch (error) {
+        if (!(error instanceof Invalid)) throw error;
+        errors.push(diagnostic(error.status, id));
+      }
+    }
+    const metadata: PrivacyCompiledMetadataRule[] = [];
+    for (const [id, rule] of index(profile.metadata ?? [], 'invalid-rule')) {
+      try {
+        keys(rule, ['id', 'scopeRefs', 'fields', 'pattern', 'flags', 'replacement'], 'invalid-rule');
+        refs(rule.scopeRefs, 'invalid-scope');
+        const ruleScopes = rule.scopeRefs.map((ref) => {
+          const found = scopes.get(ref);
+          require(found, 'invalid-reference');
+          return found;
+        });
+        refs(rule.fields, 'invalid-rule');
+        require(rule.fields.every((field) => ['url', 'title', 'text', 'identifier', 'link'].includes(field)) &&
+          typeof rule.pattern === 'string' && typeof rule.replacement === 'string' &&
+          (rule.flags === undefined || typeof rule.flags === 'string' && /^[gimsu]*$/.test(rule.flags)), 'invalid-rule');
+        const flags = (rule.flags ?? 'g') as string;
+        try { new RegExp(rule.pattern, flags); } catch { throw new Invalid('invalid-rule'); }
+        metadata.push({ id, scopes: ruleScopes, fields: [...rule.fields] as PrivacyMetadataField[],
+          pattern: rule.pattern, flags, replacement: rule.replacement });
       } catch (error) {
         if (!(error instanceof Invalid)) throw error;
         errors.push(diagnostic(error.status, id));
       }
     }
     if (errors.length) throw new PrivacyCompileError(errors);
-    return { id: `${profile.id}@${profile.version}`, profileId: profile.id, rules };
+    return { id: `${profile.id}@${profile.version}`, profileId: profile.id, rules,
+      ...(profile.metadata === undefined ? {} : { metadata }) };
   } catch (error) {
     if (error instanceof Invalid) throw new PrivacyCompileError([diagnostic(error.status)]);
     throw error;

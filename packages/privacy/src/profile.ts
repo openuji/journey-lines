@@ -46,13 +46,29 @@ export type PrivacyTextTarget =
   /** Index into childNodes, including whitespace/comments. No content-based selection. */
   | { readonly kind: 'direct-text'; readonly childNodeIndex: number };
 
-export interface PrivacyReplacementRule {
+export interface PrivacyRuleTarget {
   readonly id: string;
   readonly scopeRefs: readonly string[];
   readonly locatorRef: string;
-  readonly replacement: string;
-  readonly text: PrivacyTextTarget;
   readonly allowMultiple?: boolean;
+}
+
+export type PrivacyDisplayAttribute = 'aria-label' | 'title' | 'alt' | 'placeholder';
+export type PrivacyReplacementRule = PrivacyRuleTarget & (
+  | { readonly action?: 'replace-text'; readonly replacement: string; readonly text: PrivacyTextTarget }
+  | { readonly action: 'replace-attribute'; readonly replacement: string; readonly attribute: PrivacyDisplayAttribute }
+  | { readonly action: 'mask-input' }
+);
+
+export type PrivacyMetadataField = 'url' | 'title' | 'text' | 'identifier' | 'link';
+/** Static transformations of output only, never a mapping learned from page content. */
+export interface PrivacyMetadataRule {
+  readonly id: string;
+  readonly scopeRefs: readonly string[];
+  readonly fields: readonly PrivacyMetadataField[];
+  readonly pattern: string;
+  readonly flags?: string;
+  readonly replacement: string;
 }
 
 export interface PrivacyProfile {
@@ -67,4 +83,5 @@ export interface PrivacyProfile {
   /** Explicit locale for Message values; no implicit language fallback. */
   readonly localeRef?: string;
   readonly rules: readonly PrivacyReplacementRule[];
+  readonly metadata?: readonly PrivacyMetadataRule[];
 }

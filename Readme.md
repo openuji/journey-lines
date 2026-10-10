@@ -40,18 +40,17 @@ Set `UXR_HEADLESS=1` to run without a visible browser window, and
 
 ---
 
-## Privacy profile demo (stages one and two)
+## Privacy profiles and recording
 
 ```bash
 pnpm dev:privacy
 # Or: pnpm --filter @openuji/stream-cli uxr-privacy
 ```
 
-Opens a local synthetic page in a headed browser. The runner imports `dummyProfile`
-from `@openuji/privacy-profiles` and calls `compilePrivacy(profile)`. Its compiled rule
-looks for `[data-uxr-privacy-demo="absent"]`, which the page deliberately lacks.
-The terminal reports `privacy installed`, `matched=0, overwritten=0 (unmatched)`,
-and `privacy pass completed`. The page remains unchanged. Follow its link or
+Opens a local synthetic page in a headed browser. The runner loads
+[its demo JSON-LD](apps/stream-cli/privacy/demo.jsonld) and calls `compilePrivacy(profile)`. Its current
+rule replaces `#identity` with `Don Joe`. The terminal reports `privacy installed`,
+`matched=1, overwritten=1 (overwritten)`, and `privacy pass completed`. Follow its link or
 reload to exercise injection in a new document; Ctrl+C stops the runner.
 `UXR_HEADLESS=1` also works for this runner.
 
@@ -71,15 +70,24 @@ nested controls survive. Missing and ambiguous targets warn and skip; multiple
 matches require `allowMultiple: true`. Unsupported locator definitions fail
 compilation with structured diagnostics instead of dropping constraints.
 
+The extension and recorder CLI load the privacy profile selected by
+[settings and packaged defaults](apps/extension/Settings.md), then compose
+`createPrivacy(profile)` around their
+existing hosts and sinks. This adds credential masking, readiness coordination,
+display attribute replacement, and declared output metadata transformations.
+**FU coverage is partial:** the booking account header and SSO username are configured;
+the remaining 11 of [13 selector slots](apps/extension/privacy/fu/Readme.md) await selectors.
+Unfilled slots warn about incomplete coverage and provide no visual masking.
+
 See [privacy profile authoring](packages/privacy/Readme.md) for the supported
-locator subset and examples. Credential masking and recording integration remain
-Stage 3 in [the privacy plan](changes/privacy-plan.md).
+locator subset, composition adapters, and coverage limits, and
+[the privacy plan](changes/privacy-plan.md) for stage status.
 
 Focused checks after `pnpm build`:
 
 ```bash
 pnpm exec vitest run packages/privacy/test
-UXR_HEADLESS=1 pnpm exec vitest run -c vitest.browser.config.ts test/browser/privacy.test.ts
+UXR_HEADLESS=1 pnpm exec vitest run -c vitest.browser.config.ts test/browser/privacy.test.ts test/browser/privacy-recording.test.ts
 ```
 
 ## Architecture

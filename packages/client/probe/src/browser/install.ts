@@ -47,13 +47,24 @@ function buildSelector(element: Element): string {
 }
 
 function readTextSnippet(element: Element): string | undefined {
-  // Falsy-chained, not nullish-chained: an element with empty `innerText` (any
-  // input, for one) must fall through to its value and then its aria-label.
-  const value =
-    (element as HTMLElement).innerText ||
-    (element as HTMLInputElement).value ||
-    element.getAttribute('aria-label') ||
-    '';
+  // Never read editable values, including textarea/contenteditable text exposed
+  // through a clicked ancestor. Walk text nodes while pruning editable subtrees.
+  if (element.closest('input, textarea, select, option, [contenteditable]') || document.designMode === 'on') return undefined;
+  const omitted = (node: Element): boolean => {
+    if (node.matches('input, textarea, select, option, [contenteditable], script, style, template, [hidden]')) return true;
+    const style = getComputedStyle(node);
+    return style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse';
+  };
+  if (omitted(element)) return undefined;
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (node instanceof Element && omitted(node)) return NodeFilter.FILTER_REJECT;
+      return node.nodeType === Node.TEXT_NODE ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    },
+  });
+  let value = '';
+  for (let node = walker.nextNode(); node && value.length < MAX_TEXT_SNIPPET_LENGTH * 2; node = walker.nextNode()) value += `${node.textContent ?? ''} `;
+  value = value.trim() || element.getAttribute('aria-label') || '';
 
   const snippet = value
     .trim()

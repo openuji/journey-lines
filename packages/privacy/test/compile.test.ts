@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { compilePrivacy, PrivacyCompileError, type PrivacyProfile } from '@openuji/privacy';
-import { dummyProfile } from '@openuji/privacy-profiles';
+import { compilePrivacy, PrivacyCompileError, type PrivacyProfile, type PrivacyTextRule } from '@openuji/privacy';
 import { css, label, locatorId, profile, rule } from './fixtures.js';
+
+const dummyProfile = profile([css('name', '#identity')], [rule('name')]);
 
 function errors(value: unknown) {
   try { compilePrivacy(value as PrivacyProfile); }
@@ -13,12 +14,12 @@ function errors(value: unknown) {
 }
 
 describe('compilePrivacy', () => {
-  it('compiles the bundled dummy into the original selector/replacement without shipping its catalog', () => {
+  it('compiles a selector/replacement without shipping its catalog', () => {
     const before = JSON.stringify(dummyProfile);
     const program = compilePrivacy(dummyProfile);
     expect(program).toEqual({
-      id: 'demo@1', profileId: 'demo', rules: [{
-        id: 'demo.missing-name', selector: '[data-uxr-privacy-demo="absent"]', replacement: 'Don Joe',
+      id: 'synthetic@1', profileId: 'synthetic', rules: [{
+        id: 'name', selector: '#identity', replacement: 'Don Joe',
         scopes: [{ origin: 'http://127.0.0.1', anyPort: true, path: { kind: 'prefix', value: '/' } }],
         text: { kind: 'leaf' }, allowMultiple: false,
       }],
@@ -50,7 +51,7 @@ describe('compilePrivacy', () => {
     const source = profile([css('name', '#identity')], [rule('name', { allowMultiple: true, text: { kind: 'direct-text', childNodeIndex: 0 } })]);
     const before = JSON.stringify(source);
     const program = compilePrivacy(source);
-    (program.rules[0]!.text as { childNodeIndex: number }).childNodeIndex = 2;
+    ((program.rules[0]! as PrivacyTextRule).text as { childNodeIndex: number }).childNodeIndex = 2;
     (program.rules[0]!.scopes![0]!.path as { value: string }).value = '/changed';
     expect(JSON.stringify(source)).toBe(before);
   });

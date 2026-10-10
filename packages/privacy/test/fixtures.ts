@@ -11,7 +11,7 @@ export function label(id: string, value: string): PrivacyCatalogNode[] {
     { '@id': locatorId(`${id}.en`), '@type': 'Message', messageMetaRef: locatorId(id), localeRef: locatorId('en'), value },
   ];
 }
-export function rule(id: string, options: Partial<PrivacyReplacementRule> = {}): PrivacyReplacementRule {
+export function rule(id: string, options: Partial<Extract<PrivacyReplacementRule, { replacement: string; text: unknown }>> = {}): PrivacyReplacementRule {
   return { id, locatorRef: locatorId(id), scopeRefs: ['page'], replacement: 'Don Joe', text: { kind: 'leaf' }, ...options };
 }
 export function profile(nodes: readonly PrivacyCatalogNode[], rules: readonly PrivacyReplacementRule[]): PrivacyProfile {
