@@ -4,7 +4,7 @@ import { initialPanelState, panelReducer } from '../../lib/panel-state';
 import { connectJourney, type JourneyPort } from '../../lib/port';
 import type { PanelMessage } from '../../lib/protocol';
 import { reportUrl } from '../../lib/report-protocol';
-import { Alert } from '../../ui/Alert';
+import { Alert } from '../../ui/Alert/Alert';
 import { Done } from './Done';
 import { Idle } from './Idle';
 import { Recording } from './Recording';

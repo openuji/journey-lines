@@ -3,8 +3,8 @@ import { Route } from 'lucide-react';
 import type { Clip, MilestoneCapture } from '@openuji/core';
 import { captureKind, formatClock, frameSrc, journeyRows, shortUrl } from '../../lib/journey';
 import type { StoredRecording } from '../../lib/recording-store';
-import { Button } from '../../ui/Button';
-import { ClipVideo } from '../../ui/ClipVideo';
+import { Button } from '../../ui/Button/Button';
+import { ClipVideo } from '../../ui/ClipVideo/ClipVideo';
 
 export type ReportViewProps = {
   session: StoredRecording | null;
@@ -31,7 +31,7 @@ export function ReportView({ session, error = null, downloading = false, onDownl
     <>
       <header className="report-bar">
         <div className="report-bar__brand">
-          <Route size={20} aria-hidden />
+          <Route aria-hidden />
           <span title={session ? titleOf(session) : 'Recording report'}>{session ? titleOf(session) : 'Recording report'}</span>
         </div>
         {session && (
@@ -66,7 +66,7 @@ export function ReportView({ session, error = null, downloading = false, onDownl
             <div className="report-timeline">
               {rows.map((row) => row.kind === 'view' ? (
                 <div className="report-view" key={row.key}>
-                  <Route size={16} aria-hidden />
+                  <Route aria-hidden />
                   <span>{shortUrl(row.url)}</span>
                   <span className="report-view__entry">{row.entry}</span>
                 </div>

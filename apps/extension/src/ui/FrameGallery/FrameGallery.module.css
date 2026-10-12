@@ -1,0 +1,22 @@
+
+.frame-gallery__items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-width: 0;
+}
+.frame-gallery__items--connected {
+  flex-wrap: nowrap;
+  gap: var(--ds-space-2);
+}
+.frame-gallery__separator {
+  flex: 1;
+  min-width: var(--ds-range-min-width);
+}
+.frame-gallery__expanded {
+  display: block;
+  width: 100%;
+  border: var(--ds-border-thin) solid var(--ds-color-line);
+  border-radius: var(--ds-radius-panel);
+}

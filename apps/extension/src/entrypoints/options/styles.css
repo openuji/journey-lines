@@ -1,23 +1,23 @@
 .settings {
-  max-width: 40rem;
-  margin: 3rem auto;
-  padding: 0 1.5rem;
+  max-width: var(--ds-settings-max-width);
+  margin: var(--ds-settings-margin-block) auto;
+  padding: 0 var(--ds-settings-padding-inline);
 }
 
 .settings label {
   display: block;
-  margin-bottom: .5rem;
-  font-weight: 600;
+  margin-bottom: var(--ds-space-2);
+  font-weight: var(--ds-weight-bold);
 }
 
 .settings input {
   width: 100%;
-  padding: .65rem;
+  padding: var(--ds-settings-input-padding);
   font: inherit;
 }
 
 .settings-actions {
   display: flex;
-  gap: .75rem;
-  margin-top: 1.5rem;
+  gap: var(--ds-space-3);
+  margin-top: var(--ds-settings-padding-inline);
 }

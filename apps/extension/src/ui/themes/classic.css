@@ -34,27 +34,12 @@
 
   --ds-font-sans: ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Inter, system-ui, sans-serif;
   --ds-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
-  --ds-type-title: 13px;
-  --ds-type-body: 13px;
-  --ds-type-label: 12px;
-  --ds-type-meta: 11px;
-  --ds-type-report-title: clamp(24px, 3.5vw, 36px);
-  --ds-type-report-body: 15px;
   --ds-leading-body: 1.5;
   --ds-leading-tight: 1.2;
   --ds-weight-regular: 400;
   --ds-weight-medium: 500;
   --ds-weight-bold: 600;
 
-  --ds-radius-panel: 8px;
-  --ds-radius-card: 11px;
-  --ds-radius-thumbnail: 6px;
-  --ds-radius-control: 8px;
-  --ds-radius-pill: 999px;
-  --ds-control-small: 32px;
-  --ds-control-default: 44px;
-  --ds-focus-width: 2px;
-  --ds-focus-offset: 2px;
 
   --ds-button-primary-bg: var(--ds-gradient-journey-lines);
   --ds-button-primary-text: var(--ds-color-accent-ink);

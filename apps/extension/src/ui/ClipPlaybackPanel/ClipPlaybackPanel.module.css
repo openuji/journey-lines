@@ -1,0 +1,7 @@
+
+.clip-playback__player {
+  display: block;
+  width: 100%;
+  border: var(--ds-border-thin) solid var(--ds-color-line);
+  border-radius: var(--ds-radius-panel);
+}

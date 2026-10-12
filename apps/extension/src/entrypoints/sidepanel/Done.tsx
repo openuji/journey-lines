@@ -1,7 +1,7 @@
 import type { JourneyEvent } from '../../lib/journey-events';
 import { formatClock, shortUrl } from '../../lib/journey';
 import type { EndedBy, RecorderStatus } from '../../lib/protocol';
-import { Button } from '../../ui/Button';
+import { Button } from '../../ui/Button/Button';
 import { Journey } from './Journey';
 
 type Finished = Extract<RecorderStatus, { state: 'done' }>;

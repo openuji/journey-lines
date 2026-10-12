@@ -1,0 +1,20 @@
+
+.clip-playback__toggle {
+  gap: var(--ds-space-1-5);
+  padding: var(--ds-space-half) var(--ds-space-2);
+  border-radius: var(--ds-radius-pill);
+  background: transparent;
+  color: var(--ds-color-accent-text);
+  font-size: var(--ds-type-meta);
+}
+.clip-playback__toggle svg {
+  width: var(--ds-icon-small);
+  height: var(--ds-icon-small);
+}
+.clip-playback__toggle--compact {
+  flex: none;
+  width: var(--ds-playback-toggle-size);
+  height: var(--ds-playback-toggle-size);
+  padding: 0;
+  justify-content: center;
+}

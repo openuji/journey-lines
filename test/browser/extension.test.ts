@@ -525,7 +525,7 @@ describe('extension host against a real browser', () => {
     const panel = await extension.openPanel();
 
     const shownLabels = (): Promise<string[]> =>
-      panel.$$eval('.timeline-row__label', (rows) => rows.map((row) => row.textContent ?? ''));
+      panel.$$eval('[data-event-title]', (rows) => rows.map((row) => row.textContent ?? ''));
     // A DOM click: the panel sits in a background tab, where mouse input would not land.
     const press = async (selector: string): Promise<void> => {
       await panel.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
@@ -543,15 +543,15 @@ describe('extension host against a real browser', () => {
     await vi.waitFor(async () => expect(await panel.$('.summary')).not.toBeNull(), WAIT);
     expect(await shownLabels()).toEqual(['Page loaded', 'Click', 'Recording ended']);
     expect(await panel.$eval('.summary', (summary) => summary.textContent)).toContain('Events3');
-    expect(await panel.$$('.timeline-row--click .frame-thumbnail__button')).toHaveLength(2);
+    expect(await panel.$$('li[data-tone="click"] button[aria-label$="frame"]')).toHaveLength(2);
 
-    await press('.timeline-row--click [aria-label="Expand before frame"]');
-    await vi.waitFor(async () => expect(await panel.$eval('.frame-gallery__expanded', (frame) => frame.getAttribute('alt'))).toBe('Before frame'), WAIT);
-    await press('.timeline-row--click [aria-label="Expand after frame"]');
-    await vi.waitFor(async () => expect(await panel.$eval('.frame-gallery__expanded', (frame) => frame.getAttribute('alt'))).toBe('After frame'), WAIT);
-    expect(await panel.$$('.frame-gallery__expanded')).toHaveLength(1);
-    await press('.timeline-row--click [aria-label="Collapse after frame"]');
-    expect(await panel.$('.frame-gallery__expanded')).toBeNull();
+    await press('li[data-tone="click"] [aria-label="Expand before frame"]');
+    await vi.waitFor(async () => expect(await panel.$eval('img[alt="Before frame"]', (frame) => frame.getAttribute('alt'))).toBe('Before frame'), WAIT);
+    await press('li[data-tone="click"] [aria-label="Expand after frame"]');
+    await vi.waitFor(async () => expect(await panel.$eval('img[alt="After frame"]', (frame) => frame.getAttribute('alt'))).toBe('After frame'), WAIT);
+    expect(await panel.$$('img[alt="After frame"]')).toHaveLength(1);
+    await press('li[data-tone="click"] [aria-label="Collapse after frame"]');
+    expect(await panel.$('img[alt="After frame"]')).toBeNull();
 
     const reportUrl = await extension.worker.evaluate(() => {
       if (recorder.status.state !== 'done' || !recorder.status.sessionId) throw new Error('No report session');
@@ -687,7 +687,8 @@ describe('extension host against a real browser', () => {
       await recordedTab.send('Runtime.evaluate', { expression: 'scrollTo(0, 600)' });
       await waitForLabel(postScroll);
       await press('.stop-button');
-      await vi.waitFor(async () => expect(await panel.$('.clip-playback__toggle')).not.toBeNull(), WAIT);
+      await vi.waitFor(async () => expect(await panel.$('.summary')).not.toBeNull(), WAIT);
+      await vi.waitFor(async () => expect(await panel.$('[aria-label="Play video"]')).not.toBeNull(), WAIT);
 
       const reportUrl = await extension.worker.evaluate(() => {
         if (recorder.status.state !== 'done' || !recorder.status.sessionId) throw new Error('No report session');
@@ -700,9 +701,9 @@ describe('extension host against a real browser', () => {
       // Chrome defers loading media in a background tab; the recording is over,
       // so the panel may come to the front, as when a person watches it.
       await panel.bringToFront();
-      await press('.clip-playback__toggle');
+      await press('[aria-label="Play video"]');
       const duration = await vi.waitFor(async () => {
-        const seconds = await panel.$eval('.clip-playback__player', (video) => (video as unknown as { duration: number }).duration);
+        const seconds = await panel.$eval('video[controls]', (video) => (video as unknown as { duration: number }).duration);
         expect(seconds).toBeGreaterThan(0);
         return seconds;
       }, WAIT);

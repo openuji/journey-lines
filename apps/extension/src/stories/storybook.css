@@ -1,5 +1,5 @@
 .story-surface {
-  min-height: 100vh;
+  min-height: var(--ds-viewport-height);
   padding: var(--ds-space-6);
   background: var(--ds-color-canvas);
 }
@@ -33,18 +33,18 @@
 
 .foundation-title {
   margin: 0 0 var(--ds-space-4);
-  font-size: 22px;
+  font-size: var(--ds-type-foundation-title);
   line-height: var(--ds-leading-tight);
 }
 
 .foundation-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--ds-story-foundation-column), 1fr));
   gap: var(--ds-space-3);
 }
 
 .color-swatch {
-  min-height: 104px;
+  min-height: var(--ds-story-swatch-height);
   padding: var(--ds-space-3);
   border: var(--ds-border-thin) solid var(--ds-color-line);
   border-radius: var(--ds-radius-panel);
@@ -83,20 +83,20 @@
 
 .space-token {
   display: grid;
-  grid-template-columns: 72px 1fr;
+  grid-template-columns: var(--ds-story-token-label-width) 1fr;
   align-items: center;
   gap: var(--ds-space-3);
-  width: min(100%, 420px);
+  width: min(100%, var(--ds-story-token-max-width));
 }
 
 .space-token__bar {
-  height: 12px;
+  height: var(--ds-space-3);
   background: var(--ds-color-accent);
 }
 
 .radius-token {
-  width: 96px;
-  height: 56px;
+  width: var(--ds-story-radius-width);
+  height: var(--ds-story-radius-height);
   border: var(--ds-border-thin) solid var(--ds-color-line-strong);
   background: var(--ds-color-surface);
 }
@@ -126,8 +126,8 @@
 }
 
 .icon-foundation svg {
-  width: 18px;
-  height: 18px;
+  width: var(--ds-icon-row);
+  height: var(--ds-icon-row);
 }
 
 .icon-foundation--view {
@@ -147,8 +147,14 @@
 }
 
 .story-journey {
-  width: min(100%, 440px);
-  max-height: 720px;
+  width: min(100%, var(--ds-story-journey-width));
+  max-height: var(--ds-story-journey-height);
   padding: var(--ds-space-4);
   background: var(--ds-color-canvas);
 }
+.story-control-icon {
+  width: var(--ds-icon-small);
+  height: var(--ds-icon-small);
+}
+.story-video { max-width: var(--ds-story-journey-width); }
+.story-video__player { display: block; width: 100%; }

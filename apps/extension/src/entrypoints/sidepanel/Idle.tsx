@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../../ui/Button';
+import { Button } from '../../ui/Button/Button';
 import type { RecordOptions } from '../../lib/protocol';
 
 /** Before a recording: one button, for the tab in front of the person, and how to record it. */

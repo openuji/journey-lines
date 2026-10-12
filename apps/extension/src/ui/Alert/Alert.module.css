@@ -1,0 +1,15 @@
+.ui-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-2-5) var(--ds-space-3);
+  border: var(--ds-border-thin) solid var(--ds-color-error);
+  border-radius: var(--ds-radius-panel);
+  color: var(--ds-color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+.ui-alert__content {
+  flex: 1;
+  padding-block: var(--ds-space-1-5);
+}

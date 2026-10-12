@@ -2,8 +2,8 @@ import { AppWindow, ArrowDownUp, Globe, LogOut, MousePointerClick, Route, Square
 import type { CompositorFrame, ViewEntry } from '@openuji/core';
 import { formatClock, shortUrl } from '../../lib/journey';
 import type { JourneyEvent } from '../../lib/journey-events';
-import type { GalleryFrame } from '../../ui/FrameGallery';
-import { TimelineRow } from '../../ui/TimelineRow';
+import type { GalleryFrame } from '../../ui/FrameGallery/FrameGallery';
+import { TimelineRow } from '../../ui/TimelineRow/TimelineRow';
 
 type Presentation = Readonly<{ title: string; icon: LucideIcon }>;
 

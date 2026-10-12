@@ -10,7 +10,7 @@ declare global {
   interface Window { mediaUrls: { created: string[]; revoked: string[] } }
 }
 
-const RANGE = '.timeline-row--click input[type="range"]';
+const RANGE = 'li[data-tone="click"] input[type="range"]';
 const WAIT = { timeout: 10_000, interval: 25 };
 
 describe('journey transition media in a browser', () => {
@@ -85,11 +85,11 @@ describe('journey transition media in a browser', () => {
   const expectColor = async (channel: number): Promise<void> => {
     await vi.waitFor(async () => {
       const result = await page.evaluate(() => {
-        const video = document.querySelector<HTMLVideoElement>('.clip-frame-video--ready video');
-        if (!video) {
-          const pending = document.querySelector<HTMLVideoElement>('.clip-frame-video video');
+        const video = document.querySelector<HTMLVideoElement>('[role="tooltip"] video');
+        if (!video || video.parentElement?.querySelector('[role="status"]')) {
+          const pending = document.querySelector<HTMLVideoElement>('[role="tooltip"] video');
           return { pixels: [], paused: pending?.paused, diagnostic: {
-            preview: document.querySelector('.floating-preview')?.textContent,
+            preview: document.querySelector('[role="tooltip"]')?.textContent,
             className: pending?.parentElement?.className,
             readyState: pending?.readyState, seeking: pending?.seeking, time: pending?.currentTime, duration: pending?.duration,
             error: pending?.error?.message,
@@ -119,7 +119,7 @@ describe('journey transition media in a browser', () => {
     await page.keyboard.press('Home');
     await expectColor(0);
     await page.keyboard.press('Escape');
-    expect(await page.$('.floating-preview')).toBeNull();
+    expect(await page.$('[role="tooltip"]')).toBeNull();
     await vi.waitFor(async () => {
       const urls = await page.evaluate(() => window.mediaUrls);
       expect(urls.created).toHaveLength(1);
@@ -129,7 +129,7 @@ describe('journey transition media in a browser', () => {
 
   it.each([320, 480])('hovers and coalesces rapid seeks without moving the %i px timeline or changing endpoints', async (width) => {
     await page.setViewport({ width, height: 800 });
-    const endpoints = await page.$eval('.timeline-row--click', (row) => Array.from(row.querySelectorAll('img'), (image) => image.getAttribute('src')));
+    const endpoints = await page.$eval('li[data-tone="click"]', (row) => Array.from(row.querySelectorAll('img'), (image) => image.getAttribute('src')));
     const initialScroll = await page.$eval('.journey', (element) => element.scrollTop);
     const handle = await page.$(RANGE);
     const rect = await handle!.boundingBox();
@@ -138,7 +138,7 @@ describe('journey transition media in a browser', () => {
     await expectColor(1);
     await page.mouse.move(rect.x + rect.width - 1, rect.y + rect.height / 2);
     await expectColor(2);
-    const bounds = await page.$eval('.floating-preview', (element) => {
+    const bounds = await page.$eval('[role="tooltip"]', (element) => {
       const rect = element.getBoundingClientRect();
       return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, outsideJourney: !element.closest('.journey') };
     });
@@ -155,11 +155,11 @@ describe('journey transition media in a browser', () => {
     });
     await expectColor(1);
     expect(await page.$eval('.journey', (element) => element.scrollTop)).toBe(initialScroll);
-    expect(await page.$eval('.timeline-row--click', (row) => Array.from(row.querySelectorAll('img'), (image) => image.getAttribute('src')))).toEqual(endpoints);
+    expect(await page.$eval('li[data-tone="click"]', (row) => Array.from(row.querySelectorAll('img'), (image) => image.getAttribute('src')))).toEqual(endpoints);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
     expect(overflow).toBe(false);
     await page.mouse.move(1, 1);
-    expect(await page.$('.floating-preview')).toBeNull();
+    expect(await page.$('[role="tooltip"]')).toBeNull();
     await vi.waitFor(async () => {
       const urls = await page.evaluate(() => window.mediaUrls);
       expect(urls.revoked).toEqual(urls.created);
@@ -167,19 +167,19 @@ describe('journey transition media in a browser', () => {
   });
 
   it('keeps incomplete events passive, expands only one endpoint, and plays/cleans up the full clip', async () => {
-    const incomplete = '.timeline-row:nth-child(4)';
-    expect(await page.$(`${incomplete} .frame-thumbnail__unavailable`)).not.toBeNull();
+    const incomplete = 'li[data-tone]:nth-child(4)';
+    expect(await page.$(`${incomplete} [aria-label="Before frame unavailable"]`)).not.toBeNull();
     expect(await page.$(`${incomplete} input`)).toBeNull();
-    expect(await page.$(`${incomplete} .clip-range__connector`)).not.toBeNull();
-    await page.click('.timeline-row--click [aria-label="Expand before frame"]');
-    await page.click('.timeline-row--click [aria-label="Expand after frame"]');
-    expect(await page.$$('.frame-gallery__expanded')).toHaveLength(1);
-    await page.click('.timeline-row--click [aria-label="Collapse after frame"]');
-    await page.click('.timeline-row--click .clip-playback__toggle');
-    await page.waitForSelector('.clip-playback__player');
-    await vi.waitFor(async () => expect(await page.$eval('.clip-playback__player', (element) => (element as HTMLVideoElement).duration)).toBeGreaterThan(0), WAIT);
-    await page.click('.timeline-row--click .clip-playback__toggle');
-    expect(await page.$('.clip-playback__player')).toBeNull();
+    expect(await page.$(`${incomplete} span[aria-hidden="true"]`)).not.toBeNull();
+    await page.click('li[data-tone="click"] [aria-label="Expand before frame"]');
+    await page.click('li[data-tone="click"] [aria-label="Expand after frame"]');
+    expect(await page.$$('img[alt="After frame"]')).toHaveLength(1);
+    await page.click('li[data-tone="click"] [aria-label="Collapse after frame"]');
+    await page.click('li[data-tone="click"] [aria-label="Play video"]');
+    await page.waitForSelector('video[controls]');
+    await vi.waitFor(async () => expect(await page.$eval('video[controls]', (element) => (element as HTMLVideoElement).duration)).toBeGreaterThan(0), WAIT);
+    await page.click('li[data-tone="click"] [aria-label="Hide video"]');
+    expect(await page.$('video[controls]')).toBeNull();
     await vi.waitFor(async () => {
       const urls = await page.evaluate(() => window.mediaUrls);
       expect(urls.revoked).toEqual(urls.created);

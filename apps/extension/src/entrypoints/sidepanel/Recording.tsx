@@ -4,8 +4,8 @@ import type { JourneyEvent } from '../../lib/journey-events';
 import type { ActiveTabState } from '@openuji/fused';
 import { formatClock, shortUrl } from '../../lib/journey';
 import type { RecorderStatus } from '../../lib/protocol';
-import { Button } from '../../ui/Button';
-import { StatusBadge } from '../../ui/StatusBadge';
+import { Button } from '../../ui/Button/Button';
+import { StatusBadge } from '../../ui/StatusBadge/StatusBadge';
 import { Journey } from './Journey';
 
 /** What to say about the active tab when it is not being recorded. */
@@ -37,7 +37,7 @@ export function Recording({
         </StatusBadge>
         <ElapsedClock startedAtMs={status.startedAtMs} />
         <Button className="stop-button" size="small" disabled={stopping} onClick={onStop}>
-          <Square size={12} fill="currentColor" />
+          <Square fill="currentColor" />
           Stop
         </Button>
       </header>

@@ -146,10 +146,10 @@ describe('event-based panel', () => {
 
   it.each([recordingPanelState, donePanelState])('renders one message per event with generic interaction labels', (state) => {
     const html = renderToStaticMarkup(createElement(PanelView, { state, ...actions }));
-    expect(html.match(/class="timeline-row timeline-row--/g)).toHaveLength(6);
+    expect(html.match(/data-tone="(page|click|scroll|exit)"/g)).toHaveLength(6);
     expect(html).toContain('Page loaded');
     expect(html).toContain('Page changed');
-    expect(html.match(/class="timeline-row__label">Click/g)).toHaveLength(2);
+    expect(html.match(/>Click<\/span>/g)).toHaveLength(2);
     expect(html).toContain('Before');
     expect(html).toContain('After');
     expect(html).not.toContain('pre-click');

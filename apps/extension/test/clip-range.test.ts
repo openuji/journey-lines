@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { frameIndexAt, frameSeekTime, keyboardFrame, previewPlacement, rangeTimeAt } from '../src/ui/clip-range';
+import { frameIndexAt, frameSeekTime, keyboardFrame, previewPlacement, rangeTimeAt } from '../src/ui/ClipRange/clip-range';
 
 const trace = [{ frameIndex: 1, atMs: 0 }, { frameIndex: 2, atMs: 100 }, { frameIndex: 3, atMs: 600 }];
+const previewSize = { width: 224, height: 160, margin: 8 };
 
 describe('recorded frame selection', () => {
   it('selects the preceding recorded frame across uneven intervals', () => {
@@ -27,12 +28,12 @@ describe('recorded frame selection', () => {
 describe('floating preview placement', () => {
   it('uses available space above or below the range', () => {
     const viewport = { width: 360, height: 800 };
-    expect(previewPlacement({ left: 180, right: 180, top: 400, bottom: 404 }, viewport).top).toBe(232);
-    expect(previewPlacement({ left: 180, right: 180, top: 10, bottom: 14 }, viewport).top).toBe(22);
+    expect(previewPlacement({ left: 180, right: 180, top: 400, bottom: 404 }, viewport, previewSize).top).toBe(232);
+    expect(previewPlacement({ left: 180, right: 180, top: 10, bottom: 14 }, viewport, previewSize).top).toBe(22);
   });
   it.each([{ width: 320, height: 800 }, { width: 480, height: 800 }, { width: 180, height: 120 }])('keeps all edges inside the viewport %o', (viewport) => {
     for (const x of [0, viewport.width]) {
-      const placement = previewPlacement({ left: x, right: x, top: viewport.height - 10, bottom: viewport.height }, viewport);
+      const placement = previewPlacement({ left: x, right: x, top: viewport.height - 10, bottom: viewport.height }, viewport, previewSize);
       expect(placement.left).toBeGreaterThanOrEqual(8);
       expect(placement.top).toBeGreaterThanOrEqual(8);
       expect(placement.left + placement.width).toBeLessThanOrEqual(viewport.width - 8);

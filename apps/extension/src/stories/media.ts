@@ -1,4 +1,4 @@
-import type { GalleryFrame } from '../ui/FrameGallery';
+import type { GalleryFrame } from '../ui/FrameGallery/FrameGallery';
 import type { Clip } from '@openuji/core';
 import { storyCaptures } from './fixtures';
 import { storyReportWithClip } from './report-sessions';

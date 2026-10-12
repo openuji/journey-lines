@@ -1,0 +1,36 @@
+.ui-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1-5);
+  padding: var(--ds-space-half) var(--ds-space-2-5);
+  border: var(--ds-border-thin) solid var(--ds-color-line);
+  border-radius: var(--ds-radius-pill);
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-meta);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: var(--ds-tracking-badge);
+}
+
+.ui-status-badge--live {
+  border-color: var(--ds-status-live-border);
+  background: var(--ds-status-live-bg);
+  color: var(--ds-status-live-text);
+}
+
+.ui-status-badge__dot {
+  width: var(--ds-status-dot);
+  height: var(--ds-status-dot);
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ui-status-badge--live .ui-status-badge__dot {
+  animation: status-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+

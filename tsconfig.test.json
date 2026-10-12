@@ -37,6 +37,7 @@
   "include": [
     "packages/**/test/**/*.ts",
     "apps/**/test/**/*.ts",
+    "apps/extension/src/ui/**/*.d.ts",
     "test/**/*.ts",
     "vitest.config.ts",
     "workspace-aliases.ts",

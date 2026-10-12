@@ -1,9 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { JourneyEvent } from '../../lib/journey-events';
 import { EventRow } from './JourneyRow';
-
-/** How close to the bottom still counts as "following" the live journey. */
-const FOLLOW_SLACK_PX = 80;
+import { readSizeToken } from '../../ui/lib/read-size-token';
 
 export function Journey({
   events,
@@ -24,7 +22,7 @@ export function Journey({
     const element = list.current;
     if (!element) return;
     atBottom.current =
-      element.scrollHeight - element.scrollTop - element.clientHeight < FOLLOW_SLACK_PX;
+      element.scrollHeight - element.scrollTop - element.clientHeight < readSizeToken(element, '--ds-journey-follow-slack');
   };
 
   if (events.length === 0) {

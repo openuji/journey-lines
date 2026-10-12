@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { loadSettings, restoreDefaultSettings, saveSettings } from '../../lib/settings';
-import { Button } from '../../ui/Button';
+import { Button } from '../../ui/Button/Button';
 import '../../ui/styles.css';
 import './styles.css';
 

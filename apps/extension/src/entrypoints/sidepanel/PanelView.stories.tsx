@@ -2,7 +2,7 @@ import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { downloadReport } from '../../lib/report-download';
 import { storyReportWithClip } from '../../stories/report-sessions';
-import { Button } from '../../ui/Button';
+import { Button } from '../../ui/Button/Button';
 import { ReportView } from '../report/ReportView';
 import { PanelView } from './App';
 import {

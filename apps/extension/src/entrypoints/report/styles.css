@@ -3,17 +3,18 @@
   z-index: 5;
   top: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-4);
-  min-height: 64px;
-  padding: var(--ds-space-3) clamp(16px, 4vw, 40px);
+  min-height: var(--ds-report-bar-height);
+  padding: var(--ds-space-3) var(--ds-report-side-padding);
   border-bottom: var(--ds-border-thin) solid var(--ds-color-line);
   background: var(--ds-color-canvas);
 }
 
 .report-bar__brand {
   display: flex;
-  flex: 1;
+  flex: 1 1 var(--ds-report-brand-wrap-width);
   align-items: center;
   gap: var(--ds-space-2);
   min-width: 0;
@@ -24,6 +25,8 @@
 .report-bar__brand svg {
   flex: none;
   color: var(--ds-color-accent-text);
+  width: var(--ds-icon-report);
+  height: var(--ds-icon-report);
 }
 
 .report-bar__brand span {
@@ -40,9 +43,9 @@
 }
 
 .report-doc {
-  width: min(100%, 940px);
+  width: min(100%, var(--ds-report-max-width));
   margin: 0 auto;
-  padding: clamp(24px, 4vw, 48px) clamp(16px, 4vw, 40px) 120px;
+  padding: var(--ds-report-top-padding) var(--ds-report-side-padding) var(--ds-space-30);
   font-size: var(--ds-type-report-body);
 }
 
@@ -56,7 +59,7 @@
   margin: 0 0 var(--ds-space-2);
   font-size: var(--ds-type-report-title);
   line-height: var(--ds-leading-tight);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--ds-tracking-report-title);
   overflow-wrap: anywhere;
 }
 
@@ -65,7 +68,7 @@
   flex-wrap: wrap;
   gap: var(--ds-space-2);
   color: var(--ds-color-ink-soft);
-  font-size: 14px;
+  font-size: var(--ds-type-report-meta);
 }
 
 .report-timeline {
@@ -94,6 +97,8 @@
 .report-view svg {
   flex: none;
   color: var(--ds-color-accent-text);
+  width: var(--ds-icon-default);
+  height: var(--ds-icon-default);
 }
 
 .report-view__entry {
@@ -115,7 +120,7 @@
 }
 
 .report-time {
-  flex: 0 0 5ch;
+  flex: 0 0 var(--ds-timeline-time-width);
   color: var(--ds-color-ink-soft);
   font: var(--ds-type-label) var(--ds-font-mono);
   font-variant-numeric: tabular-nums;
@@ -123,7 +128,7 @@
 
 .report-tag {
   flex: none;
-  padding: 1px 6px;
+  padding: var(--ds-border-thin) var(--ds-space-1-5);
   border: var(--ds-border-thin) solid var(--ds-color-line);
   border-radius: var(--ds-radius-thumbnail);
   background: var(--ds-color-surface-inset);
@@ -176,18 +181,4 @@
   border: var(--ds-border-thin) solid var(--ds-color-line);
   border-radius: var(--ds-radius-card);
   background: #000;
-}
-
-@media (max-width: 620px) {
-  .report-bar {
-    flex-wrap: wrap;
-  }
-
-  .report-bar__brand {
-    flex-basis: 100%;
-  }
-
-  .report-bar__meta {
-    flex: 1;
-  }
 }

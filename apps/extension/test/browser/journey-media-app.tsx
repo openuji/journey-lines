@@ -5,7 +5,7 @@ import type { JourneyEvent } from '../../src/lib/journey-events';
 import { Journey } from '../../src/entrypoints/sidepanel/Journey';
 import { storyTransitionClip } from '../../src/stories/media';
 import { transitionFrames } from '../../src/stories/transition-fixture';
-import { Button } from '../../src/ui/Button';
+import { Button } from '../../src/ui/Button/Button';
 import '../../src/ui/styles.css';
 import '../../src/entrypoints/sidepanel/styles.css';
 
