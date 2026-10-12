@@ -1,13 +1,14 @@
 import type { Clip } from '@openuji/core';
 import { ClipPlaybackPanel } from '../ClipPlaybackPanel/ClipPlaybackPanel';
 import { ClipRange } from '../ClipRange/ClipRange';
-import { FrameGallery, type GalleryFrame } from '../FrameGallery/FrameGallery';
+import type { GalleryFrame } from '../FrameGallery/FrameGallery';
+import { FramePair } from '../FramePair/FramePair';
 import { PlaybackToggle } from '../PlaybackToggle/PlaybackToggle';
-import { usePlayback } from '../hooks/usePlayback';
-import styles from './TransitionMedia.module.css';
+import { usePlayback } from '../../hooks/usePlayback';
 
 export type TransitionMediaProps = Readonly<{
-  frames: readonly GalleryFrame[];
+  before: GalleryFrame;
+  after: GalleryFrame;
   clip?: Clip;
   className?: string;
   expandedClassName?: string;
@@ -15,21 +16,19 @@ export type TransitionMediaProps = Readonly<{
 }>;
 
 /** Compose the gallery, range and playback controls without event semantics. */
-export function TransitionMedia({ frames, clip, className, expandedClassName, videoClassName }: TransitionMediaProps) {
+export function TransitionMedia({ before, after, clip, className, expandedClassName, videoClassName }: TransitionMediaProps) {
   const { playing, controlsId, toggle } = usePlayback();
   return (
     <>
-      <FrameGallery
-        frames={frames}
+      <FramePair
+        before={before}
+        after={after}
         className={className}
         expandedClassName={expandedClassName}
-        separator={(
-          <div className={styles['transition-media__controls']}>
-            <ClipRange clip={clip} />
-            {clip && <PlaybackToggle playing={playing} controlsId={controlsId} onToggle={toggle} compact />}
-          </div>
-        )}
-      />
+      >
+        <ClipRange clip={clip} />
+        {clip && <PlaybackToggle playing={playing} controlsId={controlsId} onToggle={toggle} compact />}
+      </FramePair>
       {clip && playing && <ClipPlaybackPanel clip={clip} id={controlsId} className={videoClassName} />}
     </>
   );

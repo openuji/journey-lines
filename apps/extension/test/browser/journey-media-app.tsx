@@ -6,7 +6,7 @@ import { Journey } from '../../src/entrypoints/sidepanel/Journey';
 import { storyTransitionClip } from '../../src/stories/media';
 import { transitionFrames } from '../../src/stories/transition-fixture';
 import { Button } from '../../src/ui/Button/Button';
-import '../../src/ui/styles.css';
+import '../../src/styles/styles.css';
 import '../../src/entrypoints/sidepanel/styles.css';
 
 function frame(index: 0 | 2): CompositorFrame {

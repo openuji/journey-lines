@@ -1,5 +1,5 @@
 import type { Clip } from '@openuji/core';
-import { usePreviewVideo } from '../hooks/usePreviewVideo';
+import { usePreviewVideo } from '../../hooks/usePreviewVideo';
 import styles from './ClipFrameVideo.module.css';
 
 export function ClipFrameVideo({ clip, seconds }: Readonly<{ clip: Clip; seconds: number }>) {

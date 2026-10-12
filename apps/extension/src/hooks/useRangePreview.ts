@@ -1,6 +1,6 @@
 import { useCallback, useId, useRef, useState, type ChangeEvent, type KeyboardEvent, type PointerEvent } from 'react';
 import type { ClipTraceSample } from '@openuji/core';
-import { frameIndexAt, keyboardFrame, rangeTimeAt, type PreviewAnchor } from '../ClipRange/clip-range';
+import { frameIndexAt, keyboardFrame, rangeTimeAt, type PreviewAnchor } from '../ui/ClipRange/clip-range';
 import { readSizeToken } from '../lib/read-size-token';
 
 /** Local interaction state only; frame and geometry calculations remain pure. */

@@ -16,6 +16,7 @@ export type TimelineRowProps = Readonly<{
 
 /** Layout only: this component has no knowledge of captures or journey rules. */
 export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, clip }: TimelineRowProps) {
+  const [before, after] = frames;
   return (
     <li className={`${styles['timeline-row']} ${styles[`timeline-row--${tone}`] ?? ''}`} data-tone={tone}>
       <time className={styles['timeline-row__time']}>{time}</time>
@@ -24,9 +25,10 @@ export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, c
         <span className={styles['timeline-row__label']} data-event-title>{title}</span>
         {subtitle && <span className={styles['timeline-row__subtitle']} title={subtitle.title}>{subtitle.text}</span>}
       </div>
-      {frames.length > 1 ? (
+      {before && after ? (
         <TransitionMedia
-          frames={frames}
+          before={before}
+          after={after}
           clip={clip}
           className={styles['timeline-row__media']}
           expandedClassName={styles['timeline-row__frame']}

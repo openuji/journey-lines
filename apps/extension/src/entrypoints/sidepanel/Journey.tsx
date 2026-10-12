@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { JourneyEvent } from '../../lib/journey-events';
 import { EventRow } from './JourneyRow';
-import { readSizeToken } from '../../ui/lib/read-size-token';
+import { readSizeToken } from '../../lib/read-size-token';
 
 export function Journey({
   events,

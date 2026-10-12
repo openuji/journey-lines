@@ -9,7 +9,6 @@ const meta = {
   args: {
     src: storyGalleryFrames[0]!.src,
     label: 'Before',
-    caption: 'Before',
     expanded: false,
     controlsId: 'thumbnail-story-frame',
     onToggle: () => {},

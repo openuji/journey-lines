@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { Play } from 'lucide-react';
 import { Button } from '../Button/Button';
 import styles from './PlaybackToggle.module.css';
@@ -15,7 +16,11 @@ export function PlaybackToggle({ playing, controlsId, onToggle, compact = false,
   return (
     <Button
       size="small"
-      className={[styles['clip-playback__toggle'], compact && styles['clip-playback__toggle--compact'], className].filter(Boolean).join(' ')}
+      className={clsx(
+        styles['clip-playback__toggle'],
+        compact && styles['clip-playback__toggle--compact'],
+        className,
+      )}
       aria-label={label}
       aria-expanded={playing}
       aria-controls={controlsId}

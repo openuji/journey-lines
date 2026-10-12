@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { ClipFrameVideo } from '../ClipFrameVideo/ClipFrameVideo';
 import { FloatingPreview } from '../FloatingPreview/FloatingPreview';
 import { frameSeekTime, frameTimeLabel } from './clip-range';
-import { useRangePreview } from '../hooks/useRangePreview';
+import { useRangePreview } from '../../hooks/useRangePreview';
 import rangeStyles from './ClipRange.module.css';
 
 function RecordedRange({ clip }: Readonly<{ clip: Clip }>) {
@@ -13,6 +13,7 @@ function RecordedRange({ clip }: Readonly<{ clip: Clip }>) {
   };
   return (
     <div className={rangeStyles['clip-range']}>
+      <span className={rangeStyles['clip-range__duration']}>{frameTimeLabel(endMs)}</span>
       <input
         {...rangeProps}
         ref={rangeRef}
@@ -26,7 +27,7 @@ function RecordedRange({ clip }: Readonly<{ clip: Clip }>) {
         aria-valuetext={`Frame ${selected + 1} of ${clip.trace.length}, ${frameTimeLabel(atMs)}`}
         aria-describedby={anchor ? previewId : undefined}
       />
-      <span className={rangeStyles['clip-range__duration']}>{frameTimeLabel(endMs)}</span>
+      
       {anchor && (
         <FloatingPreview id={previewId} anchor={anchor} onDismiss={hide} caption={frameTimeLabel(atMs)}>
           <ClipFrameVideo clip={clip} seconds={frameSeekTime(clip.trace, selected)} />

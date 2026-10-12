@@ -1,6 +1,6 @@
 import type { Preview } from '@storybook/react-vite';
 import { useGlobals } from 'storybook/preview-api';
-import '../src/ui/styles.css';
+import '../src/styles/styles.css';
 import '../src/entrypoints/sidepanel/styles.css';
 import '../src/entrypoints/report/styles.css';
 import '../src/stories/storybook.css';

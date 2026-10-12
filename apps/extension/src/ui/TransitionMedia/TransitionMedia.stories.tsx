@@ -5,8 +5,14 @@ import { TransitionMedia } from './TransitionMedia';
 const meta = {
   title: 'Media/Transition',
   component: TransitionMedia,
-  decorators: [(Story) => <div className="story-surface"><div style={{ maxWidth: 440, marginTop: 200 }}><Story /></div></div>],
-  args: { frames: storyTransitionFrames, clip: storyTransitionClip },
+  decorators: [(Story) => (
+    <div className="story-surface">
+      <div style={{ maxWidth: 'var(--ds-story-journey-width)', marginTop: 'var(--ds-story-range-offset)' }}>
+        <Story />
+      </div>
+    </div>
+  )],
+  args: { before: storyTransitionFrames[0]!, after: storyTransitionFrames[1]!, clip: storyTransitionClip },
 } satisfies Meta<typeof TransitionMedia>;
 
 export default meta;
@@ -14,7 +20,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Recorded: Story = {};
 export const WithoutVideo: Story = { args: { clip: undefined } };
-export const MissingBefore: Story = { args: { frames: [{ ...storyTransitionFrames[0]!, src: undefined }, storyTransitionFrames[1]!] } };
+export const MissingBefore: Story = { args: { before: { ...storyTransitionFrames[0]!, src: undefined } } };
 export const ExpandedFrame: Story = {
   play: async ({ canvasElement }) => canvasElement.querySelector<HTMLButtonElement>('[aria-label="Expand before frame"]')?.click(),
 };

@@ -1,7 +1,7 @@
 import type { Clip } from '@openuji/core';
 import { ClipPlaybackPanel } from '../ClipPlaybackPanel/ClipPlaybackPanel';
 import { PlaybackToggle } from '../PlaybackToggle/PlaybackToggle';
-import { usePlayback } from '../hooks/usePlayback';
+import { usePlayback } from '../../hooks/usePlayback';
 
 export type ClipPlaybackProps = Readonly<{
   clip: Clip;
