@@ -1,7 +1,7 @@
 import type { Clip } from '@openuji/core';
 import { ClipPlaybackPanel } from '../ClipPlaybackPanel/ClipPlaybackPanel';
 import { PlaybackToggle } from '../PlaybackToggle/PlaybackToggle';
-import { usePlayback } from '../../hooks/usePlayback';
+import { useVideoDisclosure } from '../../hooks/useVideoDisclosure';
 
 export type ClipPlaybackProps = Readonly<{
   clip: Clip;
@@ -11,12 +11,12 @@ export type ClipPlaybackProps = Readonly<{
 
 /** Playback visibility belongs to the control, not the surrounding row. */
 export function ClipPlayback({ clip, className, videoClassName }: ClipPlaybackProps) {
-  const { playing, controlsId, toggle } = usePlayback();
+  const { open, controlsId, toggle } = useVideoDisclosure();
 
   return (
     <>
-      <PlaybackToggle playing={playing} controlsId={controlsId} onToggle={toggle} className={className} />
-      {playing && <ClipPlaybackPanel clip={clip} id={controlsId} className={videoClassName} />}
+      <PlaybackToggle open={open} controlsId={controlsId} onToggle={toggle} className={className} />
+      {open && <ClipPlaybackPanel clip={clip} id={controlsId} className={videoClassName} />}
     </>
   );
 }

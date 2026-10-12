@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { previewPlacement, type PreviewAnchor } from '../ClipRange/clip-range';
 import { readSizeToken } from '../../lib/read-size-token';
+import { previewPlacement, type PreviewAnchor } from './floating-preview';
 import styles from './FloatingPreview.module.css';
 
 export type FloatingPreviewProps = Readonly<{

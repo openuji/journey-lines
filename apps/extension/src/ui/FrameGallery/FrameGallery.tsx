@@ -39,7 +39,7 @@ export function FrameGallery({ frames, className, expandedClassName }: FrameGall
       {selected?.src && (
         <img
           id={previewId}
-          className={clsx('frame-gallery__expanded', expandedClassName)}
+          className={clsx(styles['frame-gallery__expanded'], expandedClassName)}
           src={selected.src}
           alt={`${selected.label} frame`}
         />

@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react';
+import clsx from 'clsx';
 import styles from './StatusBadge.module.css';
 
 export type StatusBadgeProps = Omit<HTMLAttributes<HTMLSpanElement>, 'children'> & {
@@ -17,9 +18,7 @@ export function StatusBadge({
   return (
     <span
       {...props}
-      className={[styles['ui-status-badge'], styles[`ui-status-badge--${tone}`], className]
-        .filter(Boolean)
-        .join(' ')}
+      className={clsx(styles['ui-status-badge'], styles[`ui-status-badge--${tone}`], className)}
     >
       {dot && <span className={styles['ui-status-badge__dot']} aria-hidden />}
       {children}

@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import type { Clip } from '@openuji/core';
+import clsx from 'clsx';
 import { FrameGallery, type GalleryFrame } from '../FrameGallery/FrameGallery';
 import { TransitionMedia } from '../TransitionMedia/TransitionMedia';
 import styles from './TimelineRow.module.css';
@@ -18,7 +19,7 @@ export type TimelineRowProps = Readonly<{
 export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, clip }: TimelineRowProps) {
   const [before, after] = frames;
   return (
-    <li className={`${styles['timeline-row']} ${styles[`timeline-row--${tone}`] ?? ''}`} data-tone={tone}>
+    <li className={clsx(styles['timeline-row'], styles[`timeline-row--${tone}`])} data-tone={tone}>
       <time className={styles['timeline-row__time']}>{time}</time>
       <Icon className={styles['timeline-row__icon']} strokeWidth={1.75} aria-hidden />
       <div className={styles['timeline-row__heading']}>

@@ -65,11 +65,7 @@
   --ds-panel-padding-inline: clamp(var(--ds-space-3), 4vw, var(--ds-space-4));
   --ds-panel-header-gap: clamp(var(--ds-space-2), 3vw, var(--ds-space-3));
   --ds-record-icon-height: 5px;
-  --ds-range-min-width: 32px;
-  --ds-range-hit-height: 24px;
-  --ds-range-track-height: 4px;
-  --ds-range-thumb-size: 10px;
-  --ds-range-connector-height: 2px;
+  --ds-filmstrip-min-width: 32px;
   --ds-preview-width: 224px;
   --ds-preview-height: 160px;
   --ds-preview-margin: 8px;
@@ -96,8 +92,8 @@
   --ds-story-journey-width: 440px;
   --ds-story-journey-height: 720px;
   --ds-story-preview-height: 140px;
-  --ds-story-range-width: 160px;
-  --ds-story-range-offset: 200px;
+  --ds-story-filmstrip-width: 160px;
+  --ds-story-preview-offset: 200px;
 
   --ds-border-thin: 1px;
   --ds-transition-fast: 120ms;

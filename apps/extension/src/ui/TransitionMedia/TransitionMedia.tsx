@@ -1,10 +1,13 @@
 import type { Clip } from '@openuji/core';
+import clsx from 'clsx';
+import { useVideoDisclosure } from '../../hooks/useVideoDisclosure';
+import { ClipFilmstrip } from '../ClipFilmstrip/ClipFilmstrip';
+import { clipDurationMs, frameTimeLabel } from '../ClipFilmstrip/clip-filmstrip';
 import { ClipPlaybackPanel } from '../ClipPlaybackPanel/ClipPlaybackPanel';
-import { ClipRange } from '../ClipRange/ClipRange';
 import type { GalleryFrame } from '../FrameGallery/FrameGallery';
 import { FramePair } from '../FramePair/FramePair';
 import { PlaybackToggle } from '../PlaybackToggle/PlaybackToggle';
-import { usePlayback } from '../../hooks/usePlayback';
+import styles from './TransitionMedia.module.css';
 
 export type TransitionMediaProps = Readonly<{
   before: GalleryFrame;
@@ -15,21 +18,26 @@ export type TransitionMediaProps = Readonly<{
   videoClassName?: string;
 }>;
 
-/** Compose the gallery, range and playback controls without event semantics. */
+/** Compose clip preview and playback without event semantics. */
 export function TransitionMedia({ before, after, clip, className, expandedClassName, videoClassName }: TransitionMediaProps) {
-  const { playing, controlsId, toggle } = usePlayback();
+  const { open, controlsId, toggle } = useVideoDisclosure();
+  const playableClip = clip && clip.trace.length > 0 ? clip : undefined;
   return (
-    <>
+    <div className={clsx(styles['transition-media'], className)}>
       <FramePair
         before={before}
         after={after}
-        className={className}
         expandedClassName={expandedClassName}
       >
-        <ClipRange clip={clip} />
-        {clip && <PlaybackToggle playing={playing} controlsId={controlsId} onToggle={toggle} compact />}
+        {playableClip && <ClipFilmstrip clip={playableClip} previewEnabled={!open} />}
       </FramePair>
-      {clip && playing && <ClipPlaybackPanel clip={clip} id={controlsId} className={videoClassName} />}
-    </>
+      {playableClip && (
+        <div className={styles['transition-media__controls']}>
+          <PlaybackToggle open={open} controlsId={controlsId} onToggle={toggle} compact />
+          <span className={styles['transition-media__duration']}>{frameTimeLabel(clipDurationMs(playableClip.trace))}</span>
+        </div>
+      )}
+      {playableClip && open && <ClipPlaybackPanel clip={playableClip} id={controlsId} className={videoClassName} />}
+    </div>
   );
 }

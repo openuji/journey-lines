@@ -1,18 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { decodeBase64, type Clip } from '@openuji/core';
 
 /** The only imperative adapter: the media element decodes and seeks frames. */
-export function usePreviewVideo(clip: Clip, seconds: number) {
+export function usePreviewVideo(source: string | null, seconds: number) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [src, setSrc] = useState<string | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-
-  useEffect(() => {
-    const url = URL.createObjectURL(new Blob([decodeBase64(clip.base64)], { type: clip.mimeType }));
-    setSrc(url);
-    setStatus('loading');
-    return () => URL.revokeObjectURL(url);
-  }, [clip]);
 
   const seekLatest = useCallback(() => {
     const video = videoRef.current;
@@ -33,7 +24,7 @@ export function usePreviewVideo(clip: Clip, seconds: number) {
   useEffect(() => {
     setStatus('loading');
     seekLatest();
-  }, [src, seekLatest]);
+  }, [source, seekLatest]);
 
-  return { videoRef, src, status, seekLatest, fail: () => setStatus('error') };
+  return { videoRef, status, seekLatest, fail: () => setStatus('error') };
 }

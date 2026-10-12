@@ -1,18 +1,18 @@
 import clsx from 'clsx';
-import { Play } from 'lucide-react';
+import { Play, X } from 'lucide-react';
 import { Button } from '../Button/Button';
 import styles from './PlaybackToggle.module.css';
 
 export type PlaybackToggleProps = Readonly<{
-  playing: boolean;
+  open: boolean;
   controlsId: string;
   onToggle: () => void;
   compact?: boolean;
   className?: string;
 }>;
 
-export function PlaybackToggle({ playing, controlsId, onToggle, compact = false, className }: PlaybackToggleProps) {
-  const label = playing ? 'Hide video' : 'Play video';
+export function PlaybackToggle({ open, controlsId, onToggle, compact = false, className }: PlaybackToggleProps) {
+  const label = open ? 'Hide video' : 'Play video';
   return (
     <Button
       size="small"
@@ -22,12 +22,12 @@ export function PlaybackToggle({ playing, controlsId, onToggle, compact = false,
         className,
       )}
       aria-label={label}
-      aria-expanded={playing}
+      aria-expanded={open}
       aria-controls={controlsId}
       title={label}
       onClick={onToggle}
     >
-      <Play aria-hidden />
+      {open ? <X aria-hidden /> : <Play aria-hidden />}
       {!compact && label}
     </Button>
   );

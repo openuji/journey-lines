@@ -12,7 +12,7 @@ export type FramePairProps = Readonly<{
   expandedClassName?: string;
 }>;
 
-/** A fixed before/controls/after layout with one expanded endpoint at a time. */
+/** A fixed before/transition/after layout with one expanded endpoint at a time. */
 export function FramePair({ before, after, children, className, expandedClassName }: FramePairProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const previewId = `frame-pair-${useId().replaceAll(':', '')}`;
@@ -34,7 +34,7 @@ export function FramePair({ before, after, children, className, expandedClassNam
         <span className={styles['frame-pair__before-label']}>{before.caption ?? before.label}</span>
         <span className={styles['frame-pair__after-label']}>{after.caption ?? after.label}</span>
         <div className={styles['frame-pair__before-frame']}>{thumbnail(before)}</div>
-        <div className={styles['frame-pair__controls']}>{children}</div>
+        <div className={styles['frame-pair__transition']}>{children}</div>
         <div className={styles['frame-pair__after-frame']}>{thumbnail(after)}</div>
       </div>
       {selected?.src && (

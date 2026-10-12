@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { storyTransitionClip, storyTransitionFrames } from '../../stories/media';
-import { ClipRange } from '../ClipRange/ClipRange';
+import { ClipFilmstrip } from '../ClipFilmstrip/ClipFilmstrip';
 import { FramePair } from './FramePair';
 
 const meta = {
@@ -10,7 +10,7 @@ const meta = {
   args: {
     before: storyTransitionFrames[0]!,
     after: storyTransitionFrames[1]!,
-    children: <ClipRange clip={storyTransitionClip} />,
+    children: <ClipFilmstrip clip={storyTransitionClip} previewEnabled />,
   },
 } satisfies Meta<typeof FramePair>;
 

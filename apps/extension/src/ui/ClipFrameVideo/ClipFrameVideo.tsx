@@ -1,15 +1,21 @@
-import type { Clip } from '@openuji/core';
+import clsx from 'clsx';
 import { usePreviewVideo } from '../../hooks/usePreviewVideo';
 import styles from './ClipFrameVideo.module.css';
 
-export function ClipFrameVideo({ clip, seconds }: Readonly<{ clip: Clip; seconds: number }>) {
-  const { videoRef, src, status, seekLatest, fail } = usePreviewVideo(clip, seconds);
+export type ClipFrameVideoProps = Readonly<{
+  source: string | null;
+  seconds: number;
+  announceStatus?: boolean;
+}>;
+
+export function ClipFrameVideo({ source, seconds, announceStatus = true }: ClipFrameVideoProps) {
+  const { videoRef, status, seekLatest, fail } = usePreviewVideo(source, seconds);
   return (
-    <div className={`${styles['clip-frame-video']} ${styles[`clip-frame-video--${status}`] ?? ''}`}>
-      {src && (
+    <div className={clsx(styles['clip-frame-video'], styles[`clip-frame-video--${status}`])}>
+      {source && (
         <video
           ref={videoRef}
-          src={src}
+          src={source}
           muted
           playsInline
           preload="auto"
@@ -20,7 +26,11 @@ export function ClipFrameVideo({ clip, seconds }: Readonly<{ clip: Clip; seconds
           aria-hidden
         />
       )}
-      {status !== 'ready' && <span role="status">{status === 'error' ? 'Frame unavailable' : 'Loading frame…'}</span>}
+      {status !== 'ready' && (
+        <span role={announceStatus ? 'status' : undefined} aria-hidden={!announceStatus || undefined}>
+          {status === 'error' ? 'Frame unavailable' : 'Loading frame…'}
+        </span>
+      )}
     </div>
   );
 }

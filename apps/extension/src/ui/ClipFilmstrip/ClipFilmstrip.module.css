@@ -1,0 +1,42 @@
+.clip-filmstrip {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  width: 100%;
+  height: var(--ds-thumbnail-height);
+  border: var(--ds-border-thin) solid var(--ds-color-line);
+  border-radius: var(--ds-radius-thumbnail);
+  overflow: hidden;
+  background: var(--ds-color-surface);
+}
+
+.clip-filmstrip__frame {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-inline-start: var(--ds-border-thin) solid var(--ds-color-line);
+  overflow: hidden;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.clip-filmstrip__frame:first-child {
+  border-inline-start: 0;
+}
+
+.clip-filmstrip__frame:hover:not(:disabled),
+.clip-filmstrip__frame:focus-visible {
+  outline: var(--ds-focus-width) solid var(--ds-color-accent-text);
+  outline-offset: calc(-1 * var(--ds-focus-width));
+}
+
+.clip-filmstrip__frame:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.clip-filmstrip__frame video {
+  object-fit: cover;
+}

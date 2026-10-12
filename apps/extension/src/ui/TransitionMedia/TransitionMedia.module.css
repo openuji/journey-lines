@@ -1,0 +1,20 @@
+.transition-media {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  min-width: 0;
+}
+
+.transition-media__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+}
+
+.transition-media__duration {
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

@@ -1,14 +1,9 @@
-import { useEffect, useState } from 'react';
-import { decodeBase64, type Clip } from '@openuji/core';
+import type { Clip } from '@openuji/core';
+import { useClipSource } from '../../hooks/useClipSource';
 
 /** A Blob URL exists only while its player is mounted. */
 export function ClipVideo({ clip, className, autoPlay = false }: { clip: Clip; className: string; autoPlay?: boolean }) {
-  const [src, setSrc] = useState<string | null>(null);
-  useEffect(() => {
-    const url = URL.createObjectURL(new Blob([decodeBase64(clip.base64)], { type: clip.mimeType }));
-    setSrc(url);
-    return () => URL.revokeObjectURL(url);
-  }, [clip]);
+  const source = useClipSource(clip);
 
-  return src && <video className={className} src={src} controls autoPlay={autoPlay} muted={autoPlay} playsInline preload="metadata" />;
+  return source && <video className={className} src={source} controls autoPlay={autoPlay} muted={autoPlay} playsInline preload="metadata" />;
 }

@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes } from 'react';
+import clsx from 'clsx';
 import styles from './Button.module.css';
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -13,14 +14,12 @@ export function Button({
   type = 'button',
   ...props
 }: ButtonProps) {
-  const classes = [
+  const classes = clsx(
     styles['ui-button'],
     styles[`ui-button--${variant}`],
     styles[`ui-button--${size}`],
     className,
-  ]
-    .filter(Boolean)
-    .join(' ');
+  );
 
   return <button {...props} className={classes} type={type} />;
 }
