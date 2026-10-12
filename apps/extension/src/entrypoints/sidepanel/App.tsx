@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { journeyEvents } from '../../lib/journey-events';
 import { initialPanelState, panelReducer } from '../../lib/panel-state';
 import { connectJourney, type JourneyPort } from '../../lib/port';
 import type { PanelMessage } from '../../lib/protocol';
@@ -40,6 +41,8 @@ export function PanelView({
   onDismissError: () => void;
 }) {
   const { connected, status, captures, error, clips } = state;
+  const startedAtMs = status.state === 'idle' ? 0 : status.startedAtMs;
+  const events = useMemo(() => journeyEvents(captures, startedAtMs, clips), [captures, startedAtMs, clips]);
 
   return (
     <main className="panel">
@@ -56,16 +59,14 @@ export function PanelView({
       {connected && (status.state === 'recording' || status.state === 'stopping') && (
         <Recording
           status={status}
-          captures={captures}
-          clips={clips}
+          events={events}
           onStop={onStop}
         />
       )}
       {connected && status.state === 'done' && (
         <Done
           status={status}
-          captures={captures}
-          clips={clips}
+          events={events}
           onReset={onReset}
           onOpenReport={onOpenReport}
         />

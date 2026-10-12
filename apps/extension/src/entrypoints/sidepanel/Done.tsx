@@ -1,4 +1,4 @@
-import type { Clip, MilestoneCapture } from '@openuji/core';
+import type { JourneyEvent } from '../../lib/journey-events';
 import { formatClock, shortUrl } from '../../lib/journey';
 import type { EndedBy, RecorderStatus } from '../../lib/protocol';
 import { Button } from '../../ui/Button';
@@ -14,18 +14,16 @@ const endedNote: Record<EndedBy, string | null> = {
 
 export function Done({
   status,
-  captures,
-  clips,
+  events,
   onReset,
   onOpenReport,
 }: {
   status: Finished;
-  captures: readonly MilestoneCapture[];
-  clips: readonly Clip[];
+  events: readonly JourneyEvent[];
   onReset: () => void;
   onOpenReport: (sessionId: string) => void;
 }) {
-  const views = new Set(captures.map((capture) => capture.viewId)).size;
+  const views = events.filter((event) => event.kind === 'page').length;
   const note = endedNote[status.endedBy];
 
   return (
@@ -52,8 +50,8 @@ export function Done({
           <dd>{views}</dd>
         </div>
         <div>
-          <dt>Captures</dt>
-          <dd>{captures.length}</dd>
+          <dt>Events</dt>
+          <dd>{events.length}</dd>
         </div>
         {status.droppedFrames > 0 && (
           <div>
@@ -65,7 +63,7 @@ export function Done({
 
       {note && <p className="note">{note}</p>}
 
-      <Journey captures={captures} clips={clips} startedAtMs={status.startedAtMs} />
+      <Journey events={events} />
     </>
   );
 }

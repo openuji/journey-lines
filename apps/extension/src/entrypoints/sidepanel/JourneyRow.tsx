@@ -1,94 +1,60 @@
-import { useId, useState } from 'react';
-import {
-  AppWindow,
-  ArrowDownUp,
-  Camera,
-  Globe,
-  LogOut,
-  MousePointerClick,
-  Play,
-  Route,
-  type LucideIcon,
-} from 'lucide-react';
-import type { Clip, MilestoneCapture, ViewEntry } from '@openuji/core';
-import { formatClock, frameSrc, shortUrl, type CaptureKind } from '../../lib/journey';
-import { ClipVideo } from '../../ui/ClipVideo';
+import { AppWindow, ArrowDownUp, Globe, LogOut, MousePointerClick, Route, Square, type LucideIcon } from 'lucide-react';
+import type { CompositorFrame, ViewEntry } from '@openuji/core';
+import { formatClock, shortUrl } from '../../lib/journey';
+import type { JourneyEvent } from '../../lib/journey-events';
+import type { GalleryFrame } from '../../ui/FrameGallery';
+import { TimelineRow } from '../../ui/TimelineRow';
 
-const captureIcon: Record<CaptureKind, LucideIcon> = {
-  view: Camera,
-  scroll: ArrowDownUp,
-  click: MousePointerClick,
-  leave: LogOut,
+type Presentation = Readonly<{ title: string; icon: LucideIcon }>;
+
+const pagePresentation: Readonly<Record<ViewEntry, Presentation>> = {
+  load: { title: 'Page loaded', icon: Globe },
+  route: { title: 'Page changed', icon: Route },
+  tab: { title: 'Switched tab', icon: AppWindow },
 };
 
-const entryIcon: Record<ViewEntry, LucideIcon> = {
-  load: Globe,
-  route: Route,
-  tab: AppWindow,
-};
-
-/** Where a view starts: a page load, an SPA route change, or another tab. */
-export function ViewRow({ entry, url }: { entry: ViewEntry; url: string }) {
-  const Icon = entryIcon[entry];
-  return (
-    <li className="view-row" title={url}>
-      <Icon className="view-row__mark" size={14} strokeWidth={1.75} aria-hidden />
-      <span className="view-row__url">{shortUrl(url)}</span>
-      <span className="view-row__entry">{entry}</span>
-    </li>
-  );
+function presentation(event: JourneyEvent): Presentation {
+  switch (event.kind) {
+    case 'page': return pagePresentation[event.entry];
+    case 'click': return { title: 'Click', icon: MousePointerClick };
+    case 'scroll': return { title: 'Scroll', icon: ArrowDownUp };
+    case 'exit': return event.reason === 'recording-ended'
+      ? { title: 'Recording ended', icon: Square } : { title: 'Left page', icon: LogOut };
+  }
 }
 
-/** One capture: when, what kind, what the rules called it, the frame itself, and its video if any. */
-export function CaptureRow({
-  capture,
-  captureKind,
-  atMs,
-  clip,
-}: {
-  capture: MilestoneCapture;
-  captureKind: CaptureKind;
-  atMs: number;
-  clip?: Clip | undefined;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [playing, setPlaying] = useState(false);
-  const Icon = captureIcon[captureKind];
-  const frameId = `capture-frame-${useId().replaceAll(':', '')}`;
+function galleryFrame(id: string, label: string, frame?: CompositorFrame, caption?: string): GalleryFrame {
+  return {
+    id, label, caption,
+    ...(frame ? { src: `data:image/png;base64,${frame.base64}` } : {}),
+  };
+}
 
+function media(event: JourneyEvent, title: string) {
+  if (event.kind === 'page' || event.kind === 'exit') {
+    return { frames: [galleryFrame('frame', title, event.frame)] };
+  }
+  return {
+    frames: [
+      galleryFrame('before', 'Before', event.before, 'Before'),
+      galleryFrame('after', 'After', event.after, 'After'),
+    ],
+    clip: event.clip,
+  };
+}
+
+/** Translate a normalized event into UI props; all controls live in ui/. */
+export function EventRow({ event }: { event: JourneyEvent }) {
+  const props = presentation(event);
+  const subtitle = event.kind === 'page'
+    ? { text: shortUrl(event.url), title: event.url } : undefined;
   return (
-    <li className={`capture-row capture-row--${captureKind}`}>
-      <span className="capture-row__time">{formatClock(atMs)}</span>
-      <Icon className="capture-row__icon" size={16} strokeWidth={1.75} />
-      <div className="capture-row__text">
-        <span className="capture-row__label">{capture.label}</span>
-        <span className="capture-row__detail">{capture.detail}</span>
-        {clip && (
-          <button className="capture-row__play" onClick={() => setPlaying(!playing)}>
-            <Play size={12} />
-            {playing ? 'Hide video' : 'Play video'}
-          </button>
-        )}
-      </div>
-      <button
-        className="capture-row__thumb"
-        aria-label={expanded ? 'Collapse frame' : 'Expand frame'}
-        aria-expanded={expanded}
-        aria-controls={frameId}
-        onClick={() => setExpanded(!expanded)}
-      >
-        <img src={frameSrc(capture)} alt="" loading="lazy" />
-      </button>
-      {expanded && (
-        <img
-          id={frameId}
-          className="capture-row__frame"
-          src={frameSrc(capture)}
-          alt={capture.label}
-          loading="lazy"
-        />
-      )}
-      {clip && playing && <ClipVideo clip={clip} className="capture-row__video" autoPlay />}
-    </li>
+    <TimelineRow
+      {...props}
+      {...media(event, props.title)}
+      time={formatClock(event.atMs)}
+      tone={event.kind}
+      subtitle={subtitle}
+    />
   );
 }
