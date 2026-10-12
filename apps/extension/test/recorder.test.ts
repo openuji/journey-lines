@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { recordActiveTab } from '@openuji/fused';
 import { createFakeTabHost, type FakeCdpTransport } from '@openuji/cdp/testing';
 import type { Clip, ClipWrite } from '@openuji/core';
 import type { ClipWorker } from '@openuji/clip-webm';
@@ -17,7 +18,7 @@ import {
 import type { OpenClips } from '../src/lib/clips';
 import { MemoryRecordingStore, type RecordingStore } from '../src/lib/recording-store';
 import type { TabSummary, WorkerMessage } from '../src/lib/protocol';
-import { Recorder, type DescribeTab } from '../src/lib/recorder';
+import { Recorder, type DescribeTab, type PrepareRecording } from '../src/lib/recorder';
 
 const TAB: TabSummary = { id: 7, windowId: 1, title: 'Example', url: 'https://example.com/' };
 const OTHER: TabSummary = { id: 8, windowId: 1, title: 'Other', url: 'https://example.com/other' };
@@ -55,7 +56,7 @@ function fakeClips() {
 }
 
 /** A window of tabs played by a fake host; `cdp()` is the recorded tab's transport. */
-function setup(options: { encoder?: boolean; describe?: DescribeTab; store?: RecordingStore } = {}) {
+function setup(options: { encoder?: boolean; describe?: DescribeTab; store?: RecordingStore; prepare?: PrepareRecording } = {}) {
   const host = createFakeTabHost<number>({ startAtMs: 1_000 });
   const windows: number[] = [];
   const messages: WorkerMessage[] = [];
@@ -70,6 +71,8 @@ function setup(options: { encoder?: boolean; describe?: DescribeTab; store?: Rec
     (message) => messages.push(message),
     options.encoder === false ? undefined : video.open,
     store,
+    undefined,
+    options.prepare,
   );
   const cdp = (tabId = TAB.id): FakeCdpTransport => host.session(tabId).cdp;
   return { host, windows, cdp, messages, recorder, clips: video.clips, store };
@@ -110,6 +113,38 @@ function firstFrame(cdp: FakeCdpTransport, loaderId = 'loader-a'): void {
 }
 
 describe('Recorder', () => {
+  it('snapshots settings before recording and keeps that snapshot for subsequent tab descriptions', async () => {
+    let alias = 'First profile';
+    let prepareCalls = 0;
+    const { host, cdp, recorder, store } = setup({ prepare: async (tab) => {
+      prepareCalls++;
+      const title = alias;
+      return { tab: { ...tab, title }, describeTab: async (id) => ({ ...OTHER, id, title }), recordUsing: recordActiveTab };
+    } });
+    await recorder.record(TAB);
+    firstFrame(cdp());
+    alias = 'Next profile';
+    await expect(recorder.record(TAB)).rejects.toThrow('Already recording');
+    expect(prepareCalls).toBe(1);
+    host.activate(OTHER.id); await settle();
+    expect(recorder.status).toMatchObject({ tab: { title: 'First profile' }, active: { tab: { title: 'First profile' } } });
+    await recorder.stop();
+    if (recorder.status.state === 'done') {
+      expect((await store.get(recorder.status.sessionId!))?.meta.tab.title).toBe('First profile');
+    }
+    await recorder.record(TAB);
+    expect(recorder.status).toMatchObject({ tab: { title: 'Next profile' } });
+    await recorder.stop();
+  });
+
+  it('does not attach or open the encoder when settings cannot be prepared', async () => {
+    const { recorder, windows, clips } = setup({ prepare: async () => { throw new Error('Invalid settings'); } });
+    await expect(recorder.record(TAB, { video: true })).rejects.toThrow('Invalid settings');
+    expect(windows).toEqual([]);
+    expect(clips.opened).toBe(0);
+    expect(recorder.status.state).toBe('idle');
+  });
+
   it('records the journey, then flushes the resting state and hands the tab back on stop', async () => {
     const { host, windows, cdp, messages, recorder } = setup();
 

@@ -1,0 +1,4 @@
+{
+  "extends": "../client/tsconfig.browser.json",
+  "include": ["src/browser/**/*.ts", "src/contract.ts", "src/constants.ts"]
+}

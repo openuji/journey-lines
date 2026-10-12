@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/cdp" },
+    { "path": "./packages/privacy" },
     { "path": "./packages/client/probe" },
     { "path": "./packages/engine" },
     { "path": "./packages/rules-document" },

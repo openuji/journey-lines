@@ -19,6 +19,7 @@
     "@openuji/core": "workspace:*",
     "@openuji/fused": "workspace:*",
     "@openuji/host-extension": "workspace:*",
+    "@openuji/privacy": "workspace:*",
     "@openuji/rules-document": "workspace:*",
     "@openuji/rules-interaction": "workspace:*",
     "lucide-react": "1.52.0",

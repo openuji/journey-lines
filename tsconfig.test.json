@@ -13,6 +13,7 @@
     "moduleResolution": "Bundler",
     "verbatimModuleSyntax": false,
     "paths": {
+      "@openuji/privacy": ["./packages/privacy/src/index.ts"],
       "@openuji/cdp": ["./packages/cdp/src/index.ts"],
       "@openuji/cdp/testing": ["./packages/cdp/src/testing.ts"],
       "@openuji/client-probe": ["./packages/client/probe/src/index.ts"],

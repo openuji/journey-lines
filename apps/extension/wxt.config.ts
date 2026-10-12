@@ -14,6 +14,10 @@ const chromeForTesting = await puppeteer.executablePath();
 // `entrypoints/offscreen/clip-worker.ts`).
 const LIBAV = fileURLToPath(new URL('../../packages/clip-webm/vendor/libav/', import.meta.url));
 const libavFiles = readdirSync(LIBAV).filter((file) => /\.(mjs|wasm)$/.test(file));
+const privacyDir = fileURLToPath(new URL('./privacy/', import.meta.url));
+const privacyFiles = readdirSync(privacyDir, { recursive: true }).filter(
+  (file): file is string => typeof file === 'string' && file.endsWith('.jsonld'),
+);
 
 export default defineConfig({
   srcDir: 'src',
@@ -35,8 +39,9 @@ export default defineConfig({
       128: 'icons/action-128.png',
     },
     // `debugger` records the tab; `tabs` reads its title and URL; `sidePanel`
-    // is where the journey shows; `offscreen` hosts the video encoder's worker.
-    permissions: ['sidePanel', 'debugger', 'tabs', 'offscreen'],
+    // is where the journey shows; `offscreen` hosts the video encoder's worker;
+    // `storage` persists settings overrides.
+    permissions: ['sidePanel', 'debugger', 'tabs', 'offscreen', 'storage'],
     // Chrome's default extension CSP forbids compiling WebAssembly, which the
     // video encoder is. WXT adds this only in dev, so it is set here for builds.
     content_security_policy: {
@@ -61,6 +66,13 @@ export default defineConfig({
 
   hooks: {
     'build:publicAssets': (_wxt, files) => {
+      files.push({
+        absoluteSrc: fileURLToPath(new URL('./settings.defaults.json', import.meta.url)),
+        relativeDest: 'settings.defaults.json',
+      });
+      for (const file of privacyFiles) {
+        files.push({ absoluteSrc: `${privacyDir}${file}`, relativeDest: `privacy/${file}` });
+      }
       for (const file of libavFiles) {
         files.push({ absoluteSrc: `${LIBAV}${file}`, relativeDest: `libav/${file}` });
       }

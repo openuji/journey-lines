@@ -3,7 +3,9 @@ import { installShutdown, runMain, targetUrlFromArgv } from '@openuji/cli-kit';
 import { StreamWatchSession } from './session.js';
 
 runMain(async () => {
-  const session = new StreamWatchSession({ url: targetUrlFromArgv() });
+  const session = new StreamWatchSession({
+    url: targetUrlFromArgv(), privacyProfilePath: process.env['UXR_PRIVACY_PROFILE'],
+  });
 
   await session.start();
 

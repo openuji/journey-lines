@@ -11,6 +11,7 @@
     { "path": "../../packages/engine" },
     { "path": "../../packages/fused" },
     { "path": "../../packages/host-puppeteer" },
+    { "path": "../../packages/privacy" },
     { "path": "../../packages/rules-document" },
     { "path": "../../packages/rules-interaction" },
     { "path": "../../packages/sinks" }

@@ -1,0 +1,23 @@
+.settings {
+  max-width: 40rem;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+}
+
+.settings label {
+  display: block;
+  margin-bottom: .5rem;
+  font-weight: 600;
+}
+
+.settings input {
+  width: 100%;
+  padding: .65rem;
+  font: inherit;
+}
+
+.settings-actions {
+  display: flex;
+  gap: .75rem;
+  margin-top: 1.5rem;
+}

@@ -4,6 +4,8 @@ import { chromeExecutableFromEnv, headlessFromEnv, videoFromEnv } from '@openuji
 import type { CaptureSink } from '@openuji/core';
 import type { MilestoneRule } from '@openuji/engine';
 import { recordActiveTab, type ActiveTabRecording } from '@openuji/fused';
+import type { createPrivacy } from '@openuji/privacy';
+import { loadRecordingPrivacy } from './settings.js';
 import {
   DEFAULT_VIEWPORT,
   launchPuppeteerBrowser,
@@ -34,6 +36,10 @@ export interface StreamWatchOptions {
    * sinks, which write it.
    */
   video?: boolean;
+  /** Selected by the application; otherwise loaded from settings defaults. */
+  privacy?: ReturnType<typeof createPrivacy>;
+  /** JSON-LD file path, overriding settings.defaults.json. */
+  privacyProfilePath?: string;
 }
 
 /**
@@ -48,6 +54,7 @@ export class StreamWatchSession {
   private isStopping = false;
 
   private sinks: readonly CaptureSink[] = [];
+  private readonly privacy: ReturnType<typeof createPrivacy>;
 
   public sessionDir = '';
   public ndjsonPath = '';
@@ -57,7 +64,9 @@ export class StreamWatchSession {
     return this.clipWorker !== null;
   }
 
-  constructor(private readonly options: StreamWatchOptions) {}
+  constructor(private readonly options: StreamWatchOptions) {
+    this.privacy = options.privacy ?? loadRecordingPrivacy(options.privacyProfilePath);
+  }
 
   public async start(): Promise<void> {
     const runId = new Date().toISOString().replace(/[:.]/g, '-');
@@ -86,17 +95,17 @@ export class StreamWatchSession {
     this.chrome = chrome;
 
     console.log('Initializing fused stream pipeline...');
-    this.recording = await recordActiveTab(chrome.tabs, chrome.firstTab, {
+    this.recording = await recordActiveTab(this.privacy.wrapHost(chrome.tabs), chrome.firstTab, {
       ...(this.options.rules ? { rules: this.options.rules } : {}),
-      sinks: this.sinks,
-      ...(this.clipWorker ? { clips: this.clipWorker.sink } : {}),
+      sinks: this.sinks.map((sink) => this.privacy.wrapCaptureSink(sink)),
+      ...(this.clipWorker ? { clips: this.privacy.wrapClipSink(this.clipWorker.sink) } : {}),
       screencast: { viewport: chrome.viewport },
     });
     this.recording.onStatus(({ active: { tab, state }, ended }) => {
-      if (!ended && state !== 'recording') console.log(`Active tab ${state}: ${chrome.tabs.urlOf(tab)}`);
+      if (!ended && state !== 'recording') console.log(`Active tab ${state}: ${this.privacy.sanitizeLocation({ url: chrome.tabs.urlOf(tab) }).url}`);
     });
 
-    console.log(`Navigating to ${this.options.url}...`);
+    console.log(`Navigating to ${this.privacy.sanitizeLocation({ url: this.options.url }).url}...`);
     await chrome.navigate(this.options.url);
   }
 
