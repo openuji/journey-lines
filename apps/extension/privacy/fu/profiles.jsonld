@@ -1,6 +1,6 @@
 {
   "@context": [
-    "https://ujg.specs.openuji.org/ed/ns/core.context.jsonld",
+    "https://ujg.specs.openuji.org/ed/ns/context.jsonld",
     "https://ujg.specs.openuji.org/ed/ns/surface.context.jsonld",
     "https://ujg.specs.openuji.org/ed/ns/l10n.context.jsonld",
     "https://ujg.specs.openuji.org/ed/ns/observability.context.jsonld"
@@ -10,419 +10,64 @@
   "extensions": {
     "org.openuji.privacy": {
       "id": "fu",
-      "version": "0.1.3-partial",
+      "version": "0.1.0-collected",
       "scopes": [
         {
-          "id": "booking",
-          "origin": "https://raumbuchung.ub.fu-berlin.de",
+          "id": "scope-1enzo9o",
+          "origin": "https://identity.fu-berlin.de",
           "path": {
-            "prefix": "/lernort"
+            "prefix": "/idp-fub/profile/SAML2/Redirect"
           }
         },
         {
-          "id": "booking.home",
-          "origin": "https://raumbuchung.ub.fu-berlin.de",
-          "path": {
-            "exact": "/index.php"
-          }
-        },
-        {
-          "id": "booking.root",
-          "origin": "https://raumbuchung.ub.fu-berlin.de",
-          "path": {
-            "exact": "/"
-          }
-        },
-        {
-          "id": "booking.entry",
-          "origin": "https://raumbuchung.ub.fu-berlin.de",
-          "path": {
-            "exact": "/lernort/view_entry.php"
-          }
-        },
-        {
-          "id": "education",
-          "origin": "https://veranstaltung.weiterbildung.fu-berlin.de",
-          "path": {
-            "prefix": "/"
-          }
-        },
-        {
-          "id": "education.profile",
-          "origin": "https://veranstaltung.weiterbildung.fu-berlin.de",
-          "path": {
-            "prefix": "/Kontakt"
-          }
-        },
-        {
-          "id": "myfu",
+          "id": "scope-xxo1vw",
           "origin": "https://my.fu-berlin.de",
           "path": {
             "prefix": "/"
-          }
-        },
-        {
-          "id": "identity",
-          "origin": "https://identity.fu-berlin.de",
-          "path": {
-            "prefix": "/idp-fub"
-          }
-        },
-        {
-          "id": "service",
-          "origin": "https://service.fu-berlin.de",
-          "path": {
-            "prefix": "/servity"
-          }
-        },
-        {
-          "id": "service.home",
-          "origin": "https://service.fu-berlin.de",
-          "path": {
-            "prefix": "/servity/home"
           }
         }
       ],
       "rules": [
         {
-          "id": "fu.booking.account",
+          "id": "fu.login-username",
           "scopeRefs": [
-            "booking",
-            "booking.home",
-            "booking.root"
+            "scope-1enzo9o"
           ],
-          "locatorRef": "urn:privacy:fu:booking.account",
-          "replacement": "Don Joe (donjoe)",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.booking.owner",
-          "scopeRefs": [
-            "booking.entry"
-          ],
-          "locatorRef": "urn:privacy:fu:booking.owner",
-          "replacement": "Don Joe (Privat)",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.booking.creator",
-          "scopeRefs": [
-            "booking.entry"
-          ],
-          "locatorRef": "urn:privacy:fu:booking.creator",
-          "replacement": "don.joe@example.invalid",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.booking.modifier",
-          "scopeRefs": [
-            "booking.entry"
-          ],
-          "locatorRef": "urn:privacy:fu:booking.modifier",
-          "replacement": "don.joe@example.invalid",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.education.profile",
-          "scopeRefs": [
-            "education.profile"
-          ],
-          "locatorRef": "urn:privacy:fu:education.profile",
-          "replacement": "Don Joe",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.education.initials",
-          "scopeRefs": [
-            "education"
-          ],
-          "locatorRef": "urn:privacy:fu:education.initials",
-          "replacement": "DJ",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.myfu.account",
-          "scopeRefs": [
-            "myfu"
-          ],
-          "locatorRef": "urn:privacy:fu:myfu.account",
-          "replacement": "Don Joe (donjoe)",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.identity.username",
-          "scopeRefs": [
-            "identity"
-          ],
-          "locatorRef": "urn:privacy:fu:identity.username",
+          "locatorRef": "urn:privacy:fu:login-username",
           "action": "mask-input"
         },
         {
-          "id": "fu.identity.password",
+          "id": "fu.a",
           "scopeRefs": [
-            "identity"
+            "scope-xxo1vw"
           ],
-          "locatorRef": "urn:privacy:fu:identity.password",
-          "action": "mask-input"
-        },
-        {
-          "id": "fu.identity.message",
-          "scopeRefs": [
-            "identity"
-          ],
-          "locatorRef": "urn:privacy:fu:identity.message",
-          "replacement": "Don Joe",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.service.account",
-          "scopeRefs": [
-            "service"
-          ],
-          "locatorRef": "urn:privacy:fu:service.account",
-          "replacement": "Don Joe",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.service.initials",
-          "scopeRefs": [
-            "service"
-          ],
-          "locatorRef": "urn:privacy:fu:service.initials",
-          "replacement": "DJ",
-          "text": {
-            "kind": "leaf"
-          }
-        },
-        {
-          "id": "fu.service.welcome",
-          "scopeRefs": [
-            "service.home"
-          ],
-          "locatorRef": "urn:privacy:fu:service.welcome",
-          "replacement": "Hallo Don Joe, herzlich willkommen!",
+          "locatorRef": "urn:privacy:fu:a",
+          "action": "replace-text",
+          "replacement": "Max Mustermann (max-muster)",
           "text": {
             "kind": "leaf"
           }
         }
       ],
-      "metadata": [
-        {
-          "id": "fu.education.profile-url",
-          "scopeRefs": [
-            "education"
-          ],
-          "fields": [
-            "url",
-            "link"
-          ],
-          "pattern": "(/Kontakt/)[^/?#]+\\.html",
-          "replacement": "$1donjoe.html"
-        },
-        {
-          "id": "fu.service.home-url",
-          "scopeRefs": [
-            "service"
-          ],
-          "fields": [
-            "url",
-            "link"
-          ],
-          "pattern": "(/servity/home/)[^/?#]+",
-          "replacement": "$1donjoe"
-        },
-        {
-          "id": "fu.identity.session",
-          "scopeRefs": [
-            "booking",
-            "booking.home",
-            "booking.root",
-            "education",
-            "myfu",
-            "identity",
-            "service"
-          ],
-          "fields": [
-            "url",
-            "link",
-            "title",
-            "text",
-            "identifier"
-          ],
-          "pattern": "((?:^|[;?&\\s])(?:__Host-)?JSESSIONID=)[^/?#;&\\s\"'<>]*",
-          "flags": "gi",
-          "replacement": "$1private"
-        },
-        {
-          "id": "fu.identity.flow",
-          "scopeRefs": [
-            "booking",
-            "booking.home",
-            "booking.root",
-            "education",
-            "myfu",
-            "identity",
-            "service"
-          ],
-          "fields": [
-            "url",
-            "link",
-            "title",
-            "text",
-            "identifier"
-          ],
-          "pattern": "((?:^|[?&;\\s])execution=)[^/?#;&\\s\"'<>]*",
-          "flags": "gi",
-          "replacement": "$1private"
-        },
-        {
-          "id": "fu.booking.entry-id",
-          "scopeRefs": [
-            "booking"
-          ],
-          "fields": [
-            "url",
-            "link"
-          ],
-          "pattern": "([?&]id=)[^&#]*",
-          "replacement": "$1private"
-        }
-      ]
+      "metadata": []
     }
   },
   "nodes": [
     {
-      "@id": "urn:privacy:fu:booking.account",
+      "@id": "urn:privacy:fu:login-username",
       "@type": "CustomLocator",
       "extensions": {
         "org.openuji.privacy.css": {
-          "selector": "header.banner .d-flex > p.pb-0.pr-2.h6.align-self-center.font-weight-bold"
+          "selector": "#username"
         }
       }
     },
     {
-      "@id": "urn:privacy:fu:booking.owner",
+      "@id": "urn:privacy:fu:a",
       "@type": "CustomLocator",
       "extensions": {
         "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:booking.creator",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:booking.modifier",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:education.profile",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:education.initials",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:myfu.account",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:identity.username",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": "form[name=\"login\"] input#username[name=\"j_username\"]"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:identity.password",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:identity.message",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:service.account",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:service.initials",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
-        }
-      }
-    },
-    {
-      "@id": "urn:privacy:fu:service.welcome",
-      "@type": "CustomLocator",
-      "extensions": {
-        "org.openuji.privacy.css": {
-          "selector": ":not(*)"
+          "selector": "div.myfu-user > a"
         }
       }
     }
