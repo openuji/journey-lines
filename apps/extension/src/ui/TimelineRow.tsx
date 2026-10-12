@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import type { Clip } from '@openuji/core';
-import { ClipPlayback } from './ClipPlayback';
 import { FrameGallery, type GalleryFrame } from './FrameGallery';
+import { TransitionMedia } from './TransitionMedia';
 
 export type TimelineRowProps = Readonly<{
   time: string;
@@ -23,8 +23,15 @@ export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, c
         <span className="timeline-row__label">{title}</span>
         {subtitle && <span className="timeline-row__subtitle" title={subtitle.title}>{subtitle.text}</span>}
       </div>
-      <FrameGallery frames={frames} className="timeline-row__media" expandedClassName="timeline-row__frame" />
-      {clip && <ClipPlayback clip={clip} className="timeline-row__play" videoClassName="timeline-row__video" />}
+      {frames.length > 1 ? (
+        <TransitionMedia
+          frames={frames}
+          clip={clip}
+          className="timeline-row__media timeline-row__media--transition"
+          expandedClassName="timeline-row__frame"
+          videoClassName="timeline-row__video"
+        />
+      ) : <FrameGallery frames={frames} className="timeline-row__media" expandedClassName="timeline-row__frame" />}
     </li>
   );
 }

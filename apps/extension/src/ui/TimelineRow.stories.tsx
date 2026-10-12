@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AppWindow, ArrowDownUp, Globe, LogOut, MousePointerClick, Route, Square } from 'lucide-react';
-import { storyClip, storyGalleryFrames } from '../stories/media';
+import { storyClip, storyGalleryFrames, storyTransitionClip, storyTransitionFrames } from '../stories/media';
 import { TimelineRow } from './TimelineRow';
 
 const meta = {
@@ -15,6 +15,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Click: Story = {};
+export const ClickWithVideo: Story = { args: { frames: storyTransitionFrames, clip: storyTransitionClip } };
 export const Scroll: Story = { args: { title: 'Scroll', icon: ArrowDownUp, tone: 'scroll', clip: storyClip } };
 export const PageLoaded: Story = {
   args: {

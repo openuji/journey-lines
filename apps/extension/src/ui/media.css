@@ -13,6 +13,23 @@
   gap: var(--ds-space-1);
 }
 
+.frame-gallery__items--connected {
+  flex-wrap: nowrap;
+  gap: var(--ds-space-2);
+}
+
+.frame-gallery__separator {
+  flex: 1;
+  min-width: 32px;
+}
+
+.transition-media__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  width: 100%;
+}
+
 .frame-thumbnail__caption {
   color: var(--ds-color-ink-soft);
   font-size: var(--ds-type-meta);
@@ -65,6 +82,14 @@
   background: transparent;
   color: var(--ds-color-accent-text);
   font-size: var(--ds-type-meta);
+}
+
+.clip-playback__toggle--compact {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  justify-content: center;
 }
 
 @media (max-width: 340px) {

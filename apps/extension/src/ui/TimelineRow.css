@@ -41,13 +41,12 @@
   font-size: var(--ds-type-meta);
 }
 
-.timeline-row__media,
-.timeline-row__play {
-  grid-column: 3;
+.timeline-row__media {
+  grid-column: 1 / -1;
 }
 
-.timeline-row__play {
-  justify-self: start;
+.timeline-row__media--transition {
+  grid-column: 1 / -1;
 }
 
 .timeline-row__frame,

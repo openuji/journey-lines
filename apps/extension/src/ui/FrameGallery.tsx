@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { Fragment, useId, useState, type ReactNode } from 'react';
 import { FrameThumbnail } from './FrameThumbnail';
 
 export type GalleryFrame = Readonly<{
@@ -12,25 +12,28 @@ export type FrameGalleryProps = Readonly<{
   frames: readonly GalleryFrame[];
   className?: string;
   expandedClassName?: string;
+  separator?: ReactNode;
 }>;
 
 /** A gallery owns exactly one selected screenshot, independent of its host. */
-export function FrameGallery({ frames, className, expandedClassName }: FrameGalleryProps) {
+export function FrameGallery({ frames, className, expandedClassName, separator }: FrameGalleryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const previewId = `frame-gallery-${useId().replaceAll(':', '')}`;
   const selected = frames.find((frame) => frame.id === selectedId);
 
   return (
     <>
-      <div className={['frame-gallery__items', className].filter(Boolean).join(' ')}>
-        {frames.map(({ id, ...frame }) => (
-          <FrameThumbnail
-            key={id}
-            {...frame}
-            expanded={selectedId === id}
-            controlsId={previewId}
-            onToggle={() => setSelectedId((current) => current === id ? null : id)}
-          />
+      <div className={['frame-gallery__items', separator && 'frame-gallery__items--connected', className].filter(Boolean).join(' ')}>
+        {frames.map(({ id, ...frame }, index) => (
+          <Fragment key={id}>
+            <FrameThumbnail
+              {...frame}
+              expanded={selectedId === id}
+              controlsId={previewId}
+              onToggle={() => setSelectedId((current) => current === id ? null : id)}
+            />
+            {index < frames.length - 1 && separator && <div className="frame-gallery__separator">{separator}</div>}
+          </Fragment>
         ))}
       </div>
       {selected?.src && (

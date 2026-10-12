@@ -1,8 +1,7 @@
-import { useId, useState } from 'react';
-import { Play } from 'lucide-react';
 import type { Clip } from '@openuji/core';
-import { Button } from './Button';
-import { ClipVideo } from './ClipVideo';
+import { ClipPlaybackPanel } from './ClipPlaybackPanel';
+import { PlaybackToggle } from './PlaybackToggle';
+import { usePlayback } from './usePlayback';
 
 export type ClipPlaybackProps = Readonly<{
   clip: Clip;
@@ -12,26 +11,12 @@ export type ClipPlaybackProps = Readonly<{
 
 /** Playback visibility belongs to the control, not the surrounding row. */
 export function ClipPlayback({ clip, className, videoClassName }: ClipPlaybackProps) {
-  const [playing, setPlaying] = useState(false);
-  const videoId = `clip-playback-${useId().replaceAll(':', '')}`;
+  const { playing, controlsId, toggle } = usePlayback();
 
   return (
     <>
-      <Button
-        size="small"
-        className={['clip-playback__toggle', className].filter(Boolean).join(' ')}
-        aria-expanded={playing}
-        aria-controls={videoId}
-        onClick={() => setPlaying((current) => !current)}
-      >
-        <Play size={12} aria-hidden />
-        {playing ? 'Hide video' : 'Play video'}
-      </Button>
-      {playing && (
-        <div id={videoId} className={['clip-playback__video', videoClassName].filter(Boolean).join(' ')}>
-          <ClipVideo clip={clip} className="clip-playback__player" autoPlay />
-        </div>
-      )}
+      <PlaybackToggle playing={playing} controlsId={controlsId} onToggle={toggle} className={className} />
+      {playing && <ClipPlaybackPanel clip={clip} id={controlsId} className={videoClassName} />}
     </>
   );
 }
