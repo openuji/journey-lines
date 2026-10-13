@@ -1,0 +1,13 @@
+---
+import { getCollection } from 'astro:content';
+import { JourneyList } from '@openuji/design-system';
+import Page from '../layouts/Page.astro';
+import { journeyHref, newestFirst } from '../lib/journey-store';
+
+const journeys = (await getCollection('journeys')).map(({ data }) => data).sort(newestFirst);
+const href = (id: string) => journeyHref(import.meta.env.BASE_URL, id);
+---
+
+<Page title="Journeys">
+  <JourneyList journeys={journeys} href={href} />
+</Page>

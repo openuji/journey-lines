@@ -1,0 +1,20 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getCollection } from 'astro:content';
+import { JourneyReport } from '../../components/JourneyReport';
+import Page from '../../layouts/Page.astro';
+import { ARCHIVE_FILE, journeyHref } from '../../lib/journey-store';
+
+export const getStaticPaths = (async () => (await getCollection('journeys')).map(({ data }) => ({
+  params: { id: data.id },
+  props: { title: data.title },
+}))) satisfies GetStaticPaths;
+
+const { id } = Astro.params;
+const { title } = Astro.props;
+const base = import.meta.env.BASE_URL;
+---
+
+<Page title={`${title} — Journeys`}>
+  <JourneyReport client:load src={`${journeyHref(base, id)}${ARCHIVE_FILE}`} back={{ href: base, label: 'Journeys' }} />
+</Page>

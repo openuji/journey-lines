@@ -4,7 +4,7 @@
  * in the site's public files, so a journey's folder is also its address.
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   journeyEntry,
@@ -17,7 +17,8 @@ import {
 /** Relative to the app's root. */
 export const STORE_DIR = 'public/journeys';
 export const ARCHIVE_FILE = 'report.zip';
-const ENTRY_FILE = 'entry.json';
+/** Written last, and whole: once it is there, so is the journey. */
+export const ENTRY_FILE = 'entry.json';
 
 /** An id becomes a folder name, and it comes from someone's file. */
 const SAFE_ID = /^[\w-]+$/;
@@ -42,8 +43,15 @@ export function addJourney(root: string, archive: Uint8Array): { entry: JourneyE
   const updated = existsSync(dir);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, ARCHIVE_FILE), archive);
-  writeFileSync(join(dir, ENTRY_FILE), `${JSON.stringify(entry, null, 2)}\n`);
+  // A rename appears at once, so a watcher never reads half an entry.
+  writeFileSync(join(dir, `${ENTRY_FILE}.tmp`), `${JSON.stringify(entry, null, 2)}\n`);
+  renameSync(join(dir, `${ENTRY_FILE}.tmp`), join(dir, ENTRY_FILE));
   return { entry, updated };
+}
+
+/** The order journeys are listed in: newest first. */
+export function newestFirst(a: JourneyEntry, b: JourneyEntry): number {
+  return b.startedAtMs - a.startedAtMs;
 }
 
 /** Every filed journey, newest first. */
@@ -52,7 +60,7 @@ export function readEntries(root: string): JourneyEntry[] {
   return readdirSync(root, { withFileTypes: true })
     .filter((item) => item.isDirectory())
     .map((item) => readEntry(join(root, item.name, ENTRY_FILE)))
-    .sort((a, b) => b.startedAtMs - a.startedAtMs);
+    .sort(newestFirst);
 }
 
 function readEntry(path: string): JourneyEntry {
