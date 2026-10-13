@@ -1,19 +1,17 @@
-import type { Clip } from '@openuji/core';
-import { useClipSource } from '../../hooks/useClipSource';
 import { useFilmstripPreview } from '../../hooks/useFilmstripPreview';
+import type { PlayableClip } from '../../lib/playable-clip';
 import { ClipFrameVideo } from '../ClipFrameVideo/ClipFrameVideo';
 import { FloatingPreview } from '../FloatingPreview/FloatingPreview';
 import { frameSeekTime, frameTimeLabel, sampledFrames } from './clip-filmstrip';
 import styles from './ClipFilmstrip.module.css';
 
 export type ClipFilmstripProps = Readonly<{
-  clip: Clip;
+  clip: PlayableClip;
   previewEnabled: boolean;
 }>;
 
 /** A bounded visual summary of a clip; it never represents playback progress. */
 export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
-  const source = useClipSource(clip);
   const frames = sampledFrames(clip.trace);
   const { active, previewId, hide, show, onKeyDown, setFrameRef } = useFilmstripPreview(previewEnabled, frames.length);
   const previewedFrame = active ? frames[active.index] : undefined;
@@ -40,7 +38,7 @@ export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
             onBlur={hide}
             onKeyDown={(event) => onKeyDown(event, index)}
           >
-            <ClipFrameVideo source={source} seconds={frameSeekTime(clip.trace, traceIndex)} announceStatus={false} />
+            <ClipFrameVideo source={clip.src} seconds={frameSeekTime(clip.trace, traceIndex)} announceStatus={false} />
           </button>
         ))}
       </div>
@@ -51,7 +49,7 @@ export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
           onDismiss={hide}
           caption={frameTimeLabel(previewedFrame.sample.atMs)}
         >
-          <ClipFrameVideo source={source} seconds={frameSeekTime(clip.trace, previewedFrame.traceIndex)} />
+          <ClipFrameVideo source={clip.src} seconds={frameSeekTime(clip.trace, previewedFrame.traceIndex)} />
         </FloatingPreview>
       )}
     </>

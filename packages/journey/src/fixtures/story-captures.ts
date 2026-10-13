@@ -60,21 +60,29 @@ export const storyCaptures: readonly MilestoneCapture[] = [
   capture({ index: 9, viewId: 2, label: '11-post-click-01', detail: 'Compositor response after clicking <article>' }),
 ];
 
-export const longStoryCaptures: readonly MilestoneCapture[] = Array.from({ length: 28 }, (_, i) => {
-  const index = i + 1;
-  const viewId = Math.floor(i / 7) + 1;
-  const event = i % 4;
-  const labels = [
-    '00-first',
-    `10-pre-click-${String(index).padStart(2, '0')}`,
-    `11-post-click-${String(index).padStart(2, '0')}`,
-    `04-post-scroll-${String(index).padStart(2, '0')}`,
+/** An interaction's two captures share its episode number, as the recorder files them. */
+const longEpisodes = [
+  { pre: '10-pre-click', post: '11-post-click' },
+  { pre: '03-pre-scroll', post: '04-post-scroll' },
+  { pre: '10-pre-click', post: '11-post-click' },
+  { pre: '03-pre-scroll', post: '04-post-scroll' },
+  { pre: '10-pre-click', post: '11-post-click' },
+] as const;
+
+/** Four views, each a page load and five complete interactions: 24 events over 44 captures. */
+export const longStoryCaptures: readonly MilestoneCapture[] = [1, 2, 3, 4].flatMap((viewId) => {
+  const url = `https://journey-lines.example/research/view-${viewId}`;
+  const first = (viewId - 1) * 11 + 1;
+  const detail = (index: number) => `Synthetic journey capture ${index} for responsive and scrolling review`;
+  return [
+    capture({ index: first, viewId, label: '00-first', detail: detail(first), url }),
+    ...longEpisodes.flatMap(({ pre, post }, at) => {
+      const episode = String(at + 1).padStart(2, '0');
+      const index = first + 1 + at * 2;
+      return [
+        capture({ index, viewId, label: `${pre}-${episode}`, detail: detail(index), url }),
+        capture({ index: index + 1, viewId, label: `${post}-${episode}`, detail: detail(index + 1), url }),
+      ];
+    }),
   ];
-  return capture({
-    index,
-    viewId,
-    label: labels[event] ?? '00-first',
-    detail: `Synthetic journey capture ${index} for responsive and scrolling review`,
-    url: `https://journey-lines.example/research/view-${viewId}`,
-  });
 });

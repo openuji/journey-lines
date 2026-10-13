@@ -4,17 +4,17 @@ import { defineCollection } from 'astro:content';
 import type { Loader } from 'astro/loaders';
 import { z } from 'astro/zod';
 import type { JourneyEntry } from '@openuji/journey';
-import { ENTRY_FILE, readEntries, STORE_DIR } from './lib/journey-store';
+import { ENTRY_FILE, readEntries, STORE } from './lib/journey-store';
 
 /**
- * The journey store as an Astro collection. While `astro dev` runs, a new or
+ * The store's published journeys as an Astro collection. While `astro dev` runs, a new or
  * changed entry re-reads the store, which is what lets Astro list it and
  * build its page without a restart.
  */
 const journeyStore: Loader = {
   name: 'journey-store',
   load: async ({ config, store, logger, watcher }) => {
-    const root = fileURLToPath(new URL(`${STORE_DIR}/`, config.root));
+    const root = fileURLToPath(new URL(`${STORE.published}/`, config.root));
     const sync = () => {
       const entries = readEntries(root);
       store.clear();

@@ -1,6 +1,6 @@
-import type { Clip } from '@openuji/core';
 import clsx from 'clsx';
 import { useVideoDisclosure } from '../../hooks/useVideoDisclosure';
+import type { PlayableClip } from '../../lib/playable-clip';
 import { ClipFilmstrip } from '../ClipFilmstrip/ClipFilmstrip';
 import { clipDurationMs, frameTimeLabel } from '../ClipFilmstrip/clip-filmstrip';
 import { ClipPlaybackPanel } from '../ClipPlaybackPanel/ClipPlaybackPanel';
@@ -12,7 +12,7 @@ import styles from './TransitionMedia.module.css';
 export type TransitionMediaProps = Readonly<{
   before: GalleryFrame;
   after: GalleryFrame;
-  clip?: Clip;
+  clip?: PlayableClip;
   className?: string;
   expandedClassName?: string;
   videoClassName?: string;

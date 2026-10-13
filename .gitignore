@@ -20,6 +20,7 @@ packages/design-system/storybook-static
 # journeys app: Astro output and generated types; imported journeys hold real browsing
 apps/journeys/.astro
 apps/journeys/public/journeys
+apps/journeys/archive
 apps/privacy-collector/.output
 apps/privacy-collector/.wxt
 

@@ -14,6 +14,21 @@ import type { ReportTemplate } from './report-template.js';
 
 export type ArchiveEntry = Readonly<{ name: string; bytes: Uint8Array<ArrayBuffer> }>;
 
+/** The archive file that holds a capture's picture. */
+export function captureFile(capture: MilestoneCapture): string {
+  return artifactFileName(capture, 'png');
+}
+
+/** The archive file that holds a clip's video. */
+export function clipFile(clip: Clip): string {
+  return artifactFileName(clip, 'webm');
+}
+
+/** The archive file that holds a recording item's media. */
+export function itemFile(item: RecordingItem): string {
+  return item.kind === 'capture' ? captureFile(item.capture) : clipFile(item.clip);
+}
+
 /** Exactly the CLI's artifacts, with paths relative to the archive root. */
 export function recordingArtifacts(items: readonly RecordingItem[]): ArchiveEntry[] {
   const encoder = new TextEncoder();
@@ -22,12 +37,11 @@ export function recordingArtifacts(items: readonly RecordingItem[]): ArchiveEntr
 
   items.forEach((item, index) => {
     const sequence = index + 1;
+    const name = itemFile(item);
     if (item.kind === 'capture') {
-      const name = artifactFileName(item.capture, 'png');
       lines.push(JSON.stringify(captureLogRecord(item.capture, sequence, name, item.epochMs)));
       media.push({ name, bytes: decodeBase64(item.capture.frame.base64) });
     } else {
-      const name = artifactFileName(item.clip, 'webm');
       lines.push(JSON.stringify(clipLogRecord(item.clip, sequence, name, item.epochMs)));
       media.push({ name, bytes: decodeBase64(item.clip.base64) });
     }
@@ -62,10 +76,10 @@ type FiledReport = Omit<ReportExport, 'recording'> & {
 function filed(item: RecordingItem): FiledItem {
   if (item.kind === 'capture') {
     const { base64: _, ...frame } = item.capture.frame;
-    return { kind: 'capture', epochMs: item.epochMs, file: artifactFileName(item.capture, 'png'), capture: { ...item.capture, frame } };
+    return { kind: 'capture', epochMs: item.epochMs, file: itemFile(item), capture: { ...item.capture, frame } };
   }
   const { base64: _, ...clip } = item.clip;
-  return { kind: 'clip', epochMs: item.epochMs, file: artifactFileName(item.clip, 'webm'), clip };
+  return { kind: 'clip', epochMs: item.epochMs, file: itemFile(item), clip };
 }
 
 /** The CLI's artifacts, plus `report.json`, which names the same media files. */

@@ -58,20 +58,23 @@ export function isShown(text: string | undefined, mode: ReportMode): boolean {
   return mode === 'edit' || (text ?? '').trim() !== '';
 }
 
-export type OutlineStep = Readonly<{ event: JourneyEvent; hidden: boolean; note: string }>;
+/** Anything a step can be: the outline reads only its key. */
+type Keyed = Readonly<{ key: string }>;
 
-export type OutlinePhase = Readonly<{
+export type OutlineStep<E extends Keyed = JourneyEvent> = Readonly<{ event: E; hidden: boolean; note: string }>;
+
+export type OutlinePhase<E extends Keyed = JourneyEvent> = Readonly<{
   /** The key of the step it begins with. */
   at: string;
   number: number;
   text: PhaseText;
-  steps: readonly OutlineStep[];
+  steps: readonly OutlineStep<E>[];
 }>;
 
-export type ReportOutline = Readonly<{
+export type ReportOutline<E extends Keyed = JourneyEvent> = Readonly<{
   /** Steps before the first phase. */
-  lead: readonly OutlineStep[];
-  phases: readonly OutlinePhase[];
+  lead: readonly OutlineStep<E>[];
+  phases: readonly OutlinePhase<E>[];
 }>;
 
 const phaseFields: readonly PhaseField[] = ['title', 'happened', 'problem'];
@@ -81,13 +84,13 @@ const phaseFields: readonly PhaseField[] = ['title', 'happened', 'problem'];
  * step to the next phase's. A phase whose step is not in `events` is ignored.
  * A reader sees no hidden steps, and no phase with nothing left to show.
  */
-export function reportOutline(
+export function reportOutline<E extends Keyed>(
   draft: ReportDraft,
-  events: readonly JourneyEvent[],
+  events: readonly E[],
   mode: ReportMode,
-): ReportOutline {
-  const lead: OutlineStep[] = [];
-  const phases: { at: string; text: PhaseText; steps: OutlineStep[] }[] = [];
+): ReportOutline<E> {
+  const lead: OutlineStep<E>[] = [];
+  const phases: { at: string; text: PhaseText; steps: OutlineStep<E>[] }[] = [];
 
   for (const event of events) {
     const text = draft.phases[event.key];

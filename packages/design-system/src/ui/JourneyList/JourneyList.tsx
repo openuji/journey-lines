@@ -35,7 +35,7 @@ const count = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' :
 
 /** The whole row opens the report; its link text is the title alone. */
 function JourneyItem({ journey, href }: { journey: JourneyEntry; href: string }) {
-  const subject = journey.fields.find((field) => field.kind === 'subject')?.text;
+  const subject = journey.intro.find((field) => field.kind === 'subject')?.text;
   return (
     <li className={styles['journey']}>
       {subject && <p className={styles['journey__subject']}>{subject}</p>}

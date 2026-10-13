@@ -80,6 +80,14 @@
   --ds-report-bar-height: 64px;
   --ds-report-side-padding: clamp(var(--ds-space-4), 4vw, var(--ds-space-10));
   --ds-report-top-padding: clamp(var(--ds-space-6), 4vw, var(--ds-space-12));
+  --ds-reader-toc-width: 220px;
+  /* Where the contents sit while the report scrolls: centred in the window.
+     For the top instead: calc(var(--ds-report-bar-height) + var(--ds-space-6)) and 0. */
+  --ds-reader-toc-top: 50vh;
+  --ds-reader-toc-shift: -50%;
+  --ds-reader-ruler-width: 20px;
+  --ds-reader-stripe: 10px;
+  --ds-reader-stripe-active: 18px;
   --ds-settings-max-width: 40rem;
   --ds-settings-margin-block: 3rem;
   --ds-settings-padding-inline: 1.5rem;

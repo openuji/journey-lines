@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import type { Clip } from '@openuji/core';
 import clsx from 'clsx';
-import { FrameGallery, type GalleryFrame } from '../FrameGallery/FrameGallery';
-import { TransitionMedia } from '../TransitionMedia/TransitionMedia';
+import type { PlayableClip } from '../../lib/playable-clip';
+import type { GalleryFrame } from '../FrameGallery/FrameGallery';
+import { StepMedia } from '../StepMedia/StepMedia';
 import styles from './TimelineRow.module.css';
 
 export type TimelineRowProps = Readonly<{
@@ -13,14 +13,13 @@ export type TimelineRowProps = Readonly<{
   tone: 'page' | 'click' | 'scroll' | 'exit';
   subtitle?: Readonly<{ text: string; title?: string }>;
   frames: readonly GalleryFrame[];
-  clip?: Clip;
+  clip?: PlayableClip;
   /** Below the media: whatever the host adds to the row. */
   children?: ReactNode;
 }>;
 
 /** Layout only: this component has no knowledge of captures or journey rules. */
 export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, clip, children }: TimelineRowProps) {
-  const [before, after] = frames;
   return (
     <li className={clsx(styles['timeline-row'], styles[`timeline-row--${tone}`])} data-tone={tone}>
       <time className={styles['timeline-row__time']}>{time}</time>
@@ -29,16 +28,13 @@ export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, c
         <span className={styles['timeline-row__label']} data-event-title>{title}</span>
         {subtitle && <span className={styles['timeline-row__subtitle']} title={subtitle.title}>{subtitle.text}</span>}
       </div>
-      {before && after ? (
-        <TransitionMedia
-          before={before}
-          after={after}
-          clip={clip}
-          className={styles['timeline-row__media']}
-          expandedClassName={styles['timeline-row__frame']}
-          videoClassName={styles['timeline-row__video']}
-        />
-      ) : <FrameGallery frames={frames} className={styles['timeline-row__media']} expandedClassName={styles['timeline-row__frame']} />}
+      <StepMedia
+        frames={frames}
+        clip={clip}
+        className={styles['timeline-row__media']}
+        expandedClassName={styles['timeline-row__frame']}
+        videoClassName={styles['timeline-row__video']}
+      />
       {children && <div className={styles['timeline-row__extra']}>{children}</div>}
     </li>
   );

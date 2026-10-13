@@ -29,13 +29,13 @@ const scrollClip: Clip = {
   ],
 };
 
-function recording(id: string, items: readonly RecordingItem[]): StoredRecording {
+function recording(id: string, items: readonly RecordingItem[], durationMs = 94_000): StoredRecording {
   return {
     meta: {
       id,
       tab: storyTab,
       startedAtMs: STORY_STARTED_AT_MS,
-      endedAtMs: STORY_STARTED_AT_MS + 94_000,
+      endedAtMs: STORY_STARTED_AT_MS + durationMs,
       endedBy: 'user',
       droppedFrames: 0,
     },
@@ -49,5 +49,5 @@ export const storyReportWithClip = recording('ses_storybook_clip', [
   { kind: 'clip', epochMs: scrollCapture.frame.receivedAtMs + 160, clip: scrollClip },
   ...captureItems(storyCaptures.slice(5)),
 ]);
-export const storyLongReport = recording('ses_storybook_long', captureItems(longStoryCaptures));
+export const storyLongReport = recording('ses_storybook_long', captureItems(longStoryCaptures), 200_000);
 export const storyEmptyReport = recording('ses_storybook_empty', []);

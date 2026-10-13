@@ -6,7 +6,7 @@
 }
 
 .report-message {
-  margin: var(--ds-space-12) 0;
+  margin: var(--ds-space-12) var(--ds-report-side-padding);
   color: var(--ds-color-ink-soft);
   text-align: center;
 }

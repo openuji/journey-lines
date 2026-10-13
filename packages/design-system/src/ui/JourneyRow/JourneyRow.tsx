@@ -1,11 +1,16 @@
 import type { ReactNode } from 'react';
 import { AppWindow, ArrowDownUp, Globe, LogOut, MousePointerClick, Route, Square, type LucideIcon } from 'lucide-react';
 import type { CompositorFrame, ViewEntry } from '@openuji/core';
-import { formatClock, shortUrl, type JourneyEvent } from '@openuji/journey';
+import { formatClock, mapEventMedia, shortUrl, type JourneyEvent } from '@openuji/journey';
+import { useClipSource } from '../../hooks/useClipSource';
+import type { PlayableClip } from '../../lib/playable-clip';
 import type { GalleryFrame } from '../FrameGallery/FrameGallery';
 import { TimelineRow } from '../TimelineRow/TimelineRow';
 
 type Presentation = Readonly<{ title: string; icon: LucideIcon }>;
+
+/** An event whose pictures and video are URLs a browser loads; one may not be there (yet). */
+export type PlayableEvent = JourneyEvent<string | undefined, PlayableClip | undefined>;
 
 const pagePresentation: Readonly<Record<ViewEntry, Presentation>> = {
   load: { title: 'Page loaded', icon: Globe },
@@ -13,7 +18,8 @@ const pagePresentation: Readonly<Record<ViewEntry, Presentation>> = {
   tab: { title: 'Switched tab', icon: AppWindow },
 };
 
-export function presentation(event: JourneyEvent): Presentation {
+/** What a step is called and drawn as, whatever form its media take. */
+export function presentation(event: JourneyEvent<unknown, unknown>): Presentation {
   switch (event.kind) {
     case 'page': return pagePresentation[event.entry];
     case 'click': return { title: 'Click', icon: MousePointerClick };
@@ -23,14 +29,12 @@ export function presentation(event: JourneyEvent): Presentation {
   }
 }
 
-function galleryFrame(id: string, label: string, frame?: CompositorFrame, caption?: string): GalleryFrame {
-  return {
-    id, label, caption,
-    ...(frame ? { src: `data:image/png;base64,${frame.base64}` } : {}),
-  };
+function galleryFrame(id: string, label: string, src?: string, caption?: string): GalleryFrame {
+  return { id, label, caption, ...(src ? { src } : {}) };
 }
 
-function media(event: JourneyEvent, title: string) {
+/** The pictures and clip a step shows: one frame for a page or an exit; before, after and video for an interaction. */
+export function eventMedia(event: PlayableEvent, title: string): { frames: GalleryFrame[]; clip?: PlayableClip } {
   if (event.kind === 'page' || event.kind === 'exit') {
     return { frames: [galleryFrame('frame', title, event.frame)] };
   }
@@ -43,15 +47,19 @@ function media(event: JourneyEvent, title: string) {
   };
 }
 
-/** Translate a normalized event into UI props; all controls live in ui/. */
+const frameUrl = (frame: CompositorFrame): string => `data:image/png;base64,${frame.base64}`;
+
+/** A recorded event as a row: its inline pictures and video become URLs here, and nowhere below. */
 export function EventRow({ event, children }: { event: JourneyEvent; children?: ReactNode }) {
   const props = presentation(event);
+  const source = useClipSource(event.kind === 'click' || event.kind === 'scroll' ? event.clip : undefined);
+  const playable: PlayableEvent = mapEventMedia(event, frameUrl, (clip) => source ? { src: source, trace: clip.trace } : undefined);
   const subtitle = event.kind === 'page'
     ? { text: shortUrl(event.url), title: event.url } : undefined;
   return (
     <TimelineRow
       {...props}
-      {...media(event, props.title)}
+      {...eventMedia(playable, props.title)}
       time={formatClock(event.atMs)}
       tone={event.kind}
       subtitle={subtitle}

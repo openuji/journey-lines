@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { storyTransitionClip } from '@openuji/journey/fixtures';
-import { storyTransitionFrames } from '../../stories/media';
+import { storyPlayableTransitionClip, storyTransitionFrames } from '../../stories/media';
 import { ClipFilmstrip } from '../ClipFilmstrip/ClipFilmstrip';
 import { FramePair } from './FramePair';
 
@@ -11,7 +10,7 @@ const meta = {
   args: {
     before: storyTransitionFrames[0]!,
     after: storyTransitionFrames[1]!,
-    children: <ClipFilmstrip clip={storyTransitionClip} previewEnabled />,
+    children: <ClipFilmstrip clip={storyPlayableTransitionClip} previewEnabled />,
   },
 } satisfies Meta<typeof FramePair>;
 

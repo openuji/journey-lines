@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { storyTransitionClip } from '@openuji/journey/fixtures';
-import { storyTransitionFrames } from '../../stories/media';
+import { storyPlayableTransitionClip, storyTransitionFrames } from '../../stories/media';
 import { TransitionMedia } from './TransitionMedia';
 
 const meta = {
@@ -13,7 +12,7 @@ const meta = {
       </div>
     </div>
   )],
-  args: { before: storyTransitionFrames[0]!, after: storyTransitionFrames[1]!, clip: storyTransitionClip },
+  args: { before: storyTransitionFrames[0]!, after: storyTransitionFrames[1]!, clip: storyPlayableTransitionClip },
 } satisfies Meta<typeof TransitionMedia>;
 
 export default meta;

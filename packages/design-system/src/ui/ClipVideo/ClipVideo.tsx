@@ -1,9 +1,5 @@
-import type { Clip } from '@openuji/core';
-import { useClipSource } from '../../hooks/useClipSource';
+import type { PlayableClip } from '../../lib/playable-clip';
 
-/** A Blob URL exists only while its player is mounted. */
-export function ClipVideo({ clip, className, autoPlay = false }: { clip: Clip; className: string; autoPlay?: boolean }) {
-  const source = useClipSource(clip);
-
-  return source && <video className={className} src={source} controls autoPlay={autoPlay} muted={autoPlay} playsInline preload="metadata" />;
+export function ClipVideo({ clip, className, autoPlay = false }: { clip: PlayableClip; className: string; autoPlay?: boolean }) {
+  return <video className={className} src={clip.src} controls autoPlay={autoPlay} muted={autoPlay} playsInline preload="metadata" />;
 }

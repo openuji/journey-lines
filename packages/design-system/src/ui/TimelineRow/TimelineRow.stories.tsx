@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AppWindow, ArrowDownUp, Globe, LogOut, MousePointerClick, Route, Square } from 'lucide-react';
-import { storyClip, storyTransitionClip } from '@openuji/journey/fixtures';
-import { storyGalleryFrames, storyTransitionFrames } from '../../stories/media';
+import { storyGalleryFrames, storyPlayableClip, storyPlayableTransitionClip, storyTransitionFrames } from '../../stories/media';
 import { TimelineRow } from './TimelineRow';
 
 const meta = {
@@ -16,8 +15,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Click: Story = {};
-export const ClickWithVideo: Story = { args: { frames: storyTransitionFrames, clip: storyTransitionClip } };
-export const Scroll: Story = { args: { title: 'Scroll', icon: ArrowDownUp, tone: 'scroll', clip: storyClip } };
+export const ClickWithVideo: Story = { args: { frames: storyTransitionFrames, clip: storyPlayableTransitionClip } };
+export const Scroll: Story = { args: { title: 'Scroll', icon: ArrowDownUp, tone: 'scroll', clip: storyPlayableClip } };
 export const PageLoaded: Story = {
   args: {
     title: 'Page loaded', icon: Globe, tone: 'page',

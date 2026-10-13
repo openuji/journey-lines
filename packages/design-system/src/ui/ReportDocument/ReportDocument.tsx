@@ -1,6 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
 import {
-  isShown,
   journeyTemplate,
   reportOutline,
   type FieldText,
@@ -9,7 +8,6 @@ import {
   type OutlineStep,
   type ReportAction,
   type ReportDraft,
-  type ReportMode,
   type ReportTemplate,
   type TemplateField,
 } from '@openuji/journey';
@@ -25,20 +23,22 @@ export type ReportDocumentProps = Readonly<{
   events: readonly JourneyEvent[];
   draft: ReportDraft;
   template?: ReportTemplate;
-  /** Present while the report is edited. Without it the document reads as its reader sees it. */
-  onEdit?: ReportEdit;
+  onEdit: ReportEdit;
 }>;
 
-/** A recording told as a report: the template's fields around the steps, grouped into phases. */
+/**
+ * A recording being written up as a report: every template field around every
+ * step, hidden ones included, grouped into phases. How it reads is the
+ * reader's (`ReaderDocument`).
+ */
 export function ReportDocument({ events, draft, template = journeyTemplate, onEdit }: ReportDocumentProps) {
-  const mode: ReportMode = onEdit ? 'edit' : 'preview';
-  const outline = useMemo(() => reportOutline(draft, events, mode), [draft, events, mode]);
+  const outline = useMemo(() => reportOutline(draft, events, 'edit'), [draft, events]);
   const field = (item: TemplateField) => (
     <Field
       key={item.id}
       field={item}
       value={draft.fields[item.id] ?? ''}
-      onChange={onEdit && ((value) => onEdit({ type: 'setField', field: item.id, value }))}
+      onChange={(value) => onEdit({ type: 'setField', field: item.id, value })}
     />
   );
   const steps = (items: readonly OutlineStep[]) => items.length > 0 && (
@@ -70,14 +70,11 @@ export function ReportDocument({ events, draft, template = journeyTemplate, onEd
   );
 }
 
-/** Edited when it has `onChange`; read otherwise. */
 function Field({ field, value, onChange }: {
   field: TemplateField;
   value: string;
-  onChange: ((value: string) => void) | undefined;
+  onChange: (value: string) => void;
 }) {
-  const mode: ReportMode = onChange ? 'edit' : 'preview';
-  if (!isShown(value, mode)) return null;
   const text = (as: 'p' | 'h1', className: string | undefined) => (
     <EditableText
       as={as}
@@ -85,7 +82,7 @@ function Field({ field, value, onChange }: {
       value={value}
       label={field.label}
       placeholder={field.placeholder}
-      editing={onChange !== undefined}
+      editing
       onChange={onChange}
     />
   );
@@ -114,10 +111,9 @@ function Statement({ label, children }: { label: string; children: ReactNode }) 
 function Phase({ phase, template, onEdit, children }: {
   phase: OutlinePhase;
   template: ReportTemplate;
-  onEdit: ReportEdit | undefined;
+  onEdit: ReportEdit;
   children: ReactNode;
 }) {
-  const mode: ReportMode = onEdit ? 'edit' : 'preview';
   const { title = '', happened = '', problem = '' } = phase.text;
   const text = (field: 'title' | 'happened' | 'problem', value: string, wording: FieldText) => (
     <EditableText
@@ -125,26 +121,22 @@ function Phase({ phase, template, onEdit, children }: {
       value={value}
       label={`${template.phase.name} ${phase.number} · ${wording.label}`}
       placeholder={wording.placeholder}
-      editing={onEdit !== undefined}
-      onChange={onEdit && ((next) => onEdit({ type: 'setPhase', at: phase.at, field, value: next }))}
+      editing
+      onChange={(next) => onEdit({ type: 'setPhase', at: phase.at, field, value: next })}
     />
   );
 
   return (
     <section className={styles['report-phase']}>
       <div className={styles['report-phase__head']}>
-        <h2 className={styles['report-heading']}>
-          {template.phase.name} {phase.number}{!onEdit && title.trim() && ` — ${title}`}
-        </h2>
-        {onEdit && text('title', title, template.phase.title)}
-        {onEdit && (
-          <Button variant="quiet" size="small" onClick={() => onEdit({ type: 'removePhase', at: phase.at })}>
-            Remove phase
-          </Button>
-        )}
+        <h2 className={styles['report-heading']}>{template.phase.name} {phase.number}</h2>
+        {text('title', title, template.phase.title)}
+        <Button variant="quiet" size="small" onClick={() => onEdit({ type: 'removePhase', at: phase.at })}>
+          Remove phase
+        </Button>
       </div>
-      {isShown(happened, mode) && <Statement label={template.phase.happened.label}>{text('happened', happened, template.phase.happened)}</Statement>}
-      {isShown(problem, mode) && <Statement label={template.phase.problem.label}>{text('problem', problem, template.phase.problem)}</Statement>}
+      <Statement label={template.phase.happened.label}>{text('happened', happened, template.phase.happened)}</Statement>
+      <Statement label={template.phase.problem.label}>{text('problem', problem, template.phase.problem)}</Statement>
       {children}
     </section>
   );

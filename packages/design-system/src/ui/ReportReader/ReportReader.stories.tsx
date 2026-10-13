@@ -1,13 +1,22 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { journeyTemplate, REPORT_VERSION } from '@openuji/journey';
-import { campusReport, longTextReport, storyEmptyReport, untitledReport } from '@openuji/journey/fixtures';
+import { journeyEntry, type ReportExport } from '@openuji/journey';
+import { campusReport, longTextReport, mostlyUnnotedReport, untitledReport } from '@openuji/journey/fixtures';
+import { storyMedia } from '../../stories/media';
 import { ReportReader } from './ReportReader';
+
+const published = (report: ReportExport) => ({ entry: journeyEntry(report), media: storyMedia(report) });
+
+/** The campus report with nothing written after its last phase. */
+const withoutConclusion: ReportExport = {
+  ...campusReport,
+  draft: { ...campusReport.draft, fields: { ...campusReport.draft.fields, insight: '', idea: '', scope: '' } },
+};
 
 const meta = {
   title: 'Report/Reader',
   component: ReportReader,
-  args: { report: campusReport, error: null, back: { href: '#journeys', label: 'Journeys' } },
-  argTypes: { report: { control: false } },
+  args: { ...published(campusReport), back: { href: '#journeys', label: 'Journeys' } },
+  argTypes: { entry: { control: false }, media: { control: false } },
   globals: { viewport: { value: 'responsive', isRotated: false } },
 } satisfies Meta<typeof ReportReader>;
 
@@ -17,25 +26,30 @@ type Story = StoryObj<typeof meta>;
 /** What FU support reads: the written report, hidden steps left out. */
 export const CampusJourney: Story = {};
 
-/** Downloaded before anything was written: only the steps. */
+/** Like a real first report: many steps, few notes, six phases. */
+export const MostlyUnnoted: Story = {
+  args: published(mostlyUnnotedReport),
+};
+
+/** Downloaded before anything was written: one section, so no contents. */
 export const Untitled: Story = {
-  args: { report: untitledReport },
+  args: published(untitledReport),
+};
+
+export const WithoutConclusion: Story = {
+  args: published(withoutConclusion),
 };
 
 export const LongTexts: Story = {
-  args: { report: longTextReport },
+  args: published(longTextReport),
 };
 
-export const NoSteps: Story = {
-  args: { report: { version: REPORT_VERSION, template: journeyTemplate, draft: campusReport.draft, recording: storyEmptyReport } },
-};
-
-export const Loading: Story = {
-  args: { report: null },
-};
-
-export const Unavailable: Story = {
-  args: { report: null, error: 'This journey’s report could not be read.' },
+/** Every step's time and address shown at once. */
+export const DetailsShown: Story = {
+  args: published(mostlyUnnotedReport),
+  play: async ({ canvasElement }) => {
+    canvasElement.querySelector<HTMLInputElement>('input[type="checkbox"]')?.click();
+  },
 };
 
 /** Opened on its own, with nowhere to go back to. */
@@ -43,10 +57,13 @@ export const WithoutBack: Story = {
   args: { back: undefined },
 };
 
+/** The contents as a ruler; each phase's headline holds the top while it is read. */
 export const Narrow: Story = {
+  args: published(mostlyUnnotedReport),
   globals: { viewport: { value: 'reportNarrow', isRotated: false } },
 };
 
 export const Dark: Story = {
+  args: published(mostlyUnnotedReport),
   globals: { colorMode: 'dark', viewport: { value: 'responsive', isRotated: false } },
 };

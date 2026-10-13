@@ -1,21 +1,20 @@
-import { useMemo } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { recordingEvents, type ReportExport } from '@openuji/journey';
+import { formatClock, type JourneyEntry } from '@openuji/journey';
+import { ReaderDocument } from '../ReaderDocument/ReaderDocument';
+import type { ReaderMedia } from '../ReaderDocument/ReaderStep';
 import { ReportBar } from '../ReportBar/ReportBar';
-import { ReportDocument } from '../ReportDocument/ReportDocument';
 import styles from './ReportReader.module.css';
 
 export type ReportReaderProps = Readonly<{
-  /** Null while it loads. */
-  report: ReportExport | null;
-  error?: string | null;
+  entry: JourneyEntry;
+  /** Where each archive file the entry names can be loaded from. */
+  media: ReaderMedia;
   /** Where the reader came from, such as the list of journeys. */
   back?: Readonly<{ href: string; label: string }>;
 }>;
 
-/** A finished report as its readers see it: what was written, around the steps that were kept. Holds no state. */
-export function ReportReader({ report, error = null, back }: ReportReaderProps) {
-  const events = useMemo(() => report ? recordingEvents(report.recording) : [], [report]);
+/** A published journey's page: its bar, then the report as its readers see it. */
+export function ReportReader({ entry, media, back }: ReportReaderProps) {
   const backLink = back && (
     <a className={styles['report-back']} href={back.href}>
       <ArrowLeft aria-hidden />
@@ -25,11 +24,13 @@ export function ReportReader({ report, error = null, back }: ReportReaderProps) 
 
   return (
     <>
-      <ReportBar recording={report?.recording ?? null} steps={events.length} leading={backLink} />
-      <main className={styles['report-doc']}>
-        {error && <p className={styles['report-message']} role="alert">{error}</p>}
-        {!error && !report && <p className={styles['report-message']} role="status">Loading report…</p>}
-        {report && <ReportDocument events={events} draft={report.draft} template={report.template} />}
+      <ReportBar
+        title={entry.title}
+        meta={`${formatClock(entry.endedAtMs - entry.startedAtMs)} · ${entry.steps.length} steps`}
+        leading={backLink}
+      />
+      <main>
+        <ReaderDocument entry={entry} media={media} />
       </main>
     </>
   );

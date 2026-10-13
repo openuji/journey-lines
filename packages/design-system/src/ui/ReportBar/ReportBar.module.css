@@ -41,3 +41,10 @@
   font: var(--ds-type-body) var(--ds-font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* On a narrow screen the bar scrolls away, so a section's headline can hold the top. */
+@media (width < 60rem) {
+  .report-bar {
+    position: static;
+  }
+}
