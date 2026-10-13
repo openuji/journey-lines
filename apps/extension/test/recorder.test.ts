@@ -4,6 +4,7 @@ import { createFakeTabHost, type FakeCdpTransport } from '@openuji/cdp/testing';
 import type { Clip, ClipWrite } from '@openuji/core';
 import type { ClipWorker } from '@openuji/clip-webm';
 import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
+import type { TabSummary } from '@openuji/journey';
 import {
   bindingCalled,
   causePayload,
@@ -17,7 +18,7 @@ import {
 } from '../../../packages/cdp/test/events.js';
 import type { OpenClips } from '../src/lib/clips';
 import { MemoryRecordingStore, type RecordingStore } from '../src/lib/recording-store';
-import type { TabSummary, WorkerMessage } from '../src/lib/protocol';
+import type { WorkerMessage } from '../src/lib/protocol';
 import { Recorder, type DescribeTab, type PrepareRecording } from '../src/lib/recorder';
 
 const TAB: TabSummary = { id: 7, windowId: 1, title: 'Example', url: 'https://example.com/' };

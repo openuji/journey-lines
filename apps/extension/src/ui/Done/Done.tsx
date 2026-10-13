@@ -1,7 +1,6 @@
-import type { JourneyEvent } from '../../lib/journey-events';
-import { formatClock, shortUrl } from '../../lib/journey';
-import type { EndedBy, RecorderStatus } from '../../lib/protocol';
-import { Button } from '../Button/Button';
+import { formatClock, shortUrl, type EndedBy, type JourneyEvent } from '@openuji/journey';
+import { Button } from '@openuji/design-system';
+import type { RecorderStatus } from '../../lib/protocol';
 import { Journey } from '../Journey/Journey';
 import styles from './Done.module.css';
 

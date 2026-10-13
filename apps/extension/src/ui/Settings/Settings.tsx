@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Button } from '@openuji/design-system';
 import { loadSettings, restoreDefaultSettings, saveSettings } from '../../lib/settings';
-import { Button } from '../Button/Button';
 import styles from './Settings.module.css';
 
 export function Settings() {

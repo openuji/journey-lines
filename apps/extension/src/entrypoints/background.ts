@@ -1,15 +1,11 @@
 import { extensionTabs } from '@openuji/host-extension';
 import { recordActiveTab } from '@openuji/fused';
+import type { TabSummary } from '@openuji/journey';
 import { createPrivacy } from '@openuji/privacy';
 import { defineBackground } from 'wxt/utils/define-background';
 import { setActionIcon } from '../lib/action-icon';
 import { openClips } from '../lib/clips';
-import {
-  JOURNEY_PORT,
-  type PanelMessage,
-  type TabSummary,
-  type WorkerMessage,
-} from '../lib/protocol';
+import { JOURNEY_PORT, type PanelMessage, type WorkerMessage } from '../lib/protocol';
 import { Recorder } from '../lib/recorder';
 import { MemoryRecordingStore } from '../lib/recording-store';
 import { loadSettings, loadPrivacyProfile } from '../lib/settings';

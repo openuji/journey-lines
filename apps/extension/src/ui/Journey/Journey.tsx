@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
-import type { JourneyEvent } from '../../lib/journey-events';
-import { EventRow } from '../JourneyRow/JourneyRow';
-import { readSizeToken } from '../../lib/read-size-token';
+import type { JourneyEvent } from '@openuji/journey';
+import { EventRow, readSizeToken } from '@openuji/design-system';
 import styles from './Journey.module.css';
 
 export function Journey({

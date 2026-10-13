@@ -1,12 +1,7 @@
 import type { MilestoneCapture } from '@openuji/core';
+import { longStoryCaptures, STORY_STARTED_AT_MS, storyCaptures, storyTab } from '@openuji/journey/fixtures';
 import type { PanelState } from '../lib/panel-state';
 import type { RecorderStatus } from '../lib/protocol';
-import {
-  longStoryCaptures,
-  STORY_STARTED_AT_MS,
-  storyCaptures,
-  storyTab,
-} from './fixtures';
 
 const LIVE_STARTED_AT_MS = Date.now() - 84_000;
 

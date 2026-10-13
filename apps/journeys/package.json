@@ -1,0 +1,29 @@
+{
+  "name": "@openuji/journeys",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Journeys overview: downloaded report archives, imported by a CLI, listed and opened read-only.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "add-journey": "node src/cli/add-journey.ts"
+  },
+  "dependencies": {
+    "@astrojs/react": "7.0.1",
+    "@openuji/design-system": "workspace:*",
+    "@openuji/journey": "workspace:*",
+    "astro": "7.3.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@types/node": "^22.10.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "^5.7.2"
+  }
+}

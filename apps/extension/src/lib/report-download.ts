@@ -1,4 +1,4 @@
-import { reportArtifacts, zipStored, type ReportExport } from './report-archive';
+import { reportArtifacts, zipStored, type ReportExport } from '@openuji/journey';
 
 /** Browser-only save action shared by the extension page and Storybook demos. */
 export function downloadReport(report: ReportExport): void {

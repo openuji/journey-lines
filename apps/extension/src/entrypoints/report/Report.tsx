@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
-import { REPORT_VERSION } from '../../lib/report-archive';
+import { journeyTemplate, REPORT_VERSION, type ReportDraft, type StoredRecording } from '@openuji/journey';
+import { ReportView } from '@openuji/design-system';
 import { downloadReport } from '../../lib/report-download';
-import type { ReportDraft } from '../../lib/report-draft';
 import { loadReport } from '../../lib/report-port';
-import { journeyTemplate } from '../../lib/report-template';
-import type { StoredRecording } from '../../lib/recording-store';
-import { ReportView } from '../../ui/ReportView/ReportView';
 
 /** The template every report from this extension is written in. */
 const template = journeyTemplate;

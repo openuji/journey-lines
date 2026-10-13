@@ -1,0 +1,39 @@
+{
+  "name": "@openuji/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenUJI design system: tokens, themes and React components, shared by the extension and the journeys app. Consumed from source by Vite.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/styles.css",
+    "./storybook": "./src/stories/preview.tsx"
+  },
+  "scripts": {
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "dependencies": {
+    "@openuji/core": "workspace:*",
+    "@openuji/journey": "workspace:*",
+    "clsx": "^2.1.1",
+    "lucide-react": "1.52.0"
+  },
+  "devDependencies": {
+    "@storybook/addon-a11y": "^10.6.1",
+    "@storybook/react-vite": "^10.6.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "storybook": "^10.6.1",
+    "typescript": "^5.7.2",
+    "vite": "8.3.2"
+  }
+}

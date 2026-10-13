@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { journeyEvents } from '../../lib/journey-events';
+import { journeyEvents } from '@openuji/journey';
+import { Alert } from '@openuji/design-system';
 import type { PanelState } from '../../lib/panel-state';
-import { Alert } from '../Alert/Alert';
 import { Done } from '../Done/Done';
 import { Idle } from '../Idle/Idle';
 import { Recording } from '../Recording/Recording';

@@ -1,0 +1,121 @@
+/* The list of journeys: the report page's bar and column, a row per journey. */
+
+.journeys-bar {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  min-height: var(--ds-report-bar-height);
+  padding: var(--ds-space-3) var(--ds-report-side-padding);
+  border-bottom: var(--ds-border-thin) solid var(--ds-color-line);
+  background: var(--ds-color-canvas);
+}
+
+.journeys-bar svg {
+  flex: none;
+  color: var(--ds-color-accent-text);
+  width: var(--ds-icon-report);
+  height: var(--ds-icon-report);
+}
+
+.journeys-bar__title {
+  margin: 0;
+  font-size: var(--ds-type-report-body);
+  font-weight: var(--ds-weight-bold);
+}
+
+.journeys-bar__meta {
+  color: var(--ds-color-ink-soft);
+  font: var(--ds-type-body) var(--ds-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.journeys {
+  width: min(100%, var(--ds-report-max-width));
+  margin: 0 auto;
+  padding: var(--ds-report-top-padding) var(--ds-report-side-padding) var(--ds-space-30);
+  font-size: var(--ds-type-report-body);
+}
+
+.journeys__message {
+  margin: var(--ds-space-12) 0;
+  color: var(--ds-color-ink-soft);
+  text-align: center;
+}
+
+.journeys__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journey {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+  padding: var(--ds-space-5) 0;
+  border-bottom: var(--ds-border-thin) solid var(--ds-color-line);
+  line-height: var(--ds-leading-body);
+}
+
+.journey__subject {
+  margin: 0;
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-report-meta);
+  font-weight: var(--ds-weight-medium);
+}
+
+.journey__title {
+  margin: 0;
+  font-size: var(--ds-type-report-heading);
+  line-height: var(--ds-leading-tight);
+  overflow-wrap: anywhere;
+}
+
+.journey__title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* The title's link covers the row. */
+.journey__title a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.journey:hover .journey__title a {
+  color: var(--ds-color-accent-text);
+}
+
+.journey__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--ds-space-2);
+  margin: 0;
+  color: var(--ds-color-ink-soft);
+  font: var(--ds-type-label) var(--ds-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Each fact wraps whole, after a separator. */
+.journey__meta > * {
+  white-space: nowrap;
+}
+
+.journey__meta > * + *::before {
+  content: '·';
+  margin-right: var(--ds-space-2);
+}
+
+.journey__page {
+  margin: 0;
+  overflow: hidden;
+  color: var(--ds-color-ink-muted);
+  font-size: var(--ds-type-meta);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

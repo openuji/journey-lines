@@ -8,7 +8,7 @@
     "build:icons": "node scripts/build-icons.mjs",
     "dev": "wxt",
     "build": "wxt build",
-    "storybook": "storybook dev -p 6006",
+    "storybook": "storybook dev -p 6007",
     "build-storybook": "storybook build",
     "typecheck": "wxt prepare && tsc --noEmit",
     "postinstall": "wxt prepare"
@@ -17,12 +17,13 @@
     "@openuji/cdp": "workspace:*",
     "@openuji/clip-webm": "workspace:*",
     "@openuji/core": "workspace:*",
+    "@openuji/design-system": "workspace:*",
     "@openuji/fused": "workspace:*",
     "@openuji/host-extension": "workspace:*",
+    "@openuji/journey": "workspace:*",
     "@openuji/privacy": "workspace:*",
     "@openuji/rules-document": "workspace:*",
     "@openuji/rules-interaction": "workspace:*",
-    "clsx": "^2.1.1",
     "lucide-react": "1.52.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"

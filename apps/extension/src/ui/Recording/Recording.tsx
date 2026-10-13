@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Square } from 'lucide-react';
-import type { JourneyEvent } from '../../lib/journey-events';
+import { formatClock, shortUrl, type JourneyEvent } from '@openuji/journey';
 import type { ActiveTabState } from '@openuji/fused';
-import { formatClock, shortUrl } from '../../lib/journey';
+import { Button, StatusBadge } from '@openuji/design-system';
 import type { RecorderStatus } from '../../lib/protocol';
-import { Button } from '../Button/Button';
-import { StatusBadge } from '../StatusBadge/StatusBadge';
 import { Journey } from '../Journey/Journey';
 import styles from './Recording.module.css';
 

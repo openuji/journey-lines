@@ -1,5 +1,5 @@
+import type { RecordingItem, StoredRecording } from '@openuji/journey';
 import { REPORT_PORT, type ReportRequest, type ReportResponse } from './report-protocol';
-import type { RecordingItem, StoredRecording } from './recording-store';
 
 /** Pull one item per message so Chrome never receives a whole recording at once. */
 export function loadReport(sessionId: string): { promise: Promise<StoredRecording>; close(): void } {

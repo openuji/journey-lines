@@ -1,0 +1,32 @@
+.report-back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ds-space-1-5);
+  min-height: var(--ds-control-small);
+  color: var(--ds-color-ink-soft);
+  font-weight: var(--ds-weight-medium);
+  text-decoration: none;
+}
+
+.report-back:hover {
+  color: var(--ds-color-ink);
+}
+
+.report-back svg {
+  width: var(--ds-icon-default);
+  height: var(--ds-icon-default);
+}
+
+.report-doc {
+  width: min(100%, var(--ds-report-max-width));
+  margin: 0 auto;
+  padding: var(--ds-report-top-padding) var(--ds-report-side-padding) var(--ds-space-30);
+  font-size: var(--ds-type-report-body);
+}
+
+.report-message {
+  margin: var(--ds-space-12) 0;
+  color: var(--ds-color-ink-soft);
+  text-align: center;
+}

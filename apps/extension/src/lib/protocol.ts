@@ -8,18 +8,9 @@
 
 import type { Clip, MilestoneCapture } from '@openuji/core';
 import type { ActiveTabState } from '@openuji/fused';
+import type { EndedBy, TabSummary } from '@openuji/journey';
 
 export const JOURNEY_PORT = 'journey';
-
-export type TabSummary = Readonly<{
-  id: number;
-  windowId: number;
-  title: string;
-  url: string;
-}>;
-
-/** Who ended a recording: the person, or Chrome on their behalf. */
-export type EndedBy = 'user' | 'window-closed' | 'debugging-cancelled';
 
 /** The tab in front of the person, and what the recording does with it. */
 export type ActiveTab = Readonly<{ tab: TabSummary; state: ActiveTabState }>;

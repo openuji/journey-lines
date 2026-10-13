@@ -1,20 +1,5 @@
 import type { Clip, MilestoneCapture } from '@openuji/core';
-import type { EndedBy, TabSummary } from './protocol';
-
-export type RecordingItem =
-  | Readonly<{ kind: 'capture'; epochMs: number; capture: MilestoneCapture }>
-  | Readonly<{ kind: 'clip'; epochMs: number; clip: Clip }>;
-
-export type RecordingMeta = Readonly<{
-  id: string;
-  tab: TabSummary;
-  startedAtMs: number;
-  endedAtMs: number;
-  endedBy: EndedBy;
-  droppedFrames: number;
-}>;
-
-export type StoredRecording = Readonly<{ meta: RecordingMeta; items: readonly RecordingItem[] }>;
+import type { EndedBy, RecordingItem, RecordingMeta, StoredRecording, TabSummary } from '@openuji/journey';
 
 /** Domain-facing boundary: another adapter can persist or send the same output elsewhere. */
 export interface RecordingStore {

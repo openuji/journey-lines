@@ -1,0 +1,28 @@
+{
+  "name": "@openuji/journey",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A recorded journey as data: its events, its report (draft and template) and the report archive. Isomorphic, no UI.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./fixtures": {
+      "types": "./dist/fixtures/index.d.ts",
+      "default": "./dist/fixtures/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "typecheck": "tsc --build"
+  },
+  "dependencies": {
+    "@openuji/core": "workspace:*",
+    "@openuji/rules-document": "workspace:*",
+    "@openuji/rules-interaction": "workspace:*"
+  }
+}

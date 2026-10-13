@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../Button/Button';
+import { Button } from '@openuji/design-system';
 import type { RecordOptions } from '../../lib/protocol';
 import styles from './Idle.module.css';
 

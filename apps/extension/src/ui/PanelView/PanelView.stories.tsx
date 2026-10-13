@@ -1,11 +1,9 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { REPORT_VERSION } from '../../lib/report-archive';
+import { journeyTemplate, REPORT_VERSION } from '@openuji/journey';
+import { storyReportWithClip } from '@openuji/journey/fixtures';
+import { Button, ReportView } from '@openuji/design-system';
 import { downloadReport } from '../../lib/report-download';
-import { journeyTemplate } from '../../lib/report-template';
-import { storyReportWithClip } from '../../stories/report-sessions';
-import { Button } from '../Button/Button';
-import { ReportView } from '../ReportView/ReportView';
 import { PanelView } from './PanelView';
 import {
   donePanelState,
