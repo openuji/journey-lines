@@ -1,15 +1,16 @@
 .transition-media {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: var(--ds-space-2);
   min-width: 0;
 }
 
 .transition-media__controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: var(--ds-space-2);
+  gap: var(--ds-space-1) var(--ds-space-2);
 }
 
 .transition-media__duration {
@@ -17,4 +18,15 @@
   font-size: var(--ds-type-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.transition-media__frame {
+  display: block;
+  width: 100%;
+  border: var(--ds-border-thin) solid var(--ds-color-line);
+  border-radius: var(--ds-radius-panel);
+}
+
+.transition-media__video {
+  align-self: stretch;
 }

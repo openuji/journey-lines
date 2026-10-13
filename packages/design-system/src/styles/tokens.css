@@ -66,7 +66,16 @@
   --ds-panel-padding-inline: clamp(var(--ds-space-3), 4vw, var(--ds-space-4));
   --ds-panel-header-gap: clamp(var(--ds-space-2), 3vw, var(--ds-space-3));
   --ds-record-icon-height: 5px;
-  --ds-filmstrip-min-width: 32px;
+  --ds-filmstrip-frame-width: calc(var(--ds-thumbnail-width) / 4);
+  --ds-filmstrip-frame-height: calc(var(--ds-thumbnail-height) / 4);
+  --ds-radius-frame: 2px;
+  /* A transition reads left to right and fades: before as it is, each strip frame
+     fainter, after faintest. Pointing at the strip shows them all at full strength. */
+  --ds-transition-fade-1: 0.75;
+  --ds-transition-fade-2: 0.55;
+  --ds-transition-fade-3: 0.4;
+  --ds-transition-fade-after: 0.3;
+  /* --ds-transition-reveal is left unset; a pointed-at pair sets it to 1. */
   --ds-preview-width: 224px;
   --ds-preview-height: 160px;
   --ds-preview-margin: 8px;

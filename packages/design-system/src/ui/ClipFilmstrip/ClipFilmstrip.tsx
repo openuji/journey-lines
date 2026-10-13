@@ -1,8 +1,8 @@
+import { useClipStills } from '../../hooks/useClipStills';
 import { useFilmstripPreview } from '../../hooks/useFilmstripPreview';
 import type { PlayableClip } from '../../lib/playable-clip';
-import { ClipFrameVideo } from '../ClipFrameVideo/ClipFrameVideo';
 import { FloatingPreview } from '../FloatingPreview/FloatingPreview';
-import { frameSeekTime, frameTimeLabel, sampledFrames } from './clip-filmstrip';
+import { FILMSTRIP_STILL_WIDTH, frameSeekTime, frameTimeLabel, sampledFrames } from './clip-filmstrip';
 import styles from './ClipFilmstrip.module.css';
 
 export type ClipFilmstripProps = Readonly<{
@@ -10,18 +10,28 @@ export type ClipFilmstripProps = Readonly<{
   previewEnabled: boolean;
 }>;
 
-/** A bounded visual summary of a clip; it never represents playback progress. */
+/**
+ * A few small stills of a clip, fading the way the transition reads, at full
+ * strength while pointed at. Hovering one shows it large. It never represents
+ * playback progress.
+ */
 export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
   const frames = sampledFrames(clip.trace);
+  const { ref, status, stills } = useClipStills(
+    clip.src,
+    frames.map(({ traceIndex }) => frameSeekTime(clip.trace, traceIndex)),
+    FILMSTRIP_STILL_WIDTH,
+  );
   const { active, previewId, hide, show, onKeyDown, setFrameRef } = useFilmstripPreview(previewEnabled, frames.length);
-  const previewedFrame = active ? frames[active.index] : undefined;
+  const previewed = active ? frames[active.index] : undefined;
+  const previewedStill = active ? stills[active.index] : undefined;
 
   if (frames.length === 0) return null;
 
   return (
     <>
-      <div className={styles['clip-filmstrip']} role="group" aria-label="Recorded transition frames">
-        {frames.map(({ traceIndex, sample }, index) => (
+      <div ref={ref} className={styles['clip-filmstrip']} role="group" aria-label="Recorded transition frames">
+        {frames.map(({ sample }, index) => (
           <button
             key={`${sample.frameIndex}:${sample.atMs}`}
             ref={(element) => setFrameRef(index, element)}
@@ -38,18 +48,15 @@ export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
             onBlur={hide}
             onKeyDown={(event) => onKeyDown(event, index)}
           >
-            <ClipFrameVideo source={clip.src} seconds={frameSeekTime(clip.trace, traceIndex)} announceStatus={false} />
+            {stills[index] && <img src={stills[index]} alt="" />}
           </button>
         ))}
       </div>
-      {previewEnabled && active && previewedFrame && (
-        <FloatingPreview
-          id={previewId}
-          anchor={active.anchor}
-          onDismiss={hide}
-          caption={frameTimeLabel(previewedFrame.sample.atMs)}
-        >
-          <ClipFrameVideo source={clip.src} seconds={frameSeekTime(clip.trace, previewedFrame.traceIndex)} />
+      {previewEnabled && active && previewed && (
+        <FloatingPreview id={previewId} anchor={active.anchor} onDismiss={hide} caption={frameTimeLabel(previewed.sample.atMs)}>
+          {previewedStill
+            ? <img className={styles['clip-filmstrip__preview']} src={previewedStill} alt="" />
+            : <span className={styles['clip-filmstrip__status']} role="status">{status === 'failed' ? 'Frame unavailable' : 'Loading frame…'}</span>}
         </FloatingPreview>
       )}
     </>

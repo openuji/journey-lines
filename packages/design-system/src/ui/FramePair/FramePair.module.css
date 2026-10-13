@@ -1,11 +1,12 @@
+/* Only as wide as its frames: before, the transition, after, then whatever goes aside. */
 .frame-pair {
-  display: grid;
-  grid-template-columns: auto minmax(var(--ds-filmstrip-min-width), 1fr) auto;
-  grid-template-rows: auto auto;
+  display: inline-grid;
+  grid-template-columns: auto auto auto;
+  grid-template-rows: auto auto auto;
   column-gap: var(--ds-space-2);
   row-gap: var(--ds-space-1);
   align-items: center;
-  min-width: 0;
+  max-width: 100%;
 }
 
 .frame-pair__before-label,
@@ -30,17 +31,20 @@
   grid-area: 2 / 2;
   display: flex;
   align-items: center;
-  gap: var(--ds-space-2);
-  min-width: var(--ds-filmstrip-min-width);
 }
 
 .frame-pair__after-frame {
   grid-area: 2 / 3;
 }
 
-.frame-pair__expanded {
-  display: block;
-  width: 100%;
-  border: var(--ds-border-thin) solid var(--ds-color-line);
-  border-radius: var(--ds-radius-panel);
+.frame-pair__aside {
+  grid-area: 3 / 2;
+  min-width: 0;
 }
+
+/* Pointing anywhere at the pair, or tabbing into it, shows every frame in it at full strength. */
+.frame-pair:hover,
+.frame-pair:has(:focus-visible) {
+  --ds-transition-reveal: 1;
+}
+

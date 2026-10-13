@@ -6,7 +6,6 @@
 export * from './ui/Alert/Alert';
 export * from './ui/Button/Button';
 export * from './ui/ClipFilmstrip/ClipFilmstrip';
-export * from './ui/ClipFrameVideo/ClipFrameVideo';
 export * from './ui/ClipPlayback/ClipPlayback';
 export * from './ui/ClipPlaybackPanel/ClipPlaybackPanel';
 export * from './ui/ClipVideo/ClipVideo';

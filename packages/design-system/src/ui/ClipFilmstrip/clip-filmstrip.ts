@@ -2,6 +2,9 @@ import type { ClipTraceSample } from '@openuji/core';
 
 export const FILMSTRIP_FRAME_LIMIT = 3;
 
+/** Stills are captured at twice the preview's width, so its enlargement stays sharp. */
+export const FILMSTRIP_STILL_WIDTH = 448;
+
 export type SampledFrame = Readonly<{
   traceIndex: number;
   sample: ClipTraceSample;
