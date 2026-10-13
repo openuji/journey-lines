@@ -91,7 +91,7 @@ describe('report export', () => {
     // Media stay in their files; the JSON only names them.
     expect(text).not.toContain(STORY_FRAME);
     const parsed = JSON.parse(text);
-    expect(parsed).toMatchObject({ version: 1, draft: campusDraft, template: journeyTemplate, recording: { meta: campusRecording.meta } });
+    expect(parsed).toMatchObject({ version: 2, draft: campusDraft, template: journeyTemplate, recording: { meta: campusRecording.meta } });
     const names = new Set(entries.map((entry) => entry.name));
     expect(parsed.recording.items.every((item: { file: string }) => names.has(item.file))).toBe(true);
   });

@@ -19,7 +19,7 @@ export function phaseHeading(entry: JourneyEntry, phase: EntryPhase): string {
 export function readerSections(entry: JourneyEntry): ReaderSection[] {
   const lead = entry.steps.filter((step) => step.phase === null);
   return [
-    ...(entry.intro.length > 0 || lead.length > 0
+    ...(entry.tags.length > 0 || entry.intro.length > 0 || lead.length > 0
       ? [{ kind: 'intro', id: 'introduction', title: 'Introduction', fields: entry.intro, steps: lead } as const]
       : []),
     ...entry.phases.map((phase) => ({

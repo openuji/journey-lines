@@ -59,7 +59,10 @@ async function handle(message: CollectorRequest, sender: chrome.runtime.MessageS
       const slot = validateSlot(message.slot);
       assertPageScope(slot, sender);
       const state = await loadState();
-      const slots = [...state.slots.filter((candidate) => candidate.id !== slot.id), slot];
+      if (state.slots.some((candidate) => candidate.id === slot.id)) {
+        throw new Error('A slot with this ID already exists. Choose another slot ID.');
+      }
+      const slots = [...state.slots, slot];
       const next = { tenant: selectedTenant, slots };
       await saveState(next);
       return { ok: true, state: next };

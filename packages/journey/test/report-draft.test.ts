@@ -56,11 +56,22 @@ describe('report reducer', () => {
     draft = reportReducer(draft, { type: 'setStepNote', at: 'click:2:01', note: 'The official result.' });
     draft = reportReducer(draft, { type: 'setStepHidden', at: 'click:2:01', hidden: true });
     expect(draft).toEqual({
+      tags: [],
       fields: { title: 'Where is my lecture hall?' },
       phases: { 'page:1': { problem: 'No directions.' } },
       steps: { 'click:2:01': { note: 'The official result.', hidden: true } },
     });
-    expect(emptyDraft).toEqual({ fields: {}, phases: {}, steps: {} });
+    expect(emptyDraft).toEqual({ tags: [], fields: {}, phases: {}, steps: {} });
     expect(reportReducer(draft, { type: 'setPhase', at: 'page:2', field: 'title', value: 'x' })).toBe(draft);
+  });
+
+  it('adds a tag once, trimmed, and removes it again', () => {
+    let draft = reportReducer(emptyDraft, { type: 'addTag', tag: '  Campus orientation ' });
+    draft = reportReducer(draft, { type: 'addTag', tag: 'Freie Universität Berlin' });
+    expect(draft.tags).toEqual(['Campus orientation', 'Freie Universität Berlin']);
+    expect(reportReducer(draft, { type: 'addTag', tag: 'Campus orientation' })).toBe(draft);
+    expect(reportReducer(draft, { type: 'addTag', tag: '   ' })).toBe(draft);
+    expect(reportReducer(draft, { type: 'removeTag', tag: 'Campus orientation' }).tags).toEqual(['Freie Universität Berlin']);
+    expect(emptyDraft.tags).toEqual([]);
   });
 });

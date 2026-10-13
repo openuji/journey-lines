@@ -14,7 +14,7 @@ describe('journey entry', () => {
   it('holds what a reader of the report sees, as plain text', () => {
     const entry = entryOf(campusDraft);
     expect(entry).toMatchObject({
-      version: 2,
+      version: 3,
       id: 'ses_campus',
       title: 'Where is my lecture hall, actually?',
       page: { title: campusRecording.meta.tab.title, url: campusRecording.meta.tab.url },
@@ -22,9 +22,10 @@ describe('journey entry', () => {
       endedAtMs: campusRecording.meta.endedAtMs,
       phaseWording: { name: 'Phase', happened: 'What happens?', problem: 'The problem' },
     });
-    expect(entry.intro.map((field) => field.id)).toEqual(['subject', 'title', 'goal', 'result']);
+    expect(entry.tags).toEqual(campusDraft.tags);
+    expect(entry.intro.map((field) => field.id)).toEqual(['title', 'goal', 'result']);
     expect(entry.conclusion.map((field) => field.id)).toEqual(['insight', 'idea', 'scope']);
-    expect(entry.intro[2]).toEqual({ id: 'goal', kind: 'statement', label: 'My goal', text: campusDraft.fields['goal'] });
+    expect(entry.intro[1]).toEqual({ id: 'goal', kind: 'statement', label: 'My goal', text: campusDraft.fields['goal'] });
     expect(entry.phases.map((phase) => phase.title)).toEqual([
       'I find an address',
       'I search for the lecture hall',

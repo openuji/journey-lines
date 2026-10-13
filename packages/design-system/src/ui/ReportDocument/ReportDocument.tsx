@@ -15,6 +15,7 @@ import { Button } from '../Button/Button';
 import { EditableText } from '../EditableText/EditableText';
 import styles from './ReportDocument.module.css';
 import { ReportStep } from './ReportStep';
+import { TagEditor } from '../TagEditor/TagEditor';
 
 /** Receives every change while the report is edited. */
 export type ReportEdit = (action: ReportAction) => void;
@@ -23,6 +24,8 @@ export type ReportDocumentProps = Readonly<{
   events: readonly JourneyEvent[];
   draft: ReportDraft;
   template?: ReportTemplate;
+  /** Tags the researcher can add with one click. */
+  tagSuggestions?: readonly string[];
   onEdit: ReportEdit;
 }>;
 
@@ -31,7 +34,7 @@ export type ReportDocumentProps = Readonly<{
  * step, hidden ones included, grouped into phases. How it reads is the
  * reader's (`ReaderDocument`).
  */
-export function ReportDocument({ events, draft, template = journeyTemplate, onEdit }: ReportDocumentProps) {
+export function ReportDocument({ events, draft, template = journeyTemplate, tagSuggestions, onEdit }: ReportDocumentProps) {
   const outline = useMemo(() => reportOutline(draft, events, 'edit'), [draft, events]);
   const field = (item: TemplateField) => (
     <Field
@@ -57,7 +60,16 @@ export function ReportDocument({ events, draft, template = journeyTemplate, onEd
 
   return (
     <article className={styles['report-draft']}>
-      <header className={styles['report-draft__head']}>{template.header.map(field)}</header>
+      <header className={styles['report-draft__head']}>
+        <TagEditor
+          tags={draft.tags}
+          suggestions={tagSuggestions}
+          wording={template.tags}
+          onAdd={(tag) => onEdit({ type: 'addTag', tag })}
+          onRemove={(tag) => onEdit({ type: 'removeTag', tag })}
+        />
+        {template.header.map(field)}
+      </header>
       {events.length === 0 && <p className={styles['report-message']}>No steps were recorded.</p>}
       {steps(outline.lead)}
       {outline.phases.map((phase) => (
@@ -87,7 +99,6 @@ function Field({ field, value, onChange }: {
     />
   );
   switch (field.kind) {
-    case 'subject': return text('p', styles['report-draft__subject']);
     case 'title': return text('h1', styles['report-draft__title']);
     case 'statement': return <Statement label={field.label}>{text('p', styles['report-text'])}</Statement>;
     case 'section': return (

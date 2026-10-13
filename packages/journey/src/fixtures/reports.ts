@@ -40,8 +40,8 @@ export const longTextReport = report(earlier(campusRecording, 'ses_long_text', 9
  * Keys, per view n of 4: page:n click:n:01 scroll:n:02 click:n:03 scroll:n:04 click:n:05
  */
 export const mostlyUnnotedDraft: ReportDraft = {
+  tags: ['Journey 02', 'Course registration', 'Freie Universität Berlin'],
   fields: {
-    subject: 'Journey 02 · Course registration · Freie Universität Berlin',
     title: 'How do I sign up for the seminar?',
     goal: 'I want to register for the seminar I found in the course catalogue.',
     result: 'I find the registration page, but not whether my registration went through.',

@@ -5,7 +5,7 @@ import { loadSettings, loadPrivacyProfile, restoreDefaultSettings, saveSettings,
 const defaultsUrl = new URL('../settings.defaults.json', import.meta.url);
 const defaults = JSON.parse(readFileSync(defaultsUrl, 'utf8'));
 const document = JSON.parse(readFileSync(new URL(defaults.privacy.profilePath, defaultsUrl), 'utf8'));
-const alternate = { privacy: { profilePath: 'privacy/alternate/profiles.jsonld' } };
+const alternate = { privacy: { profilePath: 'privacy/alternate/profiles.jsonld' }, report: { tags: ['Alternate'] } };
 let stored: Record<string, unknown>;
 let assets: Record<string, unknown>;
 
@@ -53,7 +53,7 @@ describe('extension settings', () => {
   });
 
   it('rejects a missing or invalid document before changing saved settings', async () => {
-    await expect(saveSettings({ privacy: { profilePath: 'privacy/missing.jsonld' } })).rejects.toThrow();
+    await expect(saveSettings({ ...defaults, privacy: { profilePath: 'privacy/missing.jsonld' } })).rejects.toThrow();
     assets[alternate.privacy.profilePath] = {};
     await expect(saveSettings(alternate)).rejects.toThrow();
     expect(stored).toEqual({ unrelated: 'keep' });
@@ -65,6 +65,12 @@ describe('extension settings', () => {
   });
 
   it.each(['https://example.test/profile.jsonld', '../privacy/profile.jsonld', 'privacy/../other.jsonld', 'privacy/a.jsonld?x=1'])('rejects non-packaged paths: %s', (profilePath) => {
-    expect(() => parseSettings({ privacy: { profilePath } })).toThrow();
+    expect(() => parseSettings({ ...defaults, privacy: { profilePath } })).toThrow();
+  });
+
+  it('keeps default tags trimmed and once each, and rejects anything but a list of texts', () => {
+    expect(parseSettings({ ...defaults, report: { tags: [' A ', '', 'A', 'B'] } }).report.tags).toEqual(['A', 'B']);
+    expect(() => parseSettings({ privacy: defaults.privacy })).toThrow();
+    expect(() => parseSettings({ ...defaults, report: { tags: [1] } })).toThrow();
   });
 });

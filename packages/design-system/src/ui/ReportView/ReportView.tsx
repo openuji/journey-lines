@@ -27,6 +27,8 @@ export type ReportViewProps = {
   template?: ReportTemplate;
   /** What editing starts from, such as a report read back from its archive. */
   initialDraft?: ReportDraft;
+  /** Tags the editor offers with one click, such as the host's default tags. */
+  tagSuggestions?: readonly string[];
   error?: string | null;
   downloading?: boolean;
   onDownload?: (draft: ReportDraft) => void;
@@ -41,6 +43,7 @@ export function ReportView({
   session,
   template = journeyTemplate,
   initialDraft = emptyDraft,
+  tagSuggestions,
   error = null,
   downloading = false,
   onDownload,
@@ -76,7 +79,7 @@ export function ReportView({
         {!error && !session && <p className={styles['report-message']} role="status">Loading report…</p>}
         {session && !preview && (
           <div className={styles['report-doc']}>
-            <ReportDocument events={events} draft={draft} template={template} onEdit={dispatch} />
+            <ReportDocument events={events} draft={draft} template={template} tagSuggestions={tagSuggestions} onEdit={dispatch} />
           </div>
         )}
         {preview && <ReaderDocument entry={preview} media={media} />}

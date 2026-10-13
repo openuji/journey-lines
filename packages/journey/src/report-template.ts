@@ -10,11 +10,13 @@ export type FieldText = Readonly<{ label: string; placeholder: string }>;
 
 export type TemplateField = FieldText & Readonly<{
   id: string;
-  /** How the field reads: a line above the title, the title, a labelled paragraph, or a headed section. */
-  kind: 'subject' | 'title' | 'statement' | 'section';
+  /** How the field reads: the title, a labelled paragraph, or a headed section. */
+  kind: 'title' | 'statement' | 'section';
 }>;
 
 export type ReportTemplate = Readonly<{
+  /** The draft's tags, above the header fields. */
+  tags: FieldText;
   /** Above the steps. */
   header: readonly TemplateField[];
   phase: Readonly<{ name: string } & Record<PhaseField, FieldText>>;
@@ -25,13 +27,8 @@ export type ReportTemplate = Readonly<{
 
 /** One journey, told by the person who made it, for people who weren't there. */
 export const journeyTemplate: ReportTemplate = {
+  tags: { label: 'Tags', placeholder: 'Add a tag, e.g. Campus orientation' },
   header: [
-    {
-      id: 'subject',
-      kind: 'subject',
-      label: 'Subject',
-      placeholder: 'Journey 01 · Campus orientation · Freie Universität Berlin',
-    },
     {
       id: 'title',
       kind: 'title',

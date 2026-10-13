@@ -14,6 +14,8 @@ export type PhaseField = keyof PhaseText;
 export type StepDraft = Readonly<{ hidden?: boolean; note?: string }>;
 
 export type ReportDraft = Readonly<{
+  /** What the journey is about, in the order they were added; each one once. */
+  tags: readonly string[];
   /** By template field id. */
   fields: Readonly<Record<string, string>>;
   /** By the key of the step a phase begins with; it runs until the next phase begins. */
@@ -22,9 +24,11 @@ export type ReportDraft = Readonly<{
   steps: Readonly<Record<string, StepDraft>>;
 }>;
 
-export const emptyDraft: ReportDraft = { fields: {}, phases: {}, steps: {} };
+export const emptyDraft: ReportDraft = { tags: [], fields: {}, phases: {}, steps: {} };
 
 export type ReportAction =
+  | Readonly<{ type: 'addTag'; tag: string }>
+  | Readonly<{ type: 'removeTag'; tag: string }>
   | Readonly<{ type: 'setField'; field: string; value: string }>
   | Readonly<{ type: 'startPhase'; at: string }>
   | Readonly<{ type: 'removePhase'; at: string }>
@@ -34,6 +38,12 @@ export type ReportAction =
 
 export function reportReducer(draft: ReportDraft, action: ReportAction): ReportDraft {
   switch (action.type) {
+    case 'addTag': {
+      const tag = action.tag.trim();
+      return tag === '' || draft.tags.includes(tag) ? draft : { ...draft, tags: [...draft.tags, tag] };
+    }
+    case 'removeTag':
+      return { ...draft, tags: draft.tags.filter((tag) => tag !== action.tag) };
     case 'setField':
       return { ...draft, fields: { ...draft.fields, [action.field]: action.value } };
     case 'startPhase':

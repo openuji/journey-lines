@@ -61,7 +61,7 @@ export type ReportExport = Readonly<{
   recording: StoredRecording;
 }>;
 
-export const REPORT_VERSION = 1;
+export const REPORT_VERSION = 2;
 export const REPORT_FILE = 'report.json';
 
 /** A recording item in `report.json`: its picture or video is the named file beside it. */

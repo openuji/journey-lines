@@ -93,13 +93,6 @@
   border-top: var(--ds-border-thin) solid var(--ds-color-line);
 }
 
-.reader__subject {
-  margin: 0;
-  color: var(--ds-color-ink-soft);
-  font-size: var(--ds-type-report-meta);
-  font-weight: var(--ds-weight-medium);
-}
-
 .reader__title {
   margin: 0 0 var(--ds-space-2);
   font-size: var(--ds-type-report-title);

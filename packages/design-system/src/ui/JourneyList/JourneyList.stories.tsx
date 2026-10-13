@@ -25,7 +25,7 @@ export const One: Story = {
   args: { journeys: [campusEntry] },
 };
 
-/** Downloaded before anything was written: called after its page, no subject, no phases. */
+/** Downloaded before anything was written: called after its page, no tags, no phases. */
 export const Untitled: Story = {
   args: { journeys: [untitledEntry] },
 };

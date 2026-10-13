@@ -1,7 +1,8 @@
 import { defineUnlistedScript } from 'wxt/utils/define-unlisted-script';
 import { defaultScope, defaultTenant, normalizeIdentifier, type CollectedSlot, type CollectorAction,
-  type DisplayAttribute, type ScopeMode, type TextTarget } from '../lib/catalog';
+  type DisplayAttribute, type ScopeMode } from '../lib/catalog';
 import { request } from '../lib/messages';
+import { targetRects, textAtPoint, textTargets } from '../lib/text-targets';
 
 type Picker = { activate(): void; destroy(): void };
 declare global { interface Window { __openujiPrivacyCollector?: Picker } }
@@ -79,18 +80,6 @@ function isMaskable(element: Element): boolean {
     element instanceof HTMLInputElement && editableTypes.has(element.type);
 }
 
-function textTargets(element: Element): { label: string; value: string; target: TextTarget }[] {
-  if (element.childElementCount === 0) return [{ label: 'Leaf element', value: 'leaf', target: { kind: 'leaf' } }];
-  const result: { label: string; value: string; target: TextTarget }[] = [];
-  element.childNodes.forEach((node, index) => {
-    if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-      result.push({ label: `Direct text node ${index}`, value: String(index),
-        target: { kind: 'direct-text', childNodeIndex: index } });
-    }
-  });
-  return result;
-}
-
 function installPicker(): Picker {
   const host = document.createElement('div');
   host.dataset.openujiPrivacyCollector = '';
@@ -98,7 +87,8 @@ function installPicker(): Picker {
   shadow.innerHTML = `<style>
     :host { all: initial; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; }
     * { box-sizing: border-box; }
-    #highlight { position: fixed; border: 3px solid #78d600; background: rgba(120,214,0,.12); pointer-events:none; }
+    #highlight { pointer-events:none; }
+    .highlight-rect { position: fixed; border: 2px solid #78d600; background: rgba(120,214,0,.12); pointer-events:none; }
     #badge { position: fixed; left: 16px; bottom: 16px; padding: 10px 13px; border-radius: 6px; background:#101828; color:#fff;
       font: 600 13px/1.35 system-ui,sans-serif; box-shadow:0 8px 25px #0005; }
     #editor { position: fixed; right: 16px; top: 16px; width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
@@ -113,7 +103,7 @@ function installPicker(): Picker {
     button:disabled { opacity:.45; cursor:not-allowed; } #validation { margin:10px 0 0; color:#b42318; min-height:20px; }
     #matches { color:#475467; font-size:12px; } [hidden] { display:none !important; }
   </style>
-  <div id="highlight" hidden></div><div id="badge">Privacy collector: click an element · Esc cancels</div>
+  <div id="highlight" hidden></div><div id="badge">Privacy collector: click text or an element · Esc cancels</div>
   <form id="editor" hidden>
     <h2>Collect privacy slot</h2>
     <div class="row"><div><label for="tenant">Tenant</label><input id="tenant" required></div>
@@ -126,7 +116,8 @@ function installPicker(): Picker {
       <div id="attribute-wrap"><label for="attribute">Attribute</label><select id="attribute">
         <option>aria-label</option><option>title</option><option>alt</option><option>placeholder</option></select></div></div>
     <div id="replacement-wrap"><label for="replacement">Replacement</label><input id="replacement"></div>
-    <div id="text-wrap"><label for="text-target">Text destination</label><select id="text-target"></select></div>
+    <div id="text-wrap"><label for="text-target">Text destination</label><select id="text-target"></select>
+      <p>The highlighted text will be replaced.</p></div>
     <div class="row"><div><label for="scope">Page scope</label><select id="scope">
       <option value="exact">This exact path</option><option value="prefix">This path and descendants</option>
       <option value="origin">Whole origin</option></select></div>
@@ -157,9 +148,28 @@ function installPicker(): Picker {
   const multipleInput = element<HTMLInputElement>('multiple');
   const validation = element<HTMLParagraphElement>('validation');
   const save = element<HTMLButtonElement>('save');
-  let selected: Element | null = null;
   let selecting = false;
   let availableTextTargets: ReturnType<typeof textTargets> = [];
+  let textElement: Element | null = null;
+  let highlighted: Element | Text | null = null;
+  let savedSlots: readonly CollectedSlot[] = [];
+  let stateLoaded = false;
+  let stateError = '';
+  let slotEdited = false;
+  let tenantEdited = false;
+  let generation = 0;
+  let destroyTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const drawHighlight = (): void => {
+    highlight.replaceChildren(...(highlighted?.isConnected ? targetRects(highlighted) : []).map((rect) => {
+      const marker = document.createElement('div');
+      marker.className = 'highlight-rect';
+      Object.assign(marker.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+      return marker;
+    }));
+    highlight.hidden = highlight.childElementCount === 0;
+  };
+  const showHighlight = (target: Element | Text | null): void => { highlighted = target; drawHighlight(); };
 
   const pickedElement = (): Element | null => {
     try { return document.querySelector(selectorInput.value); } catch { return null; }
@@ -168,27 +178,45 @@ function installPicker(): Picker {
     let found: Element[] = [];
     try { found = [...document.querySelectorAll(selectorInput.value)]; } catch { /* validation below */ }
     matches.textContent = `${found.length} match${found.length === 1 ? '' : 'es'} on this page`;
-    const target = found[0] ?? selected;
+    const target = found[0] ?? null;
     const action = actionInput.value as CollectorAction;
     attributeWrap.hidden = action !== 'replace-attribute';
     replacementWrap.hidden = action === 'mask-input';
     textWrap.hidden = action !== 'replace-text';
-    if (target && action === 'replace-text') {
-      availableTextTargets = textTargets(target);
-      textInput.replaceChildren(...availableTextTargets.map(({ label, value }) => {
+    const choices = target && action === 'replace-text' ? textTargets(target) : [];
+    if (target !== textElement || choices.map((item) => item.value).join(',') !== availableTextTargets.map((item) => item.value).join(',')) {
+      const previous = target === textElement ? textInput.value : '';
+      availableTextTargets = choices;
+      textElement = target;
+      textInput.replaceChildren(...choices.map(({ label, value }) => {
         const option = document.createElement('option'); option.value = value; option.textContent = label; return option;
       }));
+      if (choices.some((item) => item.value === previous)) textInput.value = previous;
+    }
+    const text = availableTextTargets.find((item) => item.value === textInput.value)?.target;
+    const destination = target && text?.kind === 'direct-text' ? target.childNodes[text.childNodeIndex] : target;
+    showHighlight(destination instanceof Element || destination instanceof Text ? destination : null);
+    if (target && !slotEdited) {
+      const suffix = action === 'replace-text' && text?.kind === 'direct-text' ? `.text-${text.childNodeIndex}`
+        : action === 'replace-attribute' ? `.${attributeInput.value}` : '';
+      const base = `${inferredSlotId(target)}${suffix}`;
+      let id = base;
+      for (let index = 2; savedSlots.some((slot) => slot.id === id); index++) id = `${base}-${index}`;
+      slotInput.value = id;
     }
     scopeInput.value === 'origin' ? pathInput.value = '/' : undefined;
     pathInput.disabled = scopeInput.value === 'origin';
     let problem = '';
-    if (!selectorInput.value || found.length === 0) problem = 'Selector must match at least one element.';
+    if (stateError) problem = stateError;
+    else if (!stateLoaded) problem = 'Loading saved slots…';
+    else if (!selectorInput.value || found.length === 0) problem = 'Selector must match at least one element.';
     else if (found.length > 1 && !multipleInput.checked) problem = 'Enable multiple matches or make the selector unique.';
     else if (action === 'mask-input' && !found.every(isMaskable)) problem = 'Mask input supports text-like inputs and textareas.';
     else if (action !== 'mask-input' && replacementInput.value === '') problem = 'Enter the replacement to record.';
     else if (action === 'replace-text' && availableTextTargets.length === 0) problem = 'Choose a leaf element or one with a direct text node.';
     else if (normalizeIdentifier(tenantInput.value, '') !== tenantInput.value) problem = 'Tenant is not a valid identifier.';
     else if (normalizeIdentifier(slotInput.value, '') !== slotInput.value) problem = 'Slot ID is not a valid identifier.';
+    else if (savedSlots.some((slot) => slot.id === slotInput.value)) problem = 'A slot with this ID already exists. Choose another slot ID.';
     else if (!pathInput.value.startsWith('/')) problem = 'Scope path must start with /.';
     validation.textContent = problem;
     save.disabled = problem !== '';
@@ -198,15 +226,13 @@ function installPicker(): Picker {
     selecting = false;
     document.removeEventListener('pointermove', onMove, true);
     document.removeEventListener('click', onClick, true);
-    highlight.hidden = true;
+    showHighlight(null);
   };
   const onMove = (event: PointerEvent): void => {
     if (!selecting) return;
     const target = event.composedPath().find((item): item is Element => item instanceof Element && item !== host);
     if (!target || target.getRootNode() !== document) return;
-    const rect = target.getBoundingClientRect();
-    Object.assign(highlight.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-    highlight.hidden = false;
+    showHighlight(textAtPoint(target, event.clientX, event.clientY) ?? target);
   };
   const onClick = (event: MouseEvent): void => {
     if (!selecting) return;
@@ -214,11 +240,11 @@ function installPicker(): Picker {
     if (!target) return;
     event.preventDefault(); event.stopImmediatePropagation();
     try {
+      const textNode = textAtPoint(target, event.clientX, event.clientY);
       const selector = selectorFor(target);
-      selected = target;
       stopSelecting();
-      tenantInput.value = defaultTenant(location.hostname);
-      slotInput.value = inferredSlotId(target);
+      slotEdited = false;
+      textElement = null;
       selectorInput.value = selector;
       actionInput.value = isMaskable(target) ? 'mask-input' : 'replace-text';
       replacementInput.value = '';
@@ -226,31 +252,64 @@ function installPicker(): Picker {
       scopeInput.value = scope.mode; pathInput.value = scope.path;
       multipleInput.checked = document.querySelectorAll(selector).length > 1;
       editor.hidden = false; badge.hidden = true; update();
-      void request({ type: 'collector:get' }).then((reply) => {
-        if (reply.ok && reply.state && reply.state.tenant !== 'tenant') tenantInput.value = reply.state.tenant;
+      if (textNode && target.childElementCount > 0) {
+        textInput.value = String([...target.childNodes].indexOf(textNode));
         update();
-      });
+      }
     } catch (error) {
       badge.textContent = error instanceof Error ? error.message : 'This element cannot be collected.';
     }
   };
 
   const activate = (): void => {
+    clearTimeout(destroyTimer);
     stopSelecting();
-    selected = null; editor.hidden = true; badge.hidden = false;
-    badge.textContent = 'Privacy collector: click an element · Esc cancels';
+    editor.hidden = true; badge.hidden = false;
+    textElement = null; slotEdited = false; tenantEdited = false;
+    stateLoaded = false; stateError = ''; savedSlots = [];
+    tenantInput.value = defaultTenant(location.hostname);
+    const currentGeneration = ++generation;
+    void request({ type: 'collector:get' }).then((reply) => {
+      if (currentGeneration !== generation) return;
+      stateLoaded = true;
+      if (!reply.ok) stateError = reply.error;
+      else {
+        savedSlots = reply.state?.slots ?? [];
+        if (!tenantEdited && reply.state && reply.state.tenant !== 'tenant') tenantInput.value = reply.state.tenant;
+      }
+      if (!editor.hidden) update();
+    }).catch(() => {
+      if (currentGeneration !== generation) return;
+      stateError = 'Saved slots could not be loaded. Reopen the collector to try again.';
+      if (!editor.hidden) update();
+    });
+    badge.textContent = 'Privacy collector: click text or an element · Esc cancels';
     selecting = true;
     document.addEventListener('pointermove', onMove, true);
     document.addEventListener('click', onClick, true);
   };
-  const destroy = (): void => { stopSelecting(); document.removeEventListener('keydown', onKey, true); host.remove(); delete window.__openujiPrivacyCollector; };
+  const destroy = (): void => {
+    generation++;
+    clearTimeout(destroyTimer);
+    stopSelecting();
+    document.removeEventListener('keydown', onKey, true);
+    document.removeEventListener('scroll', drawHighlight, true);
+    window.removeEventListener('resize', drawHighlight);
+    host.remove(); delete window.__openujiPrivacyCollector;
+  };
   const onKey = (event: KeyboardEvent): void => { if (event.key === 'Escape') destroy(); };
 
   for (const control of [tenantInput, slotInput, selectorInput, actionInput, attributeInput,
-    replacementInput, textInput, scopeInput, pathInput, multipleInput]) control.addEventListener('input', update);
+    replacementInput, textInput, scopeInput, pathInput, multipleInput]) control.addEventListener('input', () => {
+    if (control === slotInput) slotEdited = true;
+    if (control === tenantInput) tenantEdited = true;
+    update();
+  });
   element<HTMLButtonElement>('cancel').addEventListener('click', destroy);
   editor.addEventListener('submit', (event) => {
     event.preventDefault();
+    update();
+    if (save.disabled) return;
     const target = pickedElement();
     const text = availableTextTargets.find((item) => item.value === textInput.value)?.target;
     const action = actionInput.value as CollectorAction;
@@ -271,11 +330,13 @@ function installPicker(): Picker {
     save.disabled = true;
     void request({ type: 'collector:save', tenant: tenantInput.value, slot }).then((reply) => {
       if (!reply.ok) { validation.textContent = reply.error; save.disabled = false; return; }
-      editor.hidden = true; badge.hidden = false; badge.textContent = `Saved ${slot.id}. Open the extension to collect another slot.`;
-      setTimeout(destroy, 1_800);
+      editor.hidden = true; showHighlight(null); badge.hidden = false; badge.textContent = `Saved ${slot.id}. Open the extension to collect another slot.`;
+      destroyTimer = setTimeout(destroy, 1_800);
     });
   });
   document.addEventListener('keydown', onKey, true);
+  document.addEventListener('scroll', drawHighlight, true);
+  window.addEventListener('resize', drawHighlight);
   return { activate, destroy };
 }
 

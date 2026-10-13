@@ -114,7 +114,6 @@ export const campusEvents = journeyEvents(campusCaptures, STORY_STARTED_AT_MS, [
 export const longEvents = journeyEvents(longStoryCaptures, STORY_STARTED_AT_MS);
 
 const campusFields: ReportDraft['fields'] = {
-  subject: 'Journey 01 · Campus orientation · Freie Universität Berlin',
   title: 'Where is my lecture hall, actually?',
   goal: 'I want to find out how to get to lecture hall 1b, where my lecture takes place.',
   result: 'In the end I know where the building complex is, but not the way to the lecture hall.',
@@ -125,6 +124,7 @@ const campusFields: ReportDraft['fields'] = {
 
 /** Filled as in changes/overfitted-report.md: three phases, the "Left page" noise hidden. */
 export const campusDraft: ReportDraft = {
+  tags: ['Journey 01', 'Campus orientation', 'Freie Universität Berlin'],
   fields: campusFields,
   phases: {
     'page:1': {
@@ -173,9 +173,14 @@ export const phaseAllHiddenDraft: ReportDraft = {
 const longWord = 'https://www.fu-berlin.de/sites/rosila/Gebaeude/Rostlaube/Hoersaal-1b/index.html?utm_source=a-very-long-query-that-never-breaks';
 
 export const longTextDraft: ReportDraft = {
+  tags: [
+    ...campusDraft.tags,
+    'Fachbereich Geschichts- und Kulturwissenschaften',
+    'Wintersemester 2026/27',
+    'A tag that is far too long for a tag, and keeps going to see where the line has to break',
+  ],
   fields: {
     ...campusFields,
-    subject: 'Journey 01 · Campus orientation · Freie Universität Berlin · Fachbereich Geschichts- und Kulturwissenschaften · Wintersemester 2026/27',
     title: 'Where is my lecture hall, actually, and why does every service I try tell me only a part of the answer?',
     goal: `${campusFields['goal']} ${longWord}`,
   },

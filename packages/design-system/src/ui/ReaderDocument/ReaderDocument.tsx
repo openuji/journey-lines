@@ -3,6 +3,7 @@ import type { EntryField, EntryStep, JourneyEntry } from '@openuji/journey';
 import { useActiveSection } from '../../hooks/useActiveSection';
 import { readerSections, type ReaderSection } from './reader-sections';
 import styles from './ReaderDocument.module.css';
+import { TagList } from '../TagList/TagList';
 import { ReaderStep, type ReaderMedia } from './ReaderStep';
 
 export type ReaderDocumentProps = Readonly<{
@@ -57,6 +58,7 @@ function Section({ section, entry, media }: { section: ReaderSection; entry: Jou
   switch (section.kind) {
     case 'intro': return (
       <section id={section.id} className={styles['reader__intro']}>
+        <TagList tags={entry.tags} />
         {section.fields.map((field) => <Field key={field.id} field={field} />)}
         <Steps steps={section.steps} media={media} />
       </section>
@@ -88,7 +90,6 @@ function Steps({ steps, media }: { steps: readonly EntryStep[]; media: ReaderMed
 
 function Field({ field }: { field: EntryField }) {
   switch (field.kind) {
-    case 'subject': return <p className={styles['reader__subject']}>{field.text}</p>;
     case 'title': return <h1 className={styles['reader__title']}>{field.text}</h1>;
     case 'statement': return <Statement label={field.label}>{field.text}</Statement>;
     case 'section': return (

@@ -17,6 +17,18 @@ describe('ReportDocument', () => {
     expect(html).toContain('Start phase here');
   });
 
+  it('shows the tags and offers only the suggestions not yet used', () => {
+    const html = renderToStaticMarkup(createElement(ReportDocument, {
+      events: campusEvents,
+      draft: campusDraft,
+      tagSuggestions: ['Freie Universität Berlin', 'Wintersemester 2026/27'],
+      onEdit: () => {},
+    }));
+    expect(html).toContain('aria-label="Remove tag Campus orientation"');
+    expect(html).toContain('+ Wintersemester 2026/27');
+    expect(html).not.toContain('+ Freie Universität Berlin');
+  });
+
   it('keeps every step while editing, hidden ones folded with a way back', () => {
     const html = edit(campusDraft);
     expect(html).toContain('Hidden · Left page');

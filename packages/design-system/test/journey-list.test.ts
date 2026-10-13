@@ -16,7 +16,7 @@ describe('JourneyList', () => {
 
   it('shows what a journey is about and how much it holds', () => {
     const html = render([campusEntry]);
-    expect(html).toContain('Journey 01 · Campus orientation · Freie Universität Berlin');
+    for (const tag of campusEntry.tags) expect(html).toContain(`>${tag}</li>`);
     expect(html).toContain(`<span>${campusEntry.steps.length} steps</span><span>3 phases</span>`);
     expect(html).toContain('www.fu-berlin.de/vv/de/lv/123456');
   });

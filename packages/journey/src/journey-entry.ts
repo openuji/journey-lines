@@ -13,7 +13,7 @@ import { captureFile, clipFile, type ReportExport } from './report-archive.js';
 import { reportOutline, type OutlineStep } from './report-draft.js';
 import type { TemplateField } from './report-template.js';
 
-export const JOURNEY_ENTRY_VERSION = 2;
+export const JOURNEY_ENTRY_VERSION = 3;
 
 /** A clip as an entry names it: its file, and when each of its frames was recorded. */
 export type FiledClip = Readonly<{ file: string; trace: readonly ClipTraceSample[] }>;
@@ -41,6 +41,8 @@ export type JourneyEntry = Readonly<{
   page: Readonly<{ title: string; url: string }>;
   startedAtMs: number;
   endedAtMs: number;
+  /** What the journey is about, as the researcher tagged it. */
+  tags: readonly string[];
   /** The header fields that were written, in template order. */
   intro: readonly EntryField[];
   /** The closing fields that were written, in template order. */
@@ -82,6 +84,7 @@ export function journeyEntry({ template, draft, recording }: ReportExport): Jour
     page: { title: recording.meta.tab.title, url: recording.meta.tab.url },
     startedAtMs: recording.meta.startedAtMs,
     endedAtMs: recording.meta.endedAtMs,
+    tags: draft.tags,
     intro,
     conclusion: writtenFields(template.closing, draft.fields),
     phaseWording: {

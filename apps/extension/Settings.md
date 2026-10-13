@@ -11,9 +11,16 @@ removes that override.
 {
   "privacy": {
     "profilePath": "privacy/fu/profiles.jsonld"
+  },
+  "report": {
+    "tags": ["Freie Universität Berlin"]
   }
 }
 ```
+
+`report.tags` are the default tags: the report editor offers them as one-click
+suggestions (one per line in Options). A new report starts with no tags, and a
+report keeps only the tags it was given. Both settings are overridden together.
 
 The build copies this file and all `privacy/**/*.jsonld` documents into the
 extension. The recording code knows only the settings shape; it has no tenant

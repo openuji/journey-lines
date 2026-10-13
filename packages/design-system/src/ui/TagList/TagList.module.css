@@ -1,0 +1,18 @@
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-list__tag {
+  padding: var(--ds-space-half) var(--ds-space-2-5);
+  border: var(--ds-border-thin) solid var(--ds-color-line);
+  border-radius: var(--ds-radius-pill);
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-meta);
+  font-weight: var(--ds-weight-medium);
+  overflow-wrap: anywhere;
+}

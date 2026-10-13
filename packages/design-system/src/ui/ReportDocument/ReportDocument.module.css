@@ -26,13 +26,6 @@
   gap: var(--ds-space-3);
 }
 
-.report-draft__subject {
-  margin: 0;
-  color: var(--ds-color-ink-soft);
-  font-size: var(--ds-type-report-meta);
-  font-weight: var(--ds-weight-medium);
-}
-
 .report-draft__title {
   margin: 0 0 var(--ds-space-2);
   font-size: var(--ds-type-report-title);

@@ -2,18 +2,31 @@ import { privacyProfileFromDocument, type PrivacyProfile } from '@openuji/privac
 
 export interface ExtensionSettings {
   readonly privacy: { readonly profilePath: string };
+  /** `tags`: what the report editor offers with one click. */
+  readonly report: { readonly tags: readonly string[] };
 }
 const STORAGE_KEY = 'settings';
 
 const object = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** Trimmed, without blanks or repeats, in the order given. */
+export const cleanTags = (tags: readonly string[]): string[] =>
+  [...new Set(tags.map((tag) => tag.trim()).filter((tag) => tag !== ''))];
+
 export function parseSettings(value: unknown): ExtensionSettings {
   if (!object(value) || !object(value.privacy) || typeof value.privacy.profilePath !== 'string' ||
       !/^privacy\/(?:[a-z\d_-]+\/)*[a-z\d_.-]+\.jsonld$/i.test(value.privacy.profilePath)) {
     throw new Error('Choose a JSON-LD profile packaged in the extension’s privacy folder.');
   }
-  return { privacy: { profilePath: value.privacy.profilePath } };
+  if (!object(value.report) || !Array.isArray(value.report.tags) ||
+      !value.report.tags.every((tag) => typeof tag === 'string')) {
+    throw new Error('Report tags must be a list of texts.');
+  }
+  return {
+    privacy: { profilePath: value.privacy.profilePath },
+    report: { tags: cleanTags(value.report.tags as string[]) },
+  };
 }
 
 /** Packaged data only: no tenant imports and no remote profile fetching. */

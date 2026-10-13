@@ -1,5 +1,6 @@
 import { Route } from 'lucide-react';
 import { formatClock, formatDate, shortUrl, type JourneyEntry } from '@openuji/journey';
+import { TagList } from '../TagList/TagList';
 import styles from './JourneyList.module.css';
 
 export type JourneyListProps = Readonly<{
@@ -35,10 +36,9 @@ const count = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' :
 
 /** The whole row opens the report; its link text is the title alone. */
 function JourneyItem({ journey, href }: { journey: JourneyEntry; href: string }) {
-  const subject = journey.intro.find((field) => field.kind === 'subject')?.text;
   return (
     <li className={styles['journey']}>
-      {subject && <p className={styles['journey__subject']}>{subject}</p>}
+      <TagList tags={journey.tags} />
       <h2 className={styles['journey__title']}>
         <a href={href}>{journey.title}</a>
       </h2>

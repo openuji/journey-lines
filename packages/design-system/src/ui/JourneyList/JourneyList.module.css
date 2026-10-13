@@ -61,13 +61,6 @@
   line-height: var(--ds-leading-body);
 }
 
-.journey__subject {
-  margin: 0;
-  color: var(--ds-color-ink-soft);
-  font-size: var(--ds-type-report-meta);
-  font-weight: var(--ds-weight-medium);
-}
-
 .journey__title {
   margin: 0;
   font-size: var(--ds-type-report-heading);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { journeyTemplate, REPORT_VERSION, type ReportDraft, type StoredRecording } from '@openuji/journey';
 import { ReportView } from '@openuji/design-system';
+import { loadSettings } from '../../lib/settings';
 import { downloadReport } from '../../lib/report-download';
 import { loadReport } from '../../lib/report-port';
 
@@ -13,6 +14,12 @@ export function Report() {
   const [session, setSession] = useState<StoredRecording | null>(null);
   const [error, setError] = useState<string | null>(sessionId ? null : 'No recording specified.');
   const [downloading, setDownloading] = useState(false);
+  const [tagSuggestions, setTagSuggestions] = useState<readonly string[]>([]);
+
+  // Suggestions are a convenience: a settings problem must not keep a report from being written.
+  useEffect(() => {
+    void loadSettings().then((settings) => setTagSuggestions(settings.report.tags), () => {});
+  }, []);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -41,5 +48,5 @@ export function Report() {
     }
   };
 
-  return <ReportView session={session} template={template} error={error} downloading={downloading} onDownload={download} />;
+  return <ReportView session={session} template={template} tagSuggestions={tagSuggestions} error={error} downloading={downloading} onDownload={download} />;
 }

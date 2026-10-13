@@ -25,6 +25,34 @@
           "path": {
             "prefix": "/"
           }
+        },
+        {
+          "id": "scope-cjomkt",
+          "origin": "https://veranstaltung.weiterbildung.fu-berlin.de",
+          "path": {
+            "exact": "/Anmeldung"
+          }
+        },
+        {
+          "id": "scope-9ouoco",
+          "origin": "https://veranstaltung.weiterbildung.fu-berlin.de",
+          "path": {
+            "prefix": "/Kontakt/"
+          }
+        },
+        {
+          "id": "scope-1fq96l",
+          "origin": "https://veranstaltung.weiterbildung.fu-berlin.de",
+          "path": {
+            "prefix": "/"
+          }
+        },
+        {
+          "id": "scope-weiterbildung-dokument",
+          "origin": "https://veranstaltung.weiterbildung.fu-berlin.de",
+          "path": {
+            "prefix": "/Dokument/"
+          }
         }
       ],
       "rules": [
@@ -44,6 +72,89 @@
           "locatorRef": "urn:privacy:fu:a",
           "action": "replace-text",
           "replacement": "Max Mustermann (max-muster)",
+          "text": {
+            "kind": "leaf"
+          }
+        },
+        {
+          "id": "weiterbildung.benutzer",
+          "scopeRefs": [
+            "scope-cjomkt"
+          ],
+          "locatorRef": "urn:privacy:weiterbildung:benutzer",
+          "action": "mask-input"
+        },
+        {
+          "id": "weiterbildung.firstname",
+          "scopeRefs": [
+            "scope-9ouoco"
+          ],
+          "locatorRef": "urn:privacy:weiterbildung:firstname",
+          "action": "replace-text",
+          "replacement": "Max",
+          "text": {
+            "kind": "leaf"
+          }
+        },
+        {
+          "id": "weiterbildung.span",
+          "scopeRefs": [
+            "scope-9ouoco"
+          ],
+          "locatorRef": "urn:privacy:weiterbildung:span",
+          "action": "replace-text",
+          "replacement": "Mustermann",
+          "text": {
+            "kind": "leaf"
+          }
+        },
+        {
+          "id": "weiterbildung.p.text-2",
+          "scopeRefs": [
+            "scope-weiterbildung-dokument"
+          ],
+          "locatorRef": "urn:privacy:weiterbildung:p.text-2",
+          "action": "replace-text",
+          "replacement": "Max Mustermann",
+          "text": {
+            "childNodeIndex": 2,
+            "kind": "direct-text"
+          }
+        },
+        {
+          "id": "weiterbildung.p.text-4",
+          "scopeRefs": [
+            "scope-weiterbildung-dokument"
+          ],
+          "locatorRef": "urn:privacy:weiterbildung:p.text-4",
+          "action": "replace-text",
+          "replacement": "Teststraße 1",
+          "text": {
+            "childNodeIndex": 4,
+            "kind": "direct-text"
+          }
+        },
+        {
+          "id": "weiterbildung.div.text-5",
+          "scopeRefs": [
+            "scope-weiterbildung-dokument"
+          ],
+          "locatorRef": "urn:privacy:weiterbildung:div.text-5",
+          "action": "replace-text",
+          "replacement": "Sehr geehrter Herr Max Mustermann",
+          "text": {
+            "childNodeIndex": 5,
+            "kind": "direct-text"
+          }
+        },
+        {
+          "id": "weiterbildung.label",
+          "scopeRefs": [
+            "scope-1fq96l"
+          ],
+          "locatorRef": "urn:privacy:weiterbildung:label",
+          "action": "replace-text",
+          "replacement": "MM",
           "text": {
             "kind": "leaf"
           }
@@ -68,6 +179,69 @@
       "extensions": {
         "org.openuji.privacy.css": {
           "selector": "div.myfu-user > a"
+        }
+      }
+    },
+    {
+      "@id": "urn:privacy:weiterbildung:benutzer",
+      "@type": "CustomLocator",
+      "extensions": {
+        "org.openuji.privacy.css": {
+          "selector": "#Benutzer"
+        }
+      }
+    },
+    {
+      "@id": "urn:privacy:weiterbildung:firstname",
+      "@type": "CustomLocator",
+      "extensions": {
+        "org.openuji.privacy.css": {
+          "selector": "h1 > span:nth-of-type(3)"
+        }
+      }
+    },
+    {
+      "@id": "urn:privacy:weiterbildung:span",
+      "@type": "CustomLocator",
+      "extensions": {
+        "org.openuji.privacy.css": {
+          "selector": "h1 > span:nth-of-type(4)"
+        }
+      }
+    },
+    {
+      "@id": "urn:privacy:weiterbildung:p.text-2",
+      "@type": "CustomLocator",
+      "extensions": {
+        "org.openuji.privacy.css": {
+          "selector": "div.DokumentDarstellung:nth-of-type(2) > div > div:nth-of-type(1) > p:nth-of-type(1)"
+        }
+      }
+    },
+    {
+      "@id": "urn:privacy:weiterbildung:p.text-4",
+      "@type": "CustomLocator",
+      "extensions": {
+        "org.openuji.privacy.css": {
+          "selector": "div.DokumentDarstellung:nth-of-type(2) > div > div:nth-of-type(1) > p:nth-of-type(1)"
+        }
+      }
+    },
+    {
+      "@id": "urn:privacy:weiterbildung:div.text-5",
+      "@type": "CustomLocator",
+      "extensions": {
+        "org.openuji.privacy.css": {
+          "selector": "div.DokumentDarstellung:nth-of-type(2) > div > div:nth-of-type(1)"
+        }
+      }
+    },
+    {
+      "@id": "urn:privacy:weiterbildung:label",
+      "@type": "CustomLocator",
+      "extensions": {
+        "org.openuji.privacy.css": {
+          "selector": "a.eigenesBild.AktuelleURL > div.label"
         }
       }
     }

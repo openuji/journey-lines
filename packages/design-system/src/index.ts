@@ -26,6 +26,8 @@ export * from './ui/ReportReader/ReportReader';
 export * from './ui/ReportView/ReportView';
 export * from './ui/StatusBadge/StatusBadge';
 export * from './ui/StepMedia/StepMedia';
+export * from './ui/TagEditor/TagEditor';
+export * from './ui/TagList/TagList';
 export * from './ui/TimelineRow/TimelineRow';
 export * from './ui/TransitionMedia/TransitionMedia';
 export * from './lib/playable-clip';
