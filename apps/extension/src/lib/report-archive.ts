@@ -3,8 +3,14 @@ import {
   captureLogRecord,
   clipLogRecord,
   decodeBase64,
+  encodeBase64,
+  type Clip,
+  type CompositorFrame,
+  type MilestoneCapture,
 } from '@openuji/core';
-import type { RecordingItem } from './recording-store';
+import type { RecordingItem, RecordingMeta, StoredRecording } from './recording-store';
+import type { ReportDraft } from './report-draft';
+import type { ReportTemplate } from './report-template';
 
 export type ArchiveEntry = Readonly<{ name: string; bytes: Uint8Array<ArrayBuffer> }>;
 
@@ -31,6 +37,62 @@ export function recordingArtifacts(items: readonly RecordingItem[]): ArchiveEntr
     { name: 'interactions.ndjson', bytes: encoder.encode(lines.length ? `${lines.join('\n')}\n` : '') },
     ...media,
   ];
+}
+
+/** Everything a report tab renders: another renderer given this shows the same report. */
+export type ReportExport = Readonly<{
+  version: typeof REPORT_VERSION;
+  template: ReportTemplate;
+  draft: ReportDraft;
+  recording: StoredRecording;
+}>;
+
+export const REPORT_VERSION = 1;
+export const REPORT_FILE = 'report.json';
+
+/** A recording item in `report.json`: its picture or video is the named file beside it. */
+type FiledItem =
+  | Readonly<{ kind: 'capture'; epochMs: number; file: string; capture: Omit<MilestoneCapture, 'frame'> & { frame: Omit<CompositorFrame, 'base64'> } }>
+  | Readonly<{ kind: 'clip'; epochMs: number; file: string; clip: Omit<Clip, 'base64'> }>;
+
+type FiledReport = Omit<ReportExport, 'recording'> & {
+  recording: Readonly<{ meta: RecordingMeta; items: readonly FiledItem[] }>;
+};
+
+function filed(item: RecordingItem): FiledItem {
+  if (item.kind === 'capture') {
+    const { base64: _, ...frame } = item.capture.frame;
+    return { kind: 'capture', epochMs: item.epochMs, file: artifactFileName(item.capture, 'png'), capture: { ...item.capture, frame } };
+  }
+  const { base64: _, ...clip } = item.clip;
+  return { kind: 'clip', epochMs: item.epochMs, file: artifactFileName(item.clip, 'webm'), clip };
+}
+
+/** The CLI's artifacts, plus `report.json`, which names the same media files. */
+export function reportArtifacts(report: ReportExport): ArchiveEntry[] {
+  const json: FiledReport = { ...report, recording: { meta: report.recording.meta, items: report.recording.items.map(filed) } };
+  return [
+    ...recordingArtifacts(report.recording.items),
+    { name: REPORT_FILE, bytes: new TextEncoder().encode(`${JSON.stringify(json, null, 2)}\n`) },
+  ];
+}
+
+/** The inverse of `reportArtifacts`, from an archive's unzipped entries. */
+export function readReportArtifacts(entries: readonly ArchiveEntry[]): ReportExport {
+  const files = new Map(entries.map((entry) => [entry.name, entry.bytes]));
+  const media = (name: string): string => {
+    const bytes = files.get(name);
+    if (!bytes) throw new Error(`The report names ${name}, which the archive does not contain.`);
+    return encodeBase64(bytes);
+  };
+  const json = files.get(REPORT_FILE);
+  if (!json) throw new Error(`The archive has no ${REPORT_FILE}.`);
+  const report = JSON.parse(new TextDecoder().decode(json)) as FiledReport;
+  if (report.version !== REPORT_VERSION) throw new Error(`Unsupported report version ${String(report.version)}.`);
+  const items = report.recording.items.map(({ file, ...item }): RecordingItem => item.kind === 'capture'
+    ? { ...item, capture: { ...item.capture, frame: { ...item.capture.frame, base64: media(file) } } }
+    : { ...item, clip: { ...item.clip, base64: media(file) } });
+  return { ...report, recording: { meta: report.recording.meta, items } };
 }
 
 /** ZIP stored entries: PNG and WebM are already compressed, so no codec is needed. */

@@ -1,0 +1,31 @@
+.idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding-top: var(--ds-space-16);
+}
+
+.record-button {
+  font-size: var(--ds-type-report-body);
+}
+
+.record-icon {
+  width: 0;
+  height: 0;
+  border-top: var(--ds-record-icon-height) solid transparent;
+  border-bottom: var(--ds-record-icon-height) solid transparent;
+  border-left: var(--ds-space-2) solid currentColor;
+}
+
+.hint {
+  margin: 0;
+  color: var(--ds-color-ink-soft);
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  color: var(--ds-color-ink-muted);
+}

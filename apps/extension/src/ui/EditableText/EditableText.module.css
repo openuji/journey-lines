@@ -1,0 +1,33 @@
+/* Zero specificity throughout: a host's class sets the text's own look, size and margins. */
+
+:where(.editable-text) {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--ds-control-small);
+  margin: 0;
+  padding: var(--ds-space-1) var(--ds-space-2);
+  border: var(--ds-border-thin) dashed var(--ds-color-line-strong);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-color-surface);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  resize: none;
+  field-sizing: content;
+}
+
+:where(.editable-text)::placeholder {
+  color: var(--ds-color-ink-muted);
+}
+
+:where(.editable-text):focus-visible {
+  border-style: solid;
+  outline: var(--ds-focus-width) solid var(--ds-color-focus);
+  outline-offset: var(--ds-focus-offset);
+}
+
+:where(.editable-text--read) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

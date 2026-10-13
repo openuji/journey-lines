@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
+import { REPORT_VERSION } from '../../lib/report-archive';
 import { downloadReport } from '../../lib/report-download';
+import type { ReportDraft } from '../../lib/report-draft';
 import { loadReport } from '../../lib/report-port';
+import { journeyTemplate } from '../../lib/report-template';
 import type { StoredRecording } from '../../lib/recording-store';
 import { ReportView } from '../../ui/ReportView/ReportView';
+
+/** The template every report from this extension is written in. */
+const template = journeyTemplate;
 
 /** Chrome-only adapter: the view itself needs only a completed recording. */
 export function Report() {
@@ -26,11 +32,11 @@ export function Report() {
     if (session) document.title = `${session.meta.tab.title || session.meta.tab.url || 'Recording'} — Recording report`;
   }, [session]);
 
-  const download = (): void => {
+  const download = (draft: ReportDraft): void => {
     if (!session || downloading) return;
     setDownloading(true);
     try {
-      downloadReport(session);
+      downloadReport({ version: REPORT_VERSION, template, draft, recording: session });
     } catch (reason) {
       setError(`Download failed: ${String(reason)}`);
     } finally {
@@ -38,5 +44,5 @@ export function Report() {
     }
   };
 
-  return <ReportView session={session} error={error} downloading={downloading} onDownload={download} />;
+  return <ReportView session={session} template={template} error={error} downloading={downloading} onDownload={download} />;
 }

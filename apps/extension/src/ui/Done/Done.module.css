@@ -1,0 +1,45 @@
+.done-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-panel-header-gap);
+  padding-bottom: var(--ds-space-3);
+  border-bottom: var(--ds-border-thin) solid var(--ds-color-line);
+}
+
+.done-header__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: var(--ds-tracking-header);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.open-report-button {
+  flex: none;
+  white-space: nowrap;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2) var(--ds-space-5);
+  margin: 0;
+}
+
+.summary dt {
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-meta);
+}
+
+.summary dd {
+  margin: 0;
+  font: var(--ds-weight-medium) var(--ds-type-report-body) var(--ds-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  margin: 0;
+  color: var(--ds-color-ink-soft);
+}

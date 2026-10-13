@@ -60,12 +60,6 @@ export const storyCaptures: readonly MilestoneCapture[] = [
   capture({ index: 9, viewId: 2, label: '11-post-click-01', detail: 'Compositor response after clicking <article>' }),
 ];
 
-export const captureKindExamples = storyCaptures.slice(0, 1).concat(
-  storyCaptures.slice(1, 2),
-  storyCaptures.slice(3, 4),
-  storyCaptures.slice(5, 6),
-);
-
 export const longStoryCaptures: readonly MilestoneCapture[] = Array.from({ length: 28 }, (_, i) => {
   const index = i + 1;
   const viewId = Math.floor(i / 7) + 1;

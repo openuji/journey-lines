@@ -1,68 +1,7 @@
 /**
- * The journey as the panel lists it. Deliberately raw for now: one row per
- * capture, labelled as the rules named it, with a divider where a view starts.
+ * How the panel and the report write times and addresses. What a capture
+ * means is decided once, in `journey-events.ts`.
  */
-
-import type { Clip, MilestoneCapture, ViewEntry } from '@openuji/core';
-import { DocumentLabel } from '@openuji/rules-document';
-import { InteractionLabel } from '@openuji/rules-interaction';
-
-/** What a capture shows, as one icon in the panel. */
-export type CaptureKind = 'view' | 'scroll' | 'click' | 'leave';
-
-export type JourneyRow =
-  | Readonly<{ kind: 'view'; key: string; entry: ViewEntry; url: string }>
-  | Readonly<{
-      kind: 'capture';
-      key: string;
-      capture: MilestoneCapture;
-      captureKind: CaptureKind;
-      /** Since the recording started. */
-      atMs: number;
-      /** The video of what this capture ended (a scroll's `04`, a click's `11`), once it is ready. */
-      clip?: Clip;
-    }>;
-
-export function captureKind(label: string): CaptureKind {
-  if (label === DocumentLabel.beforeNavigation) return 'leave';
-  if (label.startsWith(InteractionLabel.preScroll) || label.startsWith(InteractionLabel.postScroll)) {
-    return 'scroll';
-  }
-  if (label.startsWith(InteractionLabel.preClick) || label.startsWith(InteractionLabel.postClick)) {
-    return 'click';
-  }
-  // 00-first, 01-domcontentloaded, 02-settled: the view's own milestones.
-  return 'view';
-}
-
-export function journeyRows(
-  captures: readonly MilestoneCapture[],
-  startedAtMs: number,
-  clips: readonly Clip[] = [],
-): JourneyRow[] {
-  const rows: JourneyRow[] = [];
-  let viewId: number | undefined;
-  // A clip is filed like its capture: `viewId` and `label` name it in a recording.
-  const clipOf = new Map(clips.map((clip) => [`${clip.viewId} ${clip.label}`, clip]));
-
-  captures.forEach((capture, index) => {
-    if (capture.viewId !== viewId) {
-      viewId = capture.viewId;
-      rows.push({ kind: 'view', key: `view-${index}`, entry: capture.entry, url: capture.url });
-    }
-    const clip = clipOf.get(`${capture.viewId} ${capture.label}`);
-    rows.push({
-      kind: 'capture',
-      key: `capture-${index}`,
-      capture,
-      captureKind: captureKind(capture.label),
-      atMs: capture.frame.receivedAtMs - startedAtMs,
-      ...(clip ? { clip } : {}),
-    });
-  });
-
-  return rows;
-}
 
 /** `mm:ss`, as the panel shows every time. */
 export function formatClock(ms: number): string {
@@ -80,8 +19,4 @@ export function shortUrl(url: string): string {
   } catch {
     return url;
   }
-}
-
-export function frameSrc(capture: MilestoneCapture): string {
-  return `data:image/png;base64,${capture.frame.base64}`;
 }

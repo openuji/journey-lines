@@ -1,0 +1,124 @@
+/* Report document: the template's fields around the steps, grouped into phases. */
+
+.report-message {
+  margin: var(--ds-space-12) 0;
+  color: var(--ds-color-ink-soft);
+  text-align: center;
+}
+
+.report-time {
+  flex: 0 0 var(--ds-timeline-time-width);
+  color: var(--ds-color-ink-soft);
+  font: var(--ds-type-label) var(--ds-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.report-draft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-6);
+  line-height: var(--ds-leading-body);
+}
+
+.report-draft__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+}
+
+.report-draft__subject {
+  margin: 0;
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-report-meta);
+  font-weight: var(--ds-weight-medium);
+}
+
+.report-draft__title {
+  margin: 0 0 var(--ds-space-2);
+  font-size: var(--ds-type-report-title);
+  font-weight: var(--ds-weight-bold);
+  line-height: var(--ds-leading-tight);
+  letter-spacing: var(--ds-tracking-report-title);
+}
+
+.report-heading {
+  margin: 0;
+  font-size: var(--ds-type-report-heading);
+  line-height: var(--ds-leading-tight);
+}
+
+.report-text {
+  margin: 0;
+}
+
+.report-statement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+
+.report-statement__label {
+  font-weight: var(--ds-weight-bold);
+}
+
+.report-phase,
+.report-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  padding-top: var(--ds-space-5);
+  border-top: var(--ds-border-thin) solid var(--ds-color-line);
+}
+
+.report-phase__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-2) var(--ds-space-3);
+}
+
+.report-phase__title {
+  flex: 1 1 24ch;
+  width: auto;
+  font-size: var(--ds-type-report-heading);
+  font-weight: var(--ds-weight-bold);
+}
+
+.report-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The next phase or section draws its own rule. */
+.report-steps > :last-child {
+  border-bottom: 0;
+}
+
+.report-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-type-report-body);
+}
+
+.report-step__note {
+  margin: 0;
+  color: var(--ds-color-ink-soft);
+}
+
+.report-step__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+
+.report-step--hidden {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-1) 0;
+  border-bottom: var(--ds-border-thin) dashed var(--ds-color-line);
+  color: var(--ds-color-ink-muted);
+  font-size: var(--ds-type-label);
+}

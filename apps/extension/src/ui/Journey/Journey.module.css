@@ -1,0 +1,14 @@
+.journey-empty {
+  margin: 0;
+  color: var(--ds-color-ink-soft);
+}
+
+.journey {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-color: var(--ds-color-line) transparent;
+}

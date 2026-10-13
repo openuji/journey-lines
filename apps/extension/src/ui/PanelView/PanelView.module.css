@@ -1,0 +1,13 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  height: var(--ds-viewport-height);
+  padding: var(--ds-space-4) var(--ds-panel-padding-inline);
+  background: var(--ds-color-canvas);
+}
+
+.hint {
+  margin: 0;
+  color: var(--ds-color-ink-soft);
+}
