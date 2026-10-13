@@ -48,7 +48,8 @@
 }
 
 .timeline-row__frame,
-.timeline-row__video {
+.timeline-row__video,
+.timeline-row__extra {
   grid-column: 1 / -1;
 }
 

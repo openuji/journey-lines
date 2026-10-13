@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ReportView } from '../src/entrypoints/report/ReportView';
-import { PanelView } from '../src/entrypoints/sidepanel/App';
+import { ReportView } from '../src/ui/ReportView/ReportView';
+import { PanelView } from '../src/ui/PanelView/PanelView';
 import { donePanelState } from '../src/stories/panel-states';
 import { storyEmptyReport, storyReportWithClip } from '../src/stories/report-sessions';
 
@@ -10,8 +10,9 @@ describe('ReportView', () => {
   it('renders captures, view breaks, and a clip without Chrome APIs', () => {
     const html = renderToStaticMarkup(createElement(ReportView, { session: storyReportWithClip, onDownload: () => {} }));
     expect(html).toContain('Journey Lines research workspace');
-    expect(html.match(/class="report-view"/g)).toHaveLength(2);
-    expect(html.match(/class="report-capture__image-link"/g)).toHaveLength(9);
+    expect(html).toContain('journey-lines.example/research/current?team=fu');
+    expect(html).toContain('journey-lines.example/research/findings');
+    expect(html.match(/aria-label="Open full-size frame for /g)).toHaveLength(9);
     expect(html).toContain('Scroll clip');
     expect(html).toContain('Download .zip');
   });

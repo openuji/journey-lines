@@ -1,13 +1,9 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
-import { journeyEvents } from '../../lib/journey-events';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { initialPanelState, panelReducer } from '../../lib/panel-state';
 import { connectJourney, type JourneyPort } from '../../lib/port';
 import type { PanelMessage } from '../../lib/protocol';
 import { reportUrl } from '../../lib/report-protocol';
-import { Alert } from '../../ui/Alert/Alert';
-import { Done } from './Done';
-import { Idle } from './Idle';
-import { Recording } from './Recording';
+import { PanelView } from '../../ui/PanelView/PanelView';
 
 export function App() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
@@ -22,56 +18,6 @@ export function App() {
       onOpenReport={(sessionId) => void chrome.tabs.create({ url: reportUrl(sessionId) })}
       onDismissError={() => dispatch({ type: 'dismiss-error' })}
     />
-  );
-}
-
-export function PanelView({
-  state,
-  onRecord,
-  onStop,
-  onReset,
-  onOpenReport,
-  onDismissError,
-}: {
-  state: typeof initialPanelState;
-  onRecord: (tabId: number, options: {video: boolean}) => void;
-  onStop: () => void;
-  onReset: () => void;
-  onOpenReport: (sessionId: string) => void;
-  onDismissError: () => void;
-}) {
-  const { connected, status, captures, error, clips } = state;
-  const startedAtMs = status.state === 'idle' ? 0 : status.startedAtMs;
-  const events = useMemo(() => journeyEvents(captures, startedAtMs, clips), [captures, startedAtMs, clips]);
-
-  return (
-    <main className="panel">
-      {error && <Alert onDismiss={onDismissError}>{error}</Alert>}
-
-      {!connected && !error && <p className="hint">Connecting to the recorder…</p>}
-
-      {connected && status.state === 'idle' && (
-        <Idle
-          failed={error !== null}
-          onRecord={onRecord}
-        />
-      )}
-      {connected && (status.state === 'recording' || status.state === 'stopping') && (
-        <Recording
-          status={status}
-          events={events}
-          onStop={onStop}
-        />
-      )}
-      {connected && status.state === 'done' && (
-        <Done
-          status={status}
-          events={events}
-          onReset={onReset}
-          onOpenReport={onOpenReport}
-        />
-      )}
-    </main>
   );
 }
 

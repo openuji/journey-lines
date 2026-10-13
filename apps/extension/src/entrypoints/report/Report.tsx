@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { downloadReport } from '../../lib/report-download';
 import { loadReport } from '../../lib/report-port';
 import type { StoredRecording } from '../../lib/recording-store';
-import { ReportView } from './ReportView';
+import { ReportView } from '../../ui/ReportView/ReportView';
 
 /** Chrome-only adapter: the view itself needs only a completed recording. */
 export function Report() {

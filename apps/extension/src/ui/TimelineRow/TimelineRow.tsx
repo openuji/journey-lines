@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { Clip } from '@openuji/core';
 import clsx from 'clsx';
@@ -13,10 +14,12 @@ export type TimelineRowProps = Readonly<{
   subtitle?: Readonly<{ text: string; title?: string }>;
   frames: readonly GalleryFrame[];
   clip?: Clip;
+  /** Below the media: whatever the host adds to the row. */
+  children?: ReactNode;
 }>;
 
 /** Layout only: this component has no knowledge of captures or journey rules. */
-export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, clip }: TimelineRowProps) {
+export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, clip, children }: TimelineRowProps) {
   const [before, after] = frames;
   return (
     <li className={clsx(styles['timeline-row'], styles[`timeline-row--${tone}`])} data-tone={tone}>
@@ -36,6 +39,7 @@ export function TimelineRow({ time, title, icon: Icon, tone, subtitle, frames, c
           videoClassName={styles['timeline-row__video']}
         />
       ) : <FrameGallery frames={frames} className={styles['timeline-row__media']} expandedClassName={styles['timeline-row__frame']} />}
+      {children && <div className={styles['timeline-row__extra']}>{children}</div>}
     </li>
   );
 }

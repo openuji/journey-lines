@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { Clip, MilestoneCapture } from '@openuji/core';
 import { journeyEvents } from '../src/lib/journey-events';
-import { PanelView } from '../src/entrypoints/sidepanel/App';
+import { PanelView } from '../src/ui/PanelView/PanelView';
 import { donePanelState, recordingPanelState } from '../src/stories/panel-states';
 
 function capture(viewId: number, label: string, receivedAtMs: number, detail = 'Internal diagnostic'): MilestoneCapture {
