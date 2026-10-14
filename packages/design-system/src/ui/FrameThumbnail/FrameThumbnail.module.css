@@ -3,6 +3,7 @@
   flex: none;
 }
 .frame-thumbnail__button {
+  position: relative;
   padding: 0;
   border: var(--ds-border-thin) solid var(--ds-color-line);
   border-radius: var(--ds-radius-thumbnail);
@@ -11,6 +12,24 @@
   line-height: 0;
 }
 .frame-thumbnail__button:hover { border-color: var(--ds-color-line-strong); }
+.frame-thumbnail__button::after {
+  content: 'Expand';
+  position: absolute;
+  inset-block-start: var(--ds-space-1);
+  inset-inline-end: var(--ds-space-1);
+  padding: var(--ds-space-half) var(--ds-space-1-5);
+  border-radius: var(--ds-radius-pill);
+  background: rgb(12 15 20 / 0.8);
+  color: white;
+  font-size: var(--ds-type-meta);
+  font-weight: var(--ds-weight-medium);
+  line-height: var(--ds-leading-preview);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ds-transition-fast) ease;
+}
+.frame-thumbnail__button[aria-expanded='true']::after { content: 'Collapse'; }
+.frame-thumbnail__button:is(:hover, :focus-visible)::after { opacity: 1; }
 .frame-thumbnail__button img {
   display: block;
   width: var(--ds-thumbnail-width);
@@ -27,4 +46,16 @@
   border-radius: var(--ds-radius-thumbnail);
   color: var(--ds-color-ink-soft);
   font-size: var(--ds-type-meta);
+}
+
+@media (hover: none) {
+  .frame-thumbnail__button::after { opacity: 1; }
+}
+
+@media (forced-colors: active) {
+  .frame-thumbnail__button::after {
+    border: var(--ds-border-thin) solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
 }
