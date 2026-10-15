@@ -55,10 +55,15 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-1);
+  gap: var(--ds-space-3);
   padding: var(--ds-space-5) 0;
   border-bottom: var(--ds-border-thin) solid var(--ds-color-line);
   line-height: var(--ds-leading-body);
+}
+.journey__teaser {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
 }
 
 .journey__title {

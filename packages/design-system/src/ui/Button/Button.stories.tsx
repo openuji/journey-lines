@@ -59,3 +59,14 @@ export const AllStates: Story = {
     </div>
   ),
 };
+
+/** Toggles in a row, one of them chosen (`aria-pressed`), as a view switcher shows them. */
+export const Pressed: Story = {
+  render: () => (
+    <div className="story-cluster" role="group">
+      <Button size="small" aria-pressed={false}>Before</Button>
+      <Button size="small" aria-pressed>Video</Button>
+      <Button size="small" aria-pressed={false}>After</Button>
+    </div>
+  ),
+};

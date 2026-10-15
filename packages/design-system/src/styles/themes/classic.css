@@ -18,6 +18,14 @@
   --ds-color-focus: light-dark(#075fcc, #91b4ff);
   --ds-color-success: light-dark(#2f9e6f, #51bd8e);
   --ds-color-error: light-dark(#e5484d, #ff6b70);
+  /* A problem a journey ran into: indigo, apart from the coral brand and the lilac of navigation. */
+  --ds-color-problem: light-dark(#4f46e5, #818cf8);
+  --ds-color-problem-tint: light-dark(rgb(79 70 229 / 0.08), rgb(129 140 248 / 0.12));
+  --ds-color-problem-text: light-dark(#4338ca, #a5b4fc);
+  /* Where the reader is in a document, such as the current section of its contents. */
+  --ds-color-navigation: light-dark(#a855f7, #c084fc);
+  /* The ink of a pattern, drawn through a mask such as --ds-pattern-hatch. */
+  --ds-color-pattern: light-dark(rgb(22 24 29 / 0.7), rgb(236 236 234 / 0.45));
 
   --ds-gradient-journey-lines: linear-gradient(
     120deg,

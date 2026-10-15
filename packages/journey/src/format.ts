@@ -21,6 +21,15 @@ export function shortUrl(url: string): string {
   }
 }
 
+/** The site a view belongs to, as a reader names it: the host without `www.`; empty for a page with no host. */
+export function siteOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
 const dateTime = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' });
 
 /** When something started, as a list of journeys shows it, in the time zone it is rendered in. */

@@ -20,3 +20,17 @@
   height: var(--ds-icon-default);
 }
 
+.ui-icon-button--default {
+  width: var(--ds-control-default);
+  height: var(--ds-control-default);
+}
+
+.ui-icon-button--default svg {
+  width: var(--ds-icon-report);
+  height: var(--ds-icon-report);
+}
+
+.ui-icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

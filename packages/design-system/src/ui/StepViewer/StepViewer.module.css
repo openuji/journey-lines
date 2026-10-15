@@ -1,0 +1,300 @@
+/*
+ * The step viewer: the whole window, one step at a time. A panel beside the
+ * screen says which phase the step belongs to (number, title, where and how
+ * long, what happened, the problem). The screen has the way to the previous
+ * and next step on either side of it; under it, the ways to look at the step,
+ * then the step itself: what happened, when and where, and its note. The
+ * views and the step have fixed room, and the screen is the largest 3:2 box
+ * the rest of the stage holds, so stepping, switching views, and notes of any
+ * length move nothing. On a narrow screen everything is one column.
+ *
+ * Layout only: the controls are the design system's Button and IconButton.
+ */
+
+.step-viewer {
+  box-sizing: border-box;
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 0;
+  background: var(--ds-color-canvas);
+  color: var(--ds-color-ink);
+  font-size: var(--ds-type-reader-body);
+  line-height: var(--ds-leading-body);
+}
+
+/* Opened, the viewer itself holds the focus: the keys work, no control is singled out. */
+.step-viewer:focus {
+  outline: none;
+}
+
+.step-viewer::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+/* The page behind stays where it was. */
+:global(html):has(.step-viewer[open]) {
+  overflow: hidden;
+}
+
+.step-viewer__layout {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'panel bar'
+    'panel stage';
+  gap: var(--ds-space-4) var(--ds-space-8);
+  height: 100%;
+  padding: var(--ds-space-6);
+}
+
+/* The panel: the phase. It scrolls on its own when the phase says a lot. */
+.step-viewer__panel {
+  display: flex;
+  grid-area: panel;
+  flex-direction: column;
+  gap: var(--ds-space-5);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.step-viewer__phase {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--ds-space-3);
+}
+
+.step-viewer__phase-heading {
+  min-width: 0;
+}
+
+.step-viewer__phase-title {
+  margin: 0;
+  padding-top: calc((var(--ds-phase-badge-size) - 1lh) / 2);
+  font-weight: var(--ds-weight-bold);
+  line-height: var(--ds-leading-tight);
+  overflow-wrap: anywhere;
+}
+
+.step-viewer__phase-facts {
+  margin: var(--ds-space-1) 0 0;
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-label);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.step-viewer__statements {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+}
+
+/* Which step of how many, then the way out. */
+.step-viewer__bar {
+  display: flex;
+  grid-area: bar;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-3);
+}
+
+.step-viewer__position {
+  margin: 0;
+  color: var(--ds-color-ink-muted);
+  font-size: var(--ds-type-label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The room the board may take; the board sits in its middle. */
+.step-viewer__stage {
+  container-type: size;
+  display: grid;
+  grid-area: stage;
+  place-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+ * The screen between the ways back and on, then the views and the step in
+ * rows of fixed height. The screen is as wide as the stage allows beside the
+ * two buttons, or as the height left over the two rows allows at 3:2.
+ */
+.step-viewer__board {
+  --step-viewer-screen-width: min(
+    100cqw - 2 * (var(--ds-control-default) + var(--ds-space-4)),
+    (100cqh - var(--ds-control-small) - var(--ds-viewer-caption-height) - 2 * var(--ds-space-3)) * 3 / 2,
+    var(--ds-viewer-max-width)
+  );
+  display: grid;
+  grid-template-columns: var(--ds-control-default) var(--step-viewer-screen-width) var(--ds-control-default);
+  grid-template-rows: auto var(--ds-control-small) var(--ds-viewer-caption-height);
+  grid-template-areas:
+    'previous screen  next'
+    '.        views   .'
+    '.        step    .';
+  align-items: center;
+  gap: var(--ds-space-3) var(--ds-space-4);
+}
+
+.step-viewer__previous {
+  grid-area: previous;
+}
+
+.step-viewer__next {
+  grid-area: next;
+}
+
+/* One track the size of the box, so a picture or clip filling it never spills past its edge. */
+.step-viewer__screen {
+  display: grid;
+  grid-area: screen;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: var(--ds-radius-panel);
+  background: var(--ds-color-surface-inset);
+}
+
+.step-viewer__media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.step-viewer__unavailable {
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-label);
+}
+
+.step-viewer__views {
+  display: flex;
+  grid-area: views;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--ds-space-2);
+}
+
+.step-viewer__view-icon {
+  width: var(--ds-icon-small);
+  height: var(--ds-icon-small);
+}
+
+/* The step, as wide as the screen: what happened, when and where on one line, then its note. A long note scrolls in place. */
+.step-viewer__step {
+  display: flex;
+  grid-area: step;
+  flex-direction: column;
+  align-self: stretch;
+  gap: var(--ds-space-2);
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.step-viewer__step-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-width: 0;
+}
+
+.step-viewer__step-title {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin: 0;
+  color: var(--ds-color-ink-muted);
+  font-size: var(--ds-type-label);
+  font-weight: var(--ds-weight-medium);
+}
+
+.step-viewer__step-icon {
+  flex: none;
+  width: var(--ds-icon-default);
+  height: var(--ds-icon-default);
+  color: var(--ds-color-ink-soft);
+}
+
+/* When and where: what is left of the line, the full address on hover. */
+.step-viewer__meta {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-label);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.step-viewer__note {
+  margin: 0;
+  font-size: var(--ds-type-report-heading);
+  line-height: var(--ds-leading-tight);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Narrow: one column that scrolls — the phase, the screen, the ways back and
+ * on with the views between them, the step, then what the phase says. The
+ * step takes the room its note needs; nothing above it moves.
+ */
+@media (width < 56rem) {
+  .step-viewer__layout {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: none;
+    grid-template-areas:
+      'phase      bar'
+      'stage      stage'
+      'statements statements';
+    align-content: start;
+    gap: var(--ds-space-4);
+    height: auto;
+    min-height: 100%;
+    padding: var(--ds-space-3);
+  }
+
+  .step-viewer__panel {
+    display: contents;
+  }
+
+  .step-viewer__phase {
+    grid-area: phase;
+  }
+
+  .step-viewer__statements {
+    grid-area: statements;
+  }
+
+  .step-viewer__stage {
+    container-type: normal;
+    display: block;
+  }
+
+  .step-viewer__board {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-rows: none;
+    grid-template-areas:
+      'screen   screen screen'
+      'previous views  next'
+      'step     step   step';
+  }
+
+  .step-viewer__step {
+    overflow-y: visible;
+  }
+}

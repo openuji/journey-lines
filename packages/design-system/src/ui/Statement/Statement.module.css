@@ -1,0 +1,30 @@
+.statement {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+  min-width: 0;
+}
+
+.statement__label {
+  color: var(--ds-color-ink-soft);
+  font-size: var(--ds-type-label);
+  font-weight: var(--ds-weight-medium);
+}
+
+.statement__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.statement--problem {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border-inline-start: var(--ds-focus-width) solid var(--ds-color-problem);
+  border-start-end-radius: var(--ds-radius-panel);
+  border-end-end-radius: var(--ds-radius-panel);
+  background: var(--ds-color-problem-tint);
+}
+
+.statement--problem .statement__label {
+  color: var(--ds-color-problem-text);
+}

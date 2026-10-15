@@ -17,7 +17,7 @@ export function JourneyList({ journeys, href }: JourneyListProps) {
       <header className={styles['journeys-bar']}>
         <Route aria-hidden />
         <h1 className={styles['journeys-bar__title']}>Journeys</h1>
-        <span className={styles['journeys-bar__meta']}>{journeys.length}</span>
+        {/* <span className={styles['journeys-bar__meta']}>{journeys.length}</span> */}
       </header>
       <main className={styles['journeys']}>
         {journeys.length === 0
@@ -37,8 +37,12 @@ const count = (n: number, noun: string): string => `${n} ${noun}${n === 1 ? '' :
 /** The whole row opens the report; its link text is the title alone. */
 function JourneyItem({ journey, href }: { journey: JourneyEntry; href: string }) {
   return (
-    <li className={styles['journey']}>
+    <li>
+
+      <div  className={styles['journey']}>
       <TagList tags={journey.tags} />
+      <div className={styles['journey__teaser']}>
+
       <h2 className={styles['journey__title']}>
         <a href={href}>{journey.title}</a>
       </h2>
@@ -49,6 +53,8 @@ function JourneyItem({ journey, href }: { journey: JourneyEntry; href: string })
         {journey.phases.length > 0 && <span>{count(journey.phases.length, 'phase')}</span>}
       </p>
       <p className={styles['journey__page']} title={journey.page.url}>{shortUrl(journey.page.url)}</p>
+      </div>
+      </div>
     </li>
   );
 }

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ArrowDownUp, Camera, LogOut, MousePointerClick } from 'lucide-react';
 import { useGlobals } from 'storybook/preview-api';
+import { PhaseBadge } from '../ui/PhaseBadge/PhaseBadge';
 
 const colors = [
   ['Canvas', '--ds-color-canvas'],
@@ -15,6 +16,8 @@ const colors = [
   ['Focus', '--ds-color-focus'],
   ['Success', '--ds-color-success'],
   ['Error', '--ds-color-error'],
+  ['Problem', '--ds-color-problem'],
+  ['Navigation', '--ds-color-navigation'],
 ] as const;
 
 const spaces = [1, 2, 3, 4, 5, 6, 8] as const;
@@ -58,6 +61,20 @@ function Foundations({ themeKey = 'default' }: { themeKey?: string }) {
         <RadiusToken label="Control" themeKey={themeKey} token="--ds-radius-control" />
         <RadiusToken label="Thumbnail" themeKey={themeKey} token="--ds-radius-thumbnail" />
         <RadiusToken label="Primary" themeKey={themeKey} token="--ds-button-primary-radius" />
+      </section>
+
+      <section className="foundation-section story-stack">
+        <h2 className="foundation-title">Pattern</h2>
+        <div className="story-cluster">
+          <div className="story-stack">
+            <span className="token-label">--ds-pattern-hatch · dense</span>
+            <span className="pattern-sample" role="img" aria-label="Hatching" />
+          </div>
+          <div className="story-stack">
+            <span className="token-label">--ds-pattern-offset-small · shadow</span>
+            <PhaseBadge number={3} name="Phase" />
+          </div>
+        </div>
       </section>
 
       <section className="foundation-section story-stack">

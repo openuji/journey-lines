@@ -151,3 +151,11 @@
 }
 .story-video { max-width: var(--ds-story-journey-width); }
 .story-video__player { display: block; width: 100%; }
+
+.pattern-sample {
+  display: block;
+  width: var(--ds-story-radius-width);
+  height: var(--ds-story-radius-height);
+  background: var(--ds-color-pattern);
+  mask: var(--ds-pattern-hatch) repeat 0 0 / var(--ds-pattern-hatch-size);
+}

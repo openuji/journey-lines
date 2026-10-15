@@ -72,6 +72,11 @@ const preview: Preview = {
           styles: { width: '390px', height: '800px' },
           type: 'other',
         },
+        reportMedium: {
+          name: 'Report · 1024',
+          styles: { width: '1024px', height: '800px' },
+          type: 'other',
+        },
         reportDesktop: {
           name: 'Report · 1280',
           styles: { width: '1280px', height: '800px' },

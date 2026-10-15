@@ -6,7 +6,7 @@ import { ReportReader } from './ReportReader';
 
 const published = (report: ReportExport) => ({ entry: journeyEntry(report), media: storyMedia(report) });
 
-/** The campus report with nothing written after its last phase. */
+/** The campus report with no closing statements: the overview holds only the opening ones. */
 const withoutConclusion: ReportExport = {
   ...campusReport,
   draft: { ...campusReport.draft, fields: { ...campusReport.draft.fields, insight: '', idea: '', scope: '' } },
@@ -44,17 +44,28 @@ export const LongTexts: Story = {
   args: published(longTextReport),
 };
 
-/** Every step's time and address shown at once. */
-export const DetailsShown: Story = {
-  args: published(mostlyUnnotedReport),
+/** A picture opened: the step viewer over the report, its arrows walking every step. */
+export const ViewerOpen: Story = {
   play: async ({ canvasElement }) => {
-    canvasElement.querySelector<HTMLInputElement>('input[type="checkbox"]')?.click();
+    canvasElement.querySelector<HTMLButtonElement>('button[aria-controls^="step-viewer"]')?.click();
+  },
+};
+
+/** A clip playing in its step, as wide as the pictures' column, its note still beside it. */
+export const ClipPlaying: Story = {
+  play: async ({ canvasElement }) => {
+    canvasElement.querySelector<HTMLButtonElement>('button[aria-controls^="clip-playback"]')?.click();
   },
 };
 
 /** Opened on its own, with nowhere to go back to. */
 export const WithoutBack: Story = {
   args: { back: undefined },
+};
+
+/** Beside the contents there is no room for the storyboard yet: each note stacks above its pictures. */
+export const Medium: Story = {
+  globals: { viewport: { value: 'reportMedium', isRotated: false } },
 };
 
 /** The contents as a ruler; each phase's headline holds the top while it is read. */

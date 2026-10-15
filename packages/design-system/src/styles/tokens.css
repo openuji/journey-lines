@@ -36,6 +36,8 @@
   --ds-type-clock: 17px;
   --ds-type-report-meta: 14px;
   --ds-type-report-heading: 20px;
+  --ds-type-reader-body: 16px;
+  --ds-type-reader-phase-heading: 24px;
   --ds-leading-row: 20px;
   --ds-leading-preview: 16px;
   --ds-tracking-badge: 0.04em;
@@ -97,6 +99,25 @@
   --ds-reader-ruler-width: 20px;
   --ds-reader-stripe: 10px;
   --ds-reader-stripe-active: 18px;
+  /* The reader's storyboard: each note beside pictures large enough to recognise,
+     as wide as the media column (a pair: before, the filmstrip, after). Heights keep
+     the thumbnail's 3:2. The panel and the editor keep --ds-thumbnail-*. */
+  --ds-reader-rail: 28px;
+  --ds-phase-badge-size: 28px;
+  --ds-reader-media-width: 480px;
+  --ds-reader-frame-width: 480px;
+  --ds-reader-pair-frame-width: 196px;
+  --ds-viewer-max-width: 1280px;
+  /* The viewer's room under the screen for the step: its line, then about four lines of
+     its note; a longer note scrolls inside. Fixed, so the screen never changes size. */
+  --ds-viewer-caption-height: 128px;
+  /* Hatching: dense, fine diagonal lines. A mask, so its colour is the element's
+     background (--ds-color-pattern) and follows the theme. */
+  --ds-pattern-hatch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6'%3E%3Cpath d='M-1 1l2-2M0 6l6-6M5 7l2-2' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");
+  --ds-pattern-hatch-size: 6px 6px;
+  /* How far a pattern stands out behind what it shadows: a card, and a small shape such as a phase badge. */
+  --ds-pattern-offset: 7px;
+  --ds-pattern-offset-small: 4px;
   --ds-settings-max-width: 40rem;
   --ds-settings-margin-block: 3rem;
   --ds-settings-padding-inline: 1.5rem;

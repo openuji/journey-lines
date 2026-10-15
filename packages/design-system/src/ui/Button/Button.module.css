@@ -67,3 +67,9 @@
   color: var(--ds-color-ink);
 }
 
+/* One of a set of choices, chosen: a pressed toggle shows it in ink. */
+.ui-button--secondary[aria-pressed='true'] {
+  border-color: var(--ds-color-ink);
+  background: var(--ds-color-ink);
+  color: var(--ds-color-canvas);
+}
