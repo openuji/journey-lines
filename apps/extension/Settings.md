@@ -13,6 +13,7 @@ removes that override.
     "profilePath": "privacy/fu/profiles.jsonld"
   },
   "report": {
+    "language": "de",
     "tags": ["Freie Universität Berlin"]
   }
 }
@@ -20,7 +21,20 @@ removes that override.
 
 `report.tags` are the default tags: the report editor offers them as one-click
 suggestions (one per line in Options). A new report starts with no tags, and a
-report keeps only the tags it was given. Both settings are overridden together.
+report keeps only the tags it was given. Tags are literal strings: their values
+are never translated and have no language metadata.
+
+**Extension language** selects German or English for the tracking timeline,
+recorder controls, Options, and reports. The stored key remains `report.language`
+for compatibility. German is the extension default; older saved settings without
+this key also use German. Each page reads the language when opened or reloaded.
+Saving a different language leaves already-open pages unchanged, including
+their report edits and the language of their previews and downloads.
+
+Language recovery does not require a valid privacy profile or valid tag data.
+Privacy validation still applies when saving settings and starting a recording.
+The journeys app chooses its own reader language, translates recognized standard
+labels, and preserves custom labels, authored text, and tag values.
 
 The build copies this file and all `privacy/**/*.jsonld` documents into the
 extension. The recording code knows only the settings shape; it has no tenant

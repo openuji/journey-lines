@@ -9,7 +9,7 @@ import {
   zipStored,
   type ReportExport,
 } from '../src/report-archive.js';
-import { journeyTemplate } from '../src/report-template.js';
+import { getJourneyTemplate, journeyTemplate } from '../src/report-template.js';
 import { campusDraft, campusRecording } from '../src/fixtures/campus-journey.js';
 import { STORY_FRAME } from '../src/fixtures/story-captures.js';
 
@@ -98,6 +98,13 @@ describe('report export', () => {
 
   it('reads back exactly what was exported: the recording, the draft, and the template', () => {
     expect(readReportArtifacts(reportArtifacts(report))).toEqual(report);
+  });
+
+  it('stores the selected German template without changing the archive format', () => {
+    const germanReport = { ...report, template: getJourneyTemplate('de') };
+    expect(readReportArtifacts(reportArtifacts(germanReport))).toEqual(germanReport);
+    expect(JSON.parse(new TextDecoder().decode(reportArtifacts(germanReport).at(-1)!.bytes)))
+      .toMatchObject({ version: REPORT_VERSION, template: getJourneyTemplate('de') });
   });
 
   it('names what is missing instead of rendering a partial report', () => {

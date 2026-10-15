@@ -1,52 +1,67 @@
 import { useEffect, useState } from 'react';
-import { journeyTemplate, REPORT_VERSION, type ReportDraft, type StoredRecording } from '@openuji/journey';
-import { ReportView } from '@openuji/design-system';
-import { loadSettings } from '../../lib/settings';
+import { getJourneyTemplate, REPORT_VERSION, type ReportDraft, type StoredRecording } from '@openuji/journey';
+import { ReportView, useTranslation } from '@openuji/design-system';
+import { loadReportSettings, defaultReportSettings, type ReportSettings } from '../../lib/settings';
 import { downloadReport } from '../../lib/report-download';
 import { loadReport } from '../../lib/report-port';
-
-/** The template every report from this extension is written in. */
-const template = journeyTemplate;
+import { ExtensionTranslationProvider } from '../../localisation/TranslationProvider';
 
 /** Chrome-only adapter: the view itself needs only a completed recording. */
 export function Report() {
+  const [reportSettings, setReportSettings] = useState<ReportSettings | null>(null);
+  useEffect(() => {
+    let active = true;
+    void loadReportSettings().then((settings) => { if (active) setReportSettings(settings); });
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <ExtensionTranslationProvider language={reportSettings?.language ?? defaultReportSettings.language}>
+      <ReportPage reportSettings={reportSettings} />
+    </ExtensionTranslationProvider>
+  );
+}
+
+function ReportPage({ reportSettings }: { reportSettings: ReportSettings | null }) {
   const sessionId = new URLSearchParams(location.search).get('session');
   const [session, setSession] = useState<StoredRecording | null>(null);
-  const [error, setError] = useState<string | null>(sessionId ? null : 'No recording specified.');
+  const [failure, setFailure] = useState<{ kind: 'load' | 'download'; detail: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const [tagSuggestions, setTagSuggestions] = useState<readonly string[]>([]);
-
-  // Suggestions are a convenience: a settings problem must not keep a report from being written.
-  useEffect(() => {
-    void loadSettings().then((settings) => setTagSuggestions(settings.report.tags), () => {});
-  }, []);
+  const language = reportSettings?.language ?? defaultReportSettings.language;
+  const template = getJourneyTemplate(language);
+  const locale = { language, dir: 'ltr' } as const;
+  const { t } = useTranslation();
+  const error = !sessionId ? t('report.noRecording') : failure
+    ? t(failure.kind === 'load' ? 'report.loadFailed' : 'report.downloadFailed', { detail: failure.detail }) : null;
 
   useEffect(() => {
     if (!sessionId) return;
     let active = true;
     const loading = loadReport(sessionId);
     void loading.promise.then(
-      (recording) => { if (active) { setSession(recording); setError(null); } },
-      (reason: unknown) => { if (active) setError(String(reason instanceof Error ? reason.message : reason)); },
+      (recording) => { if (active) { setSession(recording); setFailure(null); } },
+      (reason: unknown) => { if (active) setFailure({ kind: 'load', detail: String(reason instanceof Error ? reason.message : reason) }); },
     );
     return () => { active = false; loading.close(); };
   }, [sessionId]);
 
   useEffect(() => {
-    if (session) document.title = `${session.meta.tab.title || session.meta.tab.url || 'Recording'} — Recording report`;
-  }, [session]);
+    document.documentElement.lang = language;
+    document.documentElement.dir = 'ltr';
+    document.title = t('report.pageTitle', { title: session?.meta.tab.title || session?.meta.tab.url || t('report.title') });
+  }, [session, language, t]);
 
   const download = (draft: ReportDraft): void => {
-    if (!session || downloading) return;
+    if (!session || !reportSettings || downloading) return;
     setDownloading(true);
     try {
       downloadReport({ version: REPORT_VERSION, template, draft, recording: session });
     } catch (reason) {
-      setError(`Download failed: ${String(reason)}`);
+      setFailure({ kind: 'download', detail: String(reason) });
     } finally {
       setDownloading(false);
     }
   };
 
-  return <ReportView session={session} template={template} tagSuggestions={tagSuggestions} error={error} downloading={downloading} onDownload={download} />;
+  return <ReportView session={reportSettings ? session : null} template={template} locale={locale} tagSuggestions={reportSettings?.tags} error={error} downloading={downloading} onDownload={reportSettings ? download : undefined} />;
 }

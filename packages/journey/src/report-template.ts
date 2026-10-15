@@ -4,15 +4,18 @@
  * ids here, so changing a template changes which fields a report has.
  */
 
+import en from './localisation/en.json' with { type: 'json' };
+import de from './localisation/de.json' with { type: 'json' };
 import type { PhaseField } from './report-draft.js';
 
 export type FieldText = Readonly<{ label: string; placeholder: string }>;
 
-export type TemplateField = FieldText & Readonly<{
-  id: string;
-  /** How the field reads: the title, a labelled paragraph, or a headed section. */
-  kind: 'title' | 'statement' | 'section';
-}>;
+export type TemplateField = FieldText &
+  Readonly<{
+    id: string;
+    /** How the field reads: the title, a labelled paragraph, or a headed section. */
+    kind: 'title' | 'statement' | 'section';
+  }>;
 
 export type ReportTemplate = Readonly<{
   /** The draft's tags, above the header fields. */
@@ -25,60 +28,55 @@ export type ReportTemplate = Readonly<{
   closing: readonly TemplateField[];
 }>;
 
-/** One journey, told by the person who made it, for people who weren't there. */
-export const journeyTemplate: ReportTemplate = {
-  tags: { label: 'Tags', placeholder: 'Add a tag, e.g. Campus orientation' },
+export type ReportLanguage = 'en' | 'de';
+
+/** Field identity, order, and rendering kind are independent of language. */
+const journeyStructure = {
   header: [
-    {
-      id: 'title',
-      kind: 'title',
-      label: 'Title',
-      placeholder: 'Where is my lecture hall, actually?',
-    },
-    {
-      id: 'goal',
-      kind: 'statement',
-      label: 'My goal',
-      placeholder: 'I want to find out how to get to lecture hall 1b, where my lecture takes place.',
-    },
-    {
-      id: 'result',
-      kind: 'statement',
-      label: 'Result',
-      placeholder: 'In the end I know where the building complex is, but not the way to the lecture hall.',
-    },
+    { id: 'title', kind: 'title' },
+    { id: 'goal', kind: 'statement' },
+    { id: 'result', kind: 'statement' },
   ],
-  phase: {
-    name: 'Phase',
-    title: { label: 'Phase title', placeholder: 'I find an address' },
-    happened: {
-      label: 'What happens?',
-      placeholder: 'On the course page I find the location “Hs 1b Hörsaal, Habelschwerdter Allee 45”.',
-    },
-    problem: {
-      label: 'The problem',
-      placeholder: 'The address names a place, but doesn’t explain how to find the room inside the building complex.',
-    },
-  },
-  note: { label: 'Note', placeholder: 'What this step shows, in your words' },
   closing: [
-    {
-      id: 'insight',
-      kind: 'section',
-      label: 'Key insight',
-      placeholder: 'A correct address is not yet enough to find your way.',
-    },
-    {
-      id: 'idea',
-      kind: 'section',
-      label: 'Improvement idea',
-      placeholder: 'Link the location and the lecture hall page to a marked floor plan, with the right entrance and the way from it.',
-    },
-    {
-      id: 'scope',
-      kind: 'section',
-      label: 'Scope',
-      placeholder: 'One exemplary attempt. It doesn’t show how often other students meet the same difficulty.',
-    },
+    { id: 'insight', kind: 'section' },
+    { id: 'idea', kind: 'section' },
+    { id: 'scope', kind: 'section' },
   ],
-};
+} as const;
+
+const wording = { en, de };
+
+function templateFrom(messages: Readonly<Record<string, string>>): ReportTemplate {
+  const text = (key: string): string => messages[key] ?? key;
+  const fieldText = (key: string): FieldText =>
+    Object.freeze({
+      label: text('template.' + key + '.label'),
+      placeholder: text('template.' + key + '.placeholder'),
+    });
+  const fields = (structure: readonly Readonly<{ id: string; kind: TemplateField['kind'] }>[]) =>
+    Object.freeze(structure.map((field) => Object.freeze({ ...field, ...fieldText(field.id) })));
+  return Object.freeze({
+    tags: fieldText('tags'),
+    header: fields(journeyStructure.header),
+    phase: Object.freeze({
+      name: text('template.phase.name'),
+      title: fieldText('phase.title'),
+      happened: fieldText('phase.happened'),
+      problem: fieldText('phase.problem'),
+    }),
+    note: fieldText('note'),
+    closing: fields(journeyStructure.closing),
+  });
+}
+
+const templates: Readonly<Record<ReportLanguage, ReportTemplate>> = Object.freeze({
+  en: templateFrom(wording.en),
+  de: templateFrom(wording.de),
+});
+
+export const journeyTemplate: ReportTemplate = templates.en;
+
+/** Shared templates, including nested values, are immutable at runtime. */
+export function getJourneyTemplate(language: ReportLanguage = 'en'): ReportTemplate {
+  return templates[language];
+}

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import { useClipStills } from '../../hooks/useClipStills';
 import { useFilmstripPreview } from '../../hooks/useFilmstripPreview';
 import type { PlayableClip } from '../../lib/playable-clip';
@@ -16,6 +17,7 @@ export type ClipFilmstripProps = Readonly<{
  * playback progress.
  */
 export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
+  const { t } = useTranslation();
   const frames = sampledFrames(clip.trace);
   const { ref, status, stills } = useClipStills(
     clip.src,
@@ -30,7 +32,7 @@ export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
 
   return (
     <>
-      <div ref={ref} className={styles['clip-filmstrip']} role="group" aria-label="Recorded transition frames">
+      <div ref={ref} className={styles['clip-filmstrip']} role="group" aria-label={t('media.recordedFrames')}>
         {frames.map(({ sample }, index) => (
           <button
             key={`${sample.frameIndex}:${sample.atMs}`}
@@ -38,7 +40,7 @@ export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
             type="button"
             className={styles['clip-filmstrip__frame']}
             disabled={!previewEnabled}
-            aria-label={`Preview recorded frame ${index + 1} of ${frames.length}, ${frameTimeLabel(sample.atMs)}`}
+            aria-label={t('media.previewFrame', { index: index + 1, total: frames.length, time: frameTimeLabel(sample.atMs) })}
             aria-describedby={active?.index === index ? previewId : undefined}
             data-frame-index={sample.frameIndex}
             data-frame-time={sample.atMs}
@@ -56,7 +58,7 @@ export function ClipFilmstrip({ clip, previewEnabled }: ClipFilmstripProps) {
         <FloatingPreview id={previewId} anchor={active.anchor} onDismiss={hide} caption={frameTimeLabel(previewed.sample.atMs)}>
           {previewedStill
             ? <img className={styles['clip-filmstrip__preview']} src={previewedStill} alt="" />
-            : <span className={styles['clip-filmstrip__status']} role="status">{status === 'failed' ? 'Frame unavailable' : 'Loading frame…'}</span>}
+            : <span className={styles['clip-filmstrip__status']} role="status">{t(status === 'failed' ? 'media.unavailable' : 'media.loadingFrame')}</span>}
         </FloatingPreview>
       )}
     </>

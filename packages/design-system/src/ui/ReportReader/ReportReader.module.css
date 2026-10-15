@@ -17,3 +17,5 @@
   width: var(--ds-icon-default);
   height: var(--ds-icon-default);
 }
+
+:dir(rtl) .report-back svg { transform: scaleX(-1); }

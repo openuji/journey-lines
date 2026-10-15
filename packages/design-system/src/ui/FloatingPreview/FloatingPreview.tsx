@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { readSizeToken } from '../../lib/read-size-token';
@@ -14,6 +15,7 @@ export type FloatingPreviewProps = Readonly<{
 
 /** Portaled so a scrolling timeline cannot clip the preview. */
 export function FloatingPreview({ id, anchor, onDismiss, children, caption }: FloatingPreviewProps) {
+  const { language, dir } = useTranslation();
   useEffect(() => {
     window.addEventListener('scroll', onDismiss, true);
     window.addEventListener('resize', onDismiss);
@@ -32,7 +34,7 @@ export function FloatingPreview({ id, anchor, onDismiss, children, caption }: Fl
     },
   );
   return createPortal(
-    <div id={id} className={styles['floating-preview']} role="tooltip" style={placement}>
+    <div id={id} className={styles['floating-preview']} role="tooltip" style={placement} dir={dir} lang={language}>
       {children}
       {caption && <span className={styles['floating-preview__caption']}>{caption}</span>}
     </div>,

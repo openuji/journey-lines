@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { JourneyEvent } from '@openuji/journey';
-import { EventRow, readSizeToken } from '@openuji/design-system';
+import { EventRow, readSizeToken, useTranslation } from '@openuji/design-system';
 import styles from './Journey.module.css';
 
 export function Journey({
@@ -11,6 +11,7 @@ export function Journey({
   /** Keep the newest row in sight while the person hasn't scrolled away. */
   follow?: boolean;
 }) {
+  const { t } = useTranslation();
   const list = useRef<HTMLOListElement>(null);
   const atBottom = useRef(true);
   useLayoutEffect(() => {
@@ -26,7 +27,7 @@ export function Journey({
   };
 
   if (events.length === 0) {
-    return <p className={styles['journey-empty']}>Waiting for the first frame…</p>;
+    return <p className={styles['journey-empty']} role="status">{t('panel.waitingForFrame')}</p>;
   }
 
   return (

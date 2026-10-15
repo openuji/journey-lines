@@ -1,9 +1,10 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { emptyDraft, journeyTemplate, type ReportDraft } from '@openuji/journey';
+import { emptyDraft, getJourneyTemplate, journeyTemplate, type ReportDraft } from '@openuji/journey';
 import { campusDraft, campusEvents } from '@openuji/journey/fixtures';
 import { ReportDocument } from '../src/ui/ReportDocument/ReportDocument';
+import { TranslationProvider } from '../src/localisation/TranslationProvider';
 
 describe('ReportDocument', () => {
   const edit = (draft: ReportDraft) =>
@@ -35,5 +36,19 @@ describe('ReportDocument', () => {
     expect(html).toContain('>Show<');
     expect(html).toContain('Remove phase');
     expect(html).not.toContain('Phase 3 — ');
+  });
+
+  it('renders the supplied German template inside a German translation scope', () => {
+    const html = renderToStaticMarkup(createElement(TranslationProvider, { language: 'de',
+      children: createElement(ReportDocument, {
+      events: campusEvents, draft: campusDraft, onEdit: () => {},
+      template: getJourneyTemplate('de'),
+    }) }));
+    expect(html).toContain('aria-label="Titel"');
+    expect(html).toContain('aria-label="Mein Ziel"');
+    expect(html).toContain('Phase hier beginnen');
+    expect(html).toContain('aria-label="Schlagwort Campus orientation entfernen"');
+    expect(html).toContain('data-action-label="Öffnen"');
+    expect(html).toContain('aria-label="Bild „Seite geladen“ öffnen"');
   });
 });

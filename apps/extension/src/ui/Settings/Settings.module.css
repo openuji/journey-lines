@@ -11,6 +11,7 @@
 }
 
 .settings input,
+.settings select,
 .settings textarea {
   width: 100%;
   padding: var(--ds-settings-input-padding);

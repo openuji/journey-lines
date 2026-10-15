@@ -1,13 +1,35 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { useTranslation } from '@openuji/design-system';
 import { initialPanelState, panelReducer } from '../../lib/panel-state';
 import { connectJourney, type JourneyPort } from '../../lib/port';
 import type { PanelMessage } from '../../lib/protocol';
 import { reportUrl } from '../../lib/report-protocol';
 import { PanelView } from '../../ui/PanelView/PanelView';
+import { defaultExtensionLanguage, loadExtensionLanguage } from '../../lib/settings';
+import { ExtensionTranslationProvider } from '../../localisation/TranslationProvider';
 
 export function App() {
+  const [language, setLanguage] = useState(defaultExtensionLanguage);
+
+  useEffect(() => {
+    let active = true;
+    void loadExtensionLanguage().then((language) => { if (active) setLanguage(language); });
+    return () => { active = false; };
+  }, []);
+
+  return <ExtensionTranslationProvider language={language}><Panel /></ExtensionTranslationProvider>;
+}
+
+function Panel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
   const send = useJourneyPort(dispatch);
+  const { t, language, dir } = useTranslation();
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.dir = dir;
+    document.title = t('panel.title');
+  }, [language, dir, t]);
 
   return (
     <PanelView

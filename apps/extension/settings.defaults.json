@@ -3,6 +3,7 @@
     "profilePath": "privacy/fu/profiles.jsonld"
   },
   "report": {
+    "language": "de",
     "tags": ["Freie Universität Berlin"]
   }
 }

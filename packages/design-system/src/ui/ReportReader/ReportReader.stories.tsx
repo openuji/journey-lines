@@ -67,3 +67,21 @@ export const Dark: Story = {
   args: published(mostlyUnnotedReport),
   globals: { colorMode: 'dark', viewport: { value: 'responsive', isRotated: false } },
 };
+
+export const German: Story = {
+  args: { locale: { language: 'de', dir: 'ltr' }, back: { href: '#journeys', label: 'Zur Übersicht' } },
+};
+
+export const GermanNarrow: Story = {
+  args: German.args,
+  globals: { viewport: { value: 'reportNarrow', isRotated: false } },
+};
+
+export const EnglishRtl: Story = {
+  args: { locale: { language: 'en', dir: 'rtl' } },
+};
+
+export const EnglishRtlNarrow: Story = {
+  args: EnglishRtl.args,
+  globals: { viewport: { value: 'reportNarrow', isRotated: false } },
+};

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import { useMemo, type ReactNode } from 'react';
 import {
   journeyTemplate,
@@ -34,7 +35,14 @@ export type ReportDocumentProps = Readonly<{
  * step, hidden ones included, grouped into phases. How it reads is the
  * reader's (`ReaderDocument`).
  */
-export function ReportDocument({ events, draft, template = journeyTemplate, tagSuggestions, onEdit }: ReportDocumentProps) {
+export function ReportDocument({
+  events,
+  draft,
+  template = journeyTemplate,
+  tagSuggestions,
+  onEdit,
+}: ReportDocumentProps) {
+  const { t, language, dir } = useTranslation();
   const outline = useMemo(() => reportOutline(draft, events, 'edit'), [draft, events]);
   const field = (item: TemplateField) => (
     <Field
@@ -44,22 +52,23 @@ export function ReportDocument({ events, draft, template = journeyTemplate, tagS
       onChange={(value) => onEdit({ type: 'setField', field: item.id, value })}
     />
   );
-  const steps = (items: readonly OutlineStep[]) => items.length > 0 && (
-    <ol className={styles['report-steps']}>
-      {items.map((step) => (
-        <ReportStep
-          key={step.event.key}
-          step={step}
-          startsPhase={step.event.key in draft.phases}
-          template={template}
-          onEdit={onEdit}
-        />
-      ))}
-    </ol>
-  );
+  const steps = (items: readonly OutlineStep[]) =>
+    items.length > 0 && (
+      <ol className={styles['report-steps']}>
+        {items.map((step) => (
+          <ReportStep
+            key={step.event.key}
+            step={step}
+            startsPhase={step.event.key in draft.phases}
+            template={template}
+            onEdit={onEdit}
+          />
+        ))}
+      </ol>
+    );
 
   return (
-    <article className={styles['report-draft']}>
+    <article className={styles['report-draft']} lang={language} dir={dir}>
       <header className={styles['report-draft__head']}>
         <TagEditor
           tags={draft.tags}
@@ -70,7 +79,7 @@ export function ReportDocument({ events, draft, template = journeyTemplate, tagS
         />
         {template.header.map(field)}
       </header>
-      {events.length === 0 && <p className={styles['report-message']}>No steps were recorded.</p>}
+      {events.length === 0 && <p className={styles['report-message']}>{t('report.noSteps')}</p>}
       {steps(outline.lead)}
       {outline.phases.map((phase) => (
         <Phase key={phase.at} phase={phase} template={template} onEdit={onEdit}>
@@ -82,11 +91,7 @@ export function ReportDocument({ events, draft, template = journeyTemplate, tagS
   );
 }
 
-function Field({ field, value, onChange }: {
-  field: TemplateField;
-  value: string;
-  onChange: (value: string) => void;
-}) {
+function Field({ field, value, onChange }: { field: TemplateField; value: string; onChange: (value: string) => void }) {
   const text = (as: 'p' | 'h1', className: string | undefined) => (
     <EditableText
       as={as}
@@ -99,14 +104,17 @@ function Field({ field, value, onChange }: {
     />
   );
   switch (field.kind) {
-    case 'title': return text('h1', styles['report-draft__title']);
-    case 'statement': return <Statement label={field.label}>{text('p', styles['report-text'])}</Statement>;
-    case 'section': return (
-      <section className={styles['report-section']}>
-        <h2 className={styles['report-heading']}>{field.label}</h2>
-        {text('p', styles['report-text'])}
-      </section>
-    );
+    case 'title':
+      return text('h1', styles['report-draft__title']);
+    case 'statement':
+      return <Statement label={field.label}>{text('p', styles['report-text'])}</Statement>;
+    case 'section':
+      return (
+        <section className={styles['report-section']}>
+          <h2 className={styles['report-heading']}>{field.label}</h2>
+          {text('p', styles['report-text'])}
+        </section>
+      );
   }
 }
 
@@ -119,12 +127,18 @@ function Statement({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
-function Phase({ phase, template, onEdit, children }: {
+function Phase({
+  phase,
+  template,
+  onEdit,
+  children,
+}: {
   phase: OutlinePhase;
   template: ReportTemplate;
   onEdit: ReportEdit;
   children: ReactNode;
 }) {
+  const { t } = useTranslation();
   const { title = '', happened = '', problem = '' } = phase.text;
   const text = (field: 'title' | 'happened' | 'problem', value: string, wording: FieldText) => (
     <EditableText
@@ -140,10 +154,12 @@ function Phase({ phase, template, onEdit, children }: {
   return (
     <section className={styles['report-phase']}>
       <div className={styles['report-phase__head']}>
-        <h2 className={styles['report-heading']}>{template.phase.name} {phase.number}</h2>
+        <h2 className={styles['report-heading']}>
+          {template.phase.name} {phase.number}
+        </h2>
         {text('title', title, template.phase.title)}
         <Button variant="quiet" size="small" onClick={() => onEdit({ type: 'removePhase', at: phase.at })}>
-          Remove phase
+          {t('report.removePhase')}
         </Button>
       </div>
       <Statement label={template.phase.happened.label}>{text('happened', happened, template.phase.happened)}</Statement>

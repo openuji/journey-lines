@@ -11,7 +11,8 @@ import { recordingEvents, type EventMedia, type JourneyEvent } from './journey-e
 import { recordingTitle } from './recording.js';
 import { captureFile, clipFile, type ReportExport } from './report-archive.js';
 import { reportOutline, type OutlineStep } from './report-draft.js';
-import type { TemplateField } from './report-template.js';
+import { getJourneyTemplate, type ReportLanguage, type TemplateField } from './report-template.js';
+import { isStandardFieldLabel, isStandardPhaseLabel } from './report-labels.js';
 
 export const JOURNEY_ENTRY_VERSION = 3;
 
@@ -102,6 +103,29 @@ export function journeyEntry({ template, draft, recording }: ReportExport): Jour
       ...outline.lead.map(entryStep(null)),
       ...outline.phases.flatMap((phase) => phase.steps.map(entryStep(phase.number))),
     ],
+  };
+}
+
+/** Change standard labels for a reader without changing the archived report or its authored text. */
+export function localizeJourneyEntry(entry: JourneyEntry, language: ReportLanguage): JourneyEntry {
+  const target = getJourneyTemplate(language);
+  const localizeFields = (fields: readonly EntryField[], targets: readonly TemplateField[]): EntryField[] =>
+    fields.map((field) => {
+      const translated = targets.find((item) => item.id === field.id && item.kind === field.kind);
+      return translated && isStandardFieldLabel(field.id, field.label) ? { ...field, label: translated.label } : field;
+    });
+  const phaseLabel = (key: 'name' | 'happened' | 'problem', value: string, translated: string): string =>
+    isStandardPhaseLabel(key, value) ? translated : value;
+
+  return {
+    ...entry,
+    intro: localizeFields(entry.intro, target.header),
+    conclusion: localizeFields(entry.conclusion, target.closing),
+    phaseWording: {
+      name: phaseLabel('name', entry.phaseWording.name, target.phase.name),
+      happened: phaseLabel('happened', entry.phaseWording.happened, target.phase.happened.label),
+      problem: phaseLabel('problem', entry.phaseWording.problem, target.phase.problem.label),
+    },
   };
 }
 

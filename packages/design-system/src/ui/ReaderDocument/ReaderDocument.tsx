@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import type { ReactNode } from 'react';
 import type { EntryField, EntryStep, JourneyEntry } from '@openuji/journey';
 import { useActiveSection } from '../../hooks/useActiveSection';
@@ -18,16 +19,17 @@ export type ReaderDocumentProps = Readonly<{
  * read; the time-and-address toggles are the browser's own checkboxes.
  */
 export function ReaderDocument({ entry, media }: ReaderDocumentProps) {
-  const sections = readerSections(entry);
+  const { t, language, dir } = useTranslation();
+  const sections = readerSections(entry, t);
   const active = useActiveSection(sections.map((section) => section.id));
 
   return (
-    <div className={styles['reader']}>
+    <div className={styles['reader']} lang={language} dir={dir}>
       {sections.length > 1 && <Contents sections={sections} active={active} />}
       <article className={styles['reader__document']}>
         <label className={styles['reader__details']}>
           <input type="checkbox" className={styles['reader__details-input']} />
-          Show time & address
+          {t('reader.showTimeAddress')}
         </label>
         {sections.map((section) => <Section key={section.id} section={section} entry={entry} media={media} />)}
       </article>
@@ -37,9 +39,10 @@ export function ReaderDocument({ entry, media }: ReaderDocumentProps) {
 
 /** Titles on a wide screen; on a narrow one, a ruler of stripes. */
 function Contents({ sections, active }: { sections: readonly ReaderSection[]; active: string | null }) {
+  const { t } = useTranslation();
   return (
     <aside className={styles['reader__contents']}>
-      <nav className={styles['reader__toc']} aria-label="Contents">
+      <nav className={styles['reader__toc']} aria-label={t('reader.contents')}>
         <ol>
           {sections.map((section) => (
             <li key={section.id}>
@@ -54,7 +57,7 @@ function Contents({ sections, active }: { sections: readonly ReaderSection[]; ac
   );
 }
 
-function Section({ section, entry, media }: { section: ReaderSection; entry: JourneyEntry; media: ReaderMedia }) {
+function Section({ section, entry, media }: Readonly<{ section: ReaderSection; entry: JourneyEntry; media: ReaderMedia }>) {
   switch (section.kind) {
     case 'intro': return (
       <section id={section.id} className={styles['reader__intro']}>
@@ -80,7 +83,7 @@ function Section({ section, entry, media }: { section: ReaderSection; entry: Jou
   }
 }
 
-function Steps({ steps, media }: { steps: readonly EntryStep[]; media: ReaderMedia }) {
+function Steps({ steps, media }: Readonly<{ steps: readonly EntryStep[]; media: ReaderMedia }>) {
   return steps.length > 0 && (
     <ol className={styles['reader__steps']}>
       {steps.map((step) => <ReaderStep key={step.event.key} step={step} media={media} />)}

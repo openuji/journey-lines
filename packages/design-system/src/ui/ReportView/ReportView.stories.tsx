@@ -61,3 +61,21 @@ export const Narrow: Story = {
 export const Dark: Story = {
   globals: { colorMode: 'dark', viewport: { value: 'responsive', isRotated: false } },
 };
+
+export const German: Story = {
+  args: { locale: { language: 'de', dir: 'ltr' }, session: campusRecording, initialDraft: campusDraft },
+};
+
+export const GermanNarrow: Story = {
+  args: German.args,
+  globals: { viewport: { value: 'reportNarrow', isRotated: false } },
+};
+
+export const EnglishRtl: Story = {
+  args: { locale: { language: 'en', dir: 'rtl' }, session: campusRecording, initialDraft: campusDraft },
+};
+
+export const EnglishRtlNarrow: Story = {
+  args: EnglishRtl.args,
+  globals: { viewport: { value: 'reportNarrow', isRotated: false } },
+};

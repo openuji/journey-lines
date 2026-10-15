@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Square } from 'lucide-react';
 import { formatClock, shortUrl, type JourneyEvent } from '@openuji/journey';
 import type { ActiveTabState } from '@openuji/fused';
-import { Button, StatusBadge } from '@openuji/design-system';
+import { Button, StatusBadge, useTranslation } from '@openuji/design-system';
 import type { RecorderStatus } from '../../lib/protocol';
 import { Journey } from '../Journey/Journey';
 import styles from './Recording.module.css';
@@ -10,8 +10,8 @@ import styles from './Recording.module.css';
 /** What to say about the active tab when it is not being recorded. */
 const activeNote: Record<ActiveTabState, string | null> = {
   recording: null,
-  attaching: 'Waiting for the page…',
-  refused: "Paused: Chrome doesn't let extensions record this page.",
+  attaching: 'recording.waitingForPage',
+  refused: 'recording.refused',
 };
 
 type Live = Extract<RecorderStatus, { state: 'recording' | 'stopping' }>;
@@ -25,6 +25,7 @@ export function Recording({
   events: readonly JourneyEvent[];
   onStop: () => void;
 }) {
+  const { t } = useTranslation();
   const stopping = status.state === 'stopping';
   const note = activeNote[status.active.state];
 
@@ -32,12 +33,12 @@ export function Recording({
     <>
       <header className={styles['recording-header']}>
         <StatusBadge tone={stopping ? 'neutral' : 'live'}>
-          {stopping ? 'Finishing…' : 'REC'}
+          {t(stopping ? 'recording.finishing' : 'recording.live')}
         </StatusBadge>
         <ElapsedClock startedAtMs={status.startedAtMs} />
         <Button className={styles['stop-button']} size="small" disabled={stopping} onClick={onStop}>
           <Square fill="currentColor" />
-          Stop
+          {t('recording.stop')}
         </Button>
       </header>
 
@@ -45,7 +46,7 @@ export function Recording({
         <span className={styles['tab-chip__dot']} aria-hidden />
         {status.active.tab.title || shortUrl(status.active.tab.url)}
       </div>
-      {note && <p className={styles['note']}>{note}</p>}
+      {note && <p className={styles['note']}>{t(note)}</p>}
 
       <Journey events={events} follow />
     </>

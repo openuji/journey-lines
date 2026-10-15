@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import { useId, useState } from 'react';
 import clsx from 'clsx';
 import { FrameThumbnail } from '../FrameThumbnail/FrameThumbnail';
@@ -18,6 +19,7 @@ export type FrameGalleryProps = Readonly<{
 
 /** A gallery owns exactly one selected screenshot, independent of its host. */
 export function FrameGallery({ frames, className, expandedClassName }: FrameGalleryProps) {
+  const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const previewId = `frame-gallery-${useId().replaceAll(':', '')}`;
   const selected = frames.find((frame) => frame.id === selectedId);
@@ -41,7 +43,7 @@ export function FrameGallery({ frames, className, expandedClassName }: FrameGall
           id={previewId}
           className={clsx(styles['frame-gallery__expanded'], expandedClassName)}
           src={selected.src}
-          alt={`${selected.label} frame`}
+          alt={t('media.frameAlt', { label: selected.label })}
         />
       )}
     </>

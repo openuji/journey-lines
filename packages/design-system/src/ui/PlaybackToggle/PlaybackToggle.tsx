@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import clsx from 'clsx';
 import { Play, X } from 'lucide-react';
 import { Button } from '../Button/Button';
@@ -12,7 +13,8 @@ export type PlaybackToggleProps = Readonly<{
 }>;
 
 export function PlaybackToggle({ open, controlsId, onToggle, compact = false, className }: PlaybackToggleProps) {
-  const label = open ? 'Hide video' : 'Play video';
+  const { t } = useTranslation();
+  const label = t(open ? 'media.hideVideo' : 'media.playVideo');
   return (
     <Button
       size="small"

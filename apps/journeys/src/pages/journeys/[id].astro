@@ -15,5 +15,5 @@ const base = import.meta.env.BASE_URL;
 ---
 
 <Page title={`${entry.title} — Journeys`}>
-  <ReportReader client:load entry={entry} media={journeyMedia(base, entry)} back={{ href: base, label: 'Journeys' }} />
+  <ReportReader client:load entry={entry} media={journeyMedia(base, entry)} back={{ href: base, label: 'Journeys' }} locale={{ language: 'de', dir: 'ltr' }} />
 </Page>

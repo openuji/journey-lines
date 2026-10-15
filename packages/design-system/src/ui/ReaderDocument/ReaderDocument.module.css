@@ -38,7 +38,7 @@
 .reader__toc a {
   display: block;
   padding: var(--ds-space-1) var(--ds-space-3);
-  border-left: var(--ds-focus-width) solid var(--ds-color-line);
+  border-inline-start: var(--ds-focus-width) solid var(--ds-color-line);
   color: var(--ds-color-ink-soft);
   font-size: var(--ds-type-label);
   line-height: var(--ds-leading-tight);
@@ -51,7 +51,7 @@
 }
 
 .reader__toc a[aria-current] {
-  border-left-color: var(--ds-color-accent);
+  border-inline-start-color: var(--ds-color-accent);
   color: var(--ds-color-ink);
   font-weight: var(--ds-weight-medium);
 }
@@ -245,8 +245,8 @@
 
 .reader-step__note {
   margin: 0;
-  padding-left: var(--ds-space-3);
-  border-left: var(--ds-focus-width) solid var(--ds-color-accent-line);
+  padding-inline-start: var(--ds-space-3);
+  border-inline-start: var(--ds-focus-width) solid var(--ds-color-accent-line);
   color: var(--ds-color-ink);
   font-size: var(--ds-type-report-body);
   white-space: pre-wrap;
@@ -257,7 +257,7 @@
 @media (width < 60rem) {
   .reader {
     display: block;
-    padding-left: calc(var(--ds-reader-ruler-width) + var(--ds-space-2));
+    padding-inline-start: calc(var(--ds-reader-ruler-width) + var(--ds-space-2));
   }
 
   .reader__document {
@@ -268,7 +268,7 @@
     position: fixed;
     z-index: 4;
     top: 50vh;
-    left: 0;
+    inset-inline-start: 0;
     transform: translateY(-50%);
   }
 
@@ -281,8 +281,8 @@
     align-items: center;
     width: var(--ds-reader-ruler-width);
     height: var(--ds-reader-ruler-width);
-    padding: 0 0 0 var(--ds-space-1);
-    border-left: 0;
+    padding-inline-start: var(--ds-space-1);
+    border-inline-start: 0;
   }
 
   .reader__toc a::before {

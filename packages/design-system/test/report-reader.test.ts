@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { journeyEntry, type ReportExport } from '@openuji/journey';
+import { getJourneyTemplate, journeyEntry, readReportArtifacts, reportArtifacts, type ReportExport } from '@openuji/journey';
 import { campusReport, mostlyUnnotedReport, untitledReport } from '@openuji/journey/fixtures';
 import { storyMedia } from '../src/stories/media';
 import { readerSections } from '../src/ui/ReaderDocument/reader-sections';
@@ -35,6 +35,32 @@ describe('reader sections', () => {
 });
 
 describe('ReportReader', () => {
+  it.each(['en', 'de'] as const)('reads a %s export in the host language and leaves tags, custom labels, and authored text unchanged', (sourceLanguage) => {
+    const language = sourceLanguage === 'de' ? 'en' : 'de';
+    const template = getJourneyTemplate(sourceLanguage);
+    const tags = ['report.preview', 'event.click', 'Freie Universität Berlin', 'Research'];
+    const exported = readReportArtifacts(reportArtifacts({
+      ...campusReport,
+      template: { ...template, header: template.header.map((field) => field.id === 'result' ? { ...field, label: 'Custom result' } : field) },
+      draft: { ...campusReport.draft, tags },
+    }));
+    const entry = journeyEntry(exported);
+    const original = JSON.stringify(entry);
+    const html = renderToStaticMarkup(createElement(ReportReader, {
+      entry, media: storyMedia(exported), locale: { language, dir: 'ltr' },
+    }));
+    const goal = getJourneyTemplate(language).header.find((field) => field.id === 'goal')!;
+    expect(html).toContain(goal.label);
+    expect(html).not.toContain(template.header.find((field) => field.id === 'goal')!.label);
+    expect(html).toContain('Custom result');
+    expect(html).toContain('Where is my lecture hall, actually?');
+    expect(html).toContain(campusReport.draft.fields.goal);
+    expect(html).toContain(language === 'de' ? 'aria-label="Schlagwörter"' : 'aria-label="Tags"');
+    for (const tag of tags) expect(html).toContain('>' + tag + '</li>');
+    expect(JSON.stringify(entry)).toBe(original);
+    expect(exported.draft.tags).toEqual(tags);
+  });
+
   it('shows the written report beside its contents, with nothing to edit', () => {
     const html = render(campusReport);
     expect(html).toContain('aria-label="Contents"');
@@ -71,5 +97,28 @@ describe('ReportReader', () => {
 
   it('marks pictures it cannot load as unavailable', () => {
     expect(render(campusReport, {})).toContain('frame unavailable');
+  });
+
+  it('localizes standard entry labels and media controls for German readers', () => {
+    const html = renderToStaticMarkup(createElement(ReportReader, {
+      entry: journeyEntry(campusReport), media: storyMedia(campusReport), locale: { language: 'de', dir: 'ltr' },
+    }));
+    expect(html).toContain('lang="de" dir="ltr"');
+    expect(html).toContain('aria-label="Inhalt"');
+    expect(html).toContain('Mein Ziel');
+    expect(html).toContain('Was passiert?');
+    expect(html).toContain('Zeit und Adresse anzeigen');
+    expect(html).toContain('data-action-label="Öffnen"');
+    expect(html).toContain('aria-label="Bild „Vorher“ öffnen"');
+    expect(html).toContain('Where is my lecture hall, actually?');
+  });
+
+  it('keeps English copy with explicit RTL direction', () => {
+    const html = renderToStaticMarkup(createElement(ReportReader, {
+      entry: journeyEntry(campusReport), media: storyMedia(campusReport), locale: { language: 'en', dir: 'rtl' },
+    }));
+    expect(html).toContain('lang="en" dir="rtl"');
+    expect(html).toContain('aria-label="Contents"');
+    expect(html).toContain('data-action-label="Expand"');
   });
 });

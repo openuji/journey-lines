@@ -1,3 +1,5 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
+import { translateEnglish, type Translator } from '../../localisation/translate';
 import type { ReactNode } from 'react';
 import { AppWindow, ArrowDownUp, Globe, LogOut, MousePointerClick, Route, Square, type LucideIcon } from 'lucide-react';
 import type { CompositorFrame, ViewEntry } from '@openuji/core';
@@ -12,20 +14,19 @@ type Presentation = Readonly<{ title: string; icon: LucideIcon }>;
 /** An event whose pictures and video are URLs a browser loads; one may not be there (yet). */
 export type PlayableEvent = JourneyEvent<string | undefined, PlayableClip | undefined>;
 
-const pagePresentation: Readonly<Record<ViewEntry, Presentation>> = {
-  load: { title: 'Page loaded', icon: Globe },
-  route: { title: 'Page changed', icon: Route },
-  tab: { title: 'Switched tab', icon: AppWindow },
-};
-
 /** What a step is called and drawn as, whatever form its media take. */
-export function presentation(event: JourneyEvent<unknown, unknown>): Presentation {
+export function presentation(event: JourneyEvent<unknown, unknown>, t: Translator = translateEnglish): Presentation {
+  const pagePresentation: Readonly<Record<ViewEntry, Presentation>> = {
+    load: { title: t('event.pageLoaded'), icon: Globe },
+    route: { title: t('event.pageChanged'), icon: Route },
+    tab: { title: t('event.switchedTab'), icon: AppWindow },
+  };
   switch (event.kind) {
     case 'page': return pagePresentation[event.entry];
-    case 'click': return { title: 'Click', icon: MousePointerClick };
-    case 'scroll': return { title: 'Scroll', icon: ArrowDownUp };
+    case 'click': return { title: t('event.click'), icon: MousePointerClick };
+    case 'scroll': return { title: t('event.scroll'), icon: ArrowDownUp };
     case 'exit': return event.reason === 'recording-ended'
-      ? { title: 'Recording ended', icon: Square } : { title: 'Left page', icon: LogOut };
+      ? { title: t('event.recordingEnded'), icon: Square } : { title: t('event.leftPage'), icon: LogOut };
   }
 }
 
@@ -34,14 +35,14 @@ function galleryFrame(id: string, label: string, src?: string, caption?: string)
 }
 
 /** The pictures and clip a step shows: one frame for a page or an exit; before, after and video for an interaction. */
-export function eventMedia(event: PlayableEvent, title: string): { frames: GalleryFrame[]; clip?: PlayableClip } {
+export function eventMedia(event: PlayableEvent, title: string, t: Translator = translateEnglish): { frames: GalleryFrame[]; clip?: PlayableClip } {
   if (event.kind === 'page' || event.kind === 'exit') {
     return { frames: [galleryFrame('frame', title, event.frame)] };
   }
   return {
     frames: [
-      galleryFrame('before', 'Before', event.before, 'Before'),
-      galleryFrame('after', 'After', event.after, 'After'),
+      galleryFrame('before', t('media.before'), event.before, t('media.before')),
+      galleryFrame('after', t('media.after'), event.after, t('media.after')),
     ],
     clip: event.clip,
   };
@@ -50,8 +51,12 @@ export function eventMedia(event: PlayableEvent, title: string): { frames: Galle
 const frameUrl = (frame: CompositorFrame): string => `data:image/png;base64,${frame.base64}`;
 
 /** A recorded event as a row: its inline pictures and video become URLs here, and nowhere below. */
-export function EventRow({ event, children }: { event: JourneyEvent; children?: ReactNode }) {
-  const props = presentation(event);
+export function EventRow({ event, children }: Readonly<{
+  event: JourneyEvent;
+  children?: ReactNode;
+}>) {
+  const { t } = useTranslation();
+  const props = presentation(event, t);
   const source = useClipSource(event.kind === 'click' || event.kind === 'scroll' ? event.clip : undefined);
   const playable: PlayableEvent = mapEventMedia(event, frameUrl, (clip) => source ? { src: source, trace: clip.trace } : undefined);
   const subtitle = event.kind === 'page'
@@ -59,7 +64,7 @@ export function EventRow({ event, children }: { event: JourneyEvent; children?: 
   return (
     <TimelineRow
       {...props}
-      {...eventMedia(playable, props.title)}
+      {...eventMedia(playable, props.title, t)}
       time={formatClock(event.atMs)}
       tone={event.kind}
       subtitle={subtitle}

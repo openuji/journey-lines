@@ -13,7 +13,7 @@
 }
 .frame-thumbnail__button:hover { border-color: var(--ds-color-line-strong); }
 .frame-thumbnail__button::after {
-  content: 'Expand';
+  content: attr(data-action-label);
   position: absolute;
   inset-block-start: var(--ds-space-1);
   inset-inline-end: var(--ds-space-1);
@@ -28,7 +28,6 @@
   pointer-events: none;
   transition: opacity var(--ds-transition-fast) ease;
 }
-.frame-thumbnail__button[aria-expanded='true']::after { content: 'Collapse'; }
 .frame-thumbnail__button:is(:hover, :focus-visible)::after { opacity: 1; }
 .frame-thumbnail__button img {
   display: block;

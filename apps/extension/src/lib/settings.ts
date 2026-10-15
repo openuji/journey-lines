@@ -1,9 +1,17 @@
 import { privacyProfileFromDocument, type PrivacyProfile } from '@openuji/privacy';
+import type { ReportLanguage } from '@openuji/journey';
+
+export type ReportSettings = Readonly<{ language: ReportLanguage; tags: readonly string[] }>;
+export const defaultExtensionLanguage: ReportLanguage = 'de';
+export const defaultReportSettings: ReportSettings = Object.freeze({
+  language: defaultExtensionLanguage,
+  tags: Object.freeze([]),
+});
 
 export interface ExtensionSettings {
   readonly privacy: { readonly profilePath: string };
-  /** `tags`: what the report editor offers with one click. */
-  readonly report: { readonly tags: readonly string[] };
+  /** `language` applies to the extension; `tags` are literal report suggestions. */
+  readonly report: ReportSettings;
 }
 const STORAGE_KEY = 'settings';
 
@@ -14,6 +22,16 @@ const object = (value: unknown): value is Record<string, unknown> =>
 export const cleanTags = (tags: readonly string[]): string[] =>
   [...new Set(tags.map((tag) => tag.trim()).filter((tag) => tag !== ''))];
 
+/** Report preferences recover independently from invalid privacy or tag data. */
+function reportSettingsFrom(value: unknown): ReportSettings {
+  const report = object(value) ? value : {};
+  const tags = Array.isArray(report.tags) ? report.tags.filter((tag): tag is string => typeof tag === 'string') : [];
+  return Object.freeze({
+    language: report.language === 'en' ? 'en' : defaultExtensionLanguage,
+    tags: Object.freeze(cleanTags(tags)),
+  });
+}
+
 export function parseSettings(value: unknown): ExtensionSettings {
   if (!object(value) || !object(value.privacy) || typeof value.privacy.profilePath !== 'string' ||
       !/^privacy\/(?:[a-z\d_-]+\/)*[a-z\d_.-]+\.jsonld$/i.test(value.privacy.profilePath)) {
@@ -23,9 +41,12 @@ export function parseSettings(value: unknown): ExtensionSettings {
       !value.report.tags.every((tag) => typeof tag === 'string')) {
     throw new Error('Report tags must be a list of texts.');
   }
+  if (value.report.language !== undefined && value.report.language !== 'en' && value.report.language !== 'de') {
+    throw new Error('Extension language must be German or English.');
+  }
   return {
     privacy: { profilePath: value.privacy.profilePath },
-    report: { tags: cleanTags(value.report.tags as string[]) },
+    report: reportSettingsFrom(value.report),
   };
 }
 
@@ -47,6 +68,22 @@ export async function loadSettings(): Promise<ExtensionSettings> {
   const defaults = await loadDefaultSettings();
   const stored = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
   return stored === undefined ? defaults : parseSettings(stored);
+}
+
+/** Reading a completed report does not require a usable recording configuration. */
+export async function loadReportSettings(): Promise<ReportSettings> {
+  try {
+    const stored = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
+    const source: unknown = stored === undefined ? await readPackagedJson('settings.defaults.json') : stored;
+    return reportSettingsFrom(object(source) ? source.report : undefined);
+  } catch {
+    return defaultReportSettings;
+  }
+}
+
+/** The persisted key remains report.language for compatibility with saved settings. */
+export async function loadExtensionLanguage(): Promise<ReportLanguage> {
+  return (await loadReportSettings()).language;
 }
 
 export async function saveSettings(settings: ExtensionSettings): Promise<void> {

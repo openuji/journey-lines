@@ -1,5 +1,5 @@
 import { formatClock, shortUrl, type EndedBy, type JourneyEvent } from '@openuji/journey';
-import { Button } from '@openuji/design-system';
+import { Button, useTranslation } from '@openuji/design-system';
 import type { RecorderStatus } from '../../lib/protocol';
 import { Journey } from '../Journey/Journey';
 import styles from './Done.module.css';
@@ -8,8 +8,8 @@ type Finished = Extract<RecorderStatus, { state: 'done' }>;
 
 const endedNote: Record<EndedBy, string | null> = {
   user: null,
-  'window-closed': 'The recording ended because its window was closed.',
-  'debugging-cancelled': 'The recording ended because debugging was cancelled in Chrome.',
+  'window-closed': 'done.windowClosed',
+  'debugging-cancelled': 'done.debuggingCancelled',
 };
 
 export function Done({
@@ -23,6 +23,7 @@ export function Done({
   onReset: () => void;
   onOpenReport: (sessionId: string) => void;
 }) {
+  const { t } = useTranslation();
   const views = events.filter((event) => event.kind === 'page').length;
   const note = endedNote[status.endedBy];
 
@@ -30,38 +31,38 @@ export function Done({
     <>
       <header className={styles['done-header']}>
         <Button size="small" onClick={onReset}>
-          Done
+          {t('done.done')}
         </Button>
         <span className={styles['done-header__title']} title={status.tab.url}>
           {status.tab.title || shortUrl(status.tab.url)}
         </span>
         {status.sessionId && (
-          <Button className={styles['open-report-button']} size="small" onClick={() => onOpenReport(status.sessionId!)}>Open report</Button>
+          <Button className={styles['open-report-button']} size="small" onClick={() => onOpenReport(status.sessionId!)}>{t('done.openReport')}</Button>
         )}
       </header>
 
       <dl className={styles['summary']}>
         <div>
-          <dt>Duration</dt>
+          <dt>{t('done.duration')}</dt>
           <dd>{formatClock(status.endedAtMs - status.startedAtMs)}</dd>
         </div>
         <div>
-          <dt>Views</dt>
+          <dt>{t('done.views')}</dt>
           <dd>{views}</dd>
         </div>
         <div>
-          <dt>Events</dt>
+          <dt>{t('done.events')}</dt>
           <dd>{events.length}</dd>
         </div>
         {status.droppedFrames > 0 && (
           <div>
-            <dt>Dropped frames</dt>
+            <dt>{t('done.droppedFrames')}</dt>
             <dd>{status.droppedFrames}</dd>
           </div>
         )}
       </dl>
 
-      {note && <p className={styles['note']}>{note}</p>}
+      {note && <p className={styles['note']}>{t(note)}</p>}
 
       <Journey events={events} />
     </>

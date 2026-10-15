@@ -1,9 +1,11 @@
 import { ArrowLeft } from 'lucide-react';
-import { formatClock, type JourneyEntry } from '@openuji/journey';
+import { formatClock, localizeJourneyEntry, type JourneyEntry } from '@openuji/journey';
 import { ReaderDocument } from '../ReaderDocument/ReaderDocument';
 import type { ReaderMedia } from '../ReaderDocument/ReaderStep';
 import { ReportBar } from '../ReportBar/ReportBar';
 import styles from './ReportReader.module.css';
+import { defaultReportLocale, type ReportLocale } from '../report-locale';
+import { TranslationProvider, useTranslation } from '../../localisation/TranslationProvider';
 
 export type ReportReaderProps = Readonly<{
   entry: JourneyEntry;
@@ -11,10 +13,22 @@ export type ReportReaderProps = Readonly<{
   media: ReaderMedia;
   /** Where the reader came from, such as the list of journeys. */
   back?: Readonly<{ href: string; label: string }>;
+  locale?: ReportLocale;
 }>;
 
 /** A published journey's page: its bar, then the report as its readers see it. */
-export function ReportReader({ entry, media, back }: ReportReaderProps) {
+export function ReportReader(props: ReportReaderProps) {
+  const locale = props.locale ?? defaultReportLocale;
+  return (
+    <TranslationProvider language={locale.language} dir={locale.dir}>
+      <ReaderContent {...props} />
+    </TranslationProvider>
+  );
+}
+
+function ReaderContent({ entry, media, back, locale = defaultReportLocale }: ReportReaderProps) {
+  const { t } = useTranslation();
+  const localized = localizeJourneyEntry(entry, locale.language);
   const backLink = back && (
     <a className={styles['report-back']} href={back.href}>
       <ArrowLeft aria-hidden />
@@ -23,15 +37,18 @@ export function ReportReader({ entry, media, back }: ReportReaderProps) {
   );
 
   return (
-    <>
+    <div lang={locale.language} dir={locale.dir}>
       <ReportBar
         title={entry.title}
-        meta={`${formatClock(entry.endedAtMs - entry.startedAtMs)} · ${entry.steps.length} steps`}
+        meta={t('report.meta', {
+          duration: formatClock(entry.endedAtMs - entry.startedAtMs),
+          summary: t('report.steps', { count: entry.steps.length }),
+        })}
         leading={backLink}
       />
       <main>
-        <ReaderDocument entry={entry} media={media} />
+        <ReaderDocument entry={localized} media={media} />
       </main>
-    </>
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import { useState, type KeyboardEvent } from 'react';
 import type { FieldText } from '@openuji/journey';
 import styles from './TagEditor.module.css';
@@ -13,6 +14,7 @@ export type TagEditorProps = Readonly<{
 
 /** The tags of a report while it is written: remove one, type a new one, or take a suggestion. */
 export function TagEditor({ tags, suggestions = [], wording, onAdd, onRemove }: TagEditorProps) {
+  const { t } = useTranslation();
   const [text, setText] = useState('');
   const offered = suggestions.filter((tag) => !tags.includes(tag));
 
@@ -35,7 +37,7 @@ export function TagEditor({ tags, suggestions = [], wording, onAdd, onRemove }: 
         {tags.map((tag) => (
           <li key={tag} className={styles['tag-editor__tag']}>
             {tag}
-            <button type="button" className={styles['tag-editor__remove']} aria-label={`Remove tag ${tag}`} onClick={() => onRemove(tag)}>
+            <button type="button" className={styles['tag-editor__remove']} aria-label={t('tag.remove', { tag })} onClick={() => onRemove(tag)}>
               ×
             </button>
           </li>
@@ -43,7 +45,7 @@ export function TagEditor({ tags, suggestions = [], wording, onAdd, onRemove }: 
         <li className={styles['tag-editor__entry']}>
           <input
             className={styles['tag-editor__input']}
-            aria-label={`${wording.label}: new tag`}
+            aria-label={t('tag.new', { label: wording.label })}
             placeholder={wording.placeholder}
             value={text}
             onChange={(event) => setText(event.target.value)}
@@ -53,7 +55,7 @@ export function TagEditor({ tags, suggestions = [], wording, onAdd, onRemove }: 
         </li>
       </ul>
       {offered.length > 0 && (
-        <ul className={styles['tag-editor__suggestions']} aria-label={`${wording.label}: suggestions`}>
+        <ul className={styles['tag-editor__suggestions']} aria-label={t('tag.suggestions', { label: wording.label })}>
           {offered.map((tag) => (
             <li key={tag}>
               <button type="button" className={styles['tag-editor__suggestion']} onClick={() => onAdd(tag)}>+ {tag}</button>

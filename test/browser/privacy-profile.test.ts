@@ -34,7 +34,7 @@ describe('packaged privacy profile fixtures through the recorder', () => {
       join(extensionPath, 'privacy/fixture/profiles.jsonld'));
     extension = await launchWithExtension({ extensionPath, inspectAllPages: true });
     await extension.worker.evaluate(() => chrome.storage.local.set({
-      settings: { privacy: { profilePath: 'privacy/fixture/profiles.jsonld' } },
+      settings: { privacy: { profilePath: 'privacy/fixture/profiles.jsonld' }, report: { language: 'en', tags: [] } },
     }));
   });
 

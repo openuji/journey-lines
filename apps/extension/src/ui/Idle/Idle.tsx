@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button } from '@openuji/design-system';
+import { Button, useTranslation } from '@openuji/design-system';
 import type { RecordOptions } from '../../lib/protocol';
 import styles from './Idle.module.css';
 
@@ -12,6 +12,7 @@ export function Idle({
   failed: boolean;
   onRecord: (tabId: number, options: RecordOptions) => void;
 }) {
+  const { t } = useTranslation();
   // Off by default: each scroll and each press is its before and after screenshots.
   const [video, setVideo] = useState(false);
   // Between the click and the worker's answer, a second click would only
@@ -40,12 +41,12 @@ export function Idle({
         onClick={() => void record()}
       >
         <span className={styles['record-icon']} aria-hidden />
-        Record
+        {t('idle.record')}
       </Button>
-      <p className={styles['hint']}>Records the active tab, and follows you to other tabs</p>
+      <p className={styles['hint']}>{t('idle.hint')}</p>
       <label className={styles['option']}>
         <input type="checkbox" checked={video} onChange={(event) => setVideo(event.target.checked)} />
-        Video of each scroll and press
+        {t('idle.video')}
       </label>
     </section>
   );

@@ -2,6 +2,7 @@ import type { PlayableClip } from '../../lib/playable-clip';
 import { FrameGallery, type GalleryFrame } from '../FrameGallery/FrameGallery';
 import { TransitionMedia } from '../TransitionMedia/TransitionMedia';
 
+
 export type StepMediaProps = Readonly<{
   frames: readonly GalleryFrame[];
   clip?: PlayableClip;

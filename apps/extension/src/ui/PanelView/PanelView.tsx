@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { journeyEvents } from '@openuji/journey';
-import { Alert } from '@openuji/design-system';
+import { Alert, useTranslation } from '@openuji/design-system';
 import type { PanelState } from '../../lib/panel-state';
 import { Done } from '../Done/Done';
 import { Idle } from '../Idle/Idle';
@@ -22,6 +22,7 @@ export function PanelView({
   onOpenReport: (sessionId: string) => void;
   onDismissError: () => void;
 }) {
+  const { t } = useTranslation();
   const { connected, status, captures, error, clips } = state;
   const startedAtMs = status.state === 'idle' ? 0 : status.startedAtMs;
   const events = useMemo(() => journeyEvents(captures, startedAtMs, clips), [captures, startedAtMs, clips]);
@@ -30,7 +31,7 @@ export function PanelView({
     <main className={styles['panel']}>
       {error && <Alert onDismiss={onDismissError}>{error}</Alert>}
 
-      {!connected && !error && <p className={styles['hint']}>Connecting to the recorder…</p>}
+      {!connected && !error && <p className={styles['hint']} role="status">{t('panel.connecting')}</p>}
 
       {connected && status.state === 'idle' && (
         <Idle

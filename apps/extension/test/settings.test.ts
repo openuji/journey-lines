@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadSettings, loadPrivacyProfile, restoreDefaultSettings, saveSettings, parseSettings } from '../src/lib/settings';
+import { loadSettings, loadReportSettings, loadExtensionLanguage, loadPrivacyProfile, restoreDefaultSettings, saveSettings, parseSettings } from '../src/lib/settings';
 
 const defaultsUrl = new URL('../settings.defaults.json', import.meta.url);
 const defaults = JSON.parse(readFileSync(defaultsUrl, 'utf8'));
 const document = JSON.parse(readFileSync(new URL(defaults.privacy.profilePath, defaultsUrl), 'utf8'));
-const alternate = { privacy: { profilePath: 'privacy/alternate/profiles.jsonld' }, report: { tags: ['Alternate'] } };
+const alternate = { privacy: { profilePath: 'privacy/alternate/profiles.jsonld' }, report: { language: 'en' as const, tags: ['Alternate'] } };
 let stored: Record<string, unknown>;
 let assets: Record<string, unknown>;
 
@@ -36,6 +36,50 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('extension settings', () => {
+  it.each([
+    [{ privacy: null, report: { language: 'en', tags: null } }, 'en'],
+    [{ privacy: null, report: { language: 'de', tags: [1] } }, 'de'],
+    [{ report: { tags: ['Legacy'] } }, 'de'],
+    [{ report: { language: 'fr' } }, 'de'],
+    [null, 'de'],
+  ])('reads the extension language independently from recording configuration: %j', async (settings, language) => {
+    stored.settings = settings;
+    delete assets['settings.defaults.json'];
+    expect(await loadExtensionLanguage()).toBe(language);
+  });
+
+  it('uses packaged language defaults and recovers when preference storage is unavailable', async () => {
+    assets['settings.defaults.json'] = { privacy: null, report: { language: 'en' } };
+    expect(await loadExtensionLanguage()).toBe('en');
+    vi.stubGlobal('chrome', { storage: { local: { get: async () => { throw new Error('Unavailable'); } } } });
+    expect(await loadExtensionLanguage()).toBe('de');
+  });
+
+  it('loads packaged report defaults independently of privacy configuration', async () => {
+    assets['settings.defaults.json'] = { privacy: null, report: defaults.report };
+    expect(await loadReportSettings()).toEqual(defaults.report);
+  });
+
+  it('preserves the saved report language when privacy, tags, or packaged defaults are unavailable', async () => {
+    stored.settings = { privacy: null, report: { language: 'en', tags: [' A ', 1, 'A'] } };
+    delete assets['settings.defaults.json'];
+    expect(await loadReportSettings()).toEqual({ language: 'en', tags: ['A'] });
+    stored.settings = { privacy: null, report: { language: 'en', tags: null } };
+    expect(await loadReportSettings()).toEqual({ language: 'en', tags: [] });
+  });
+
+  it('recovers report preferences from legacy, invalid, and unavailable settings', async () => {
+    stored.settings = { report: { tags: ['Legacy'] } };
+    expect(await loadReportSettings()).toEqual({ language: 'de', tags: ['Legacy'] });
+    stored.settings = { report: { language: 'fr', tags: ['Valid tag'] } };
+    expect(await loadReportSettings()).toEqual({ language: 'de', tags: ['Valid tag'] });
+    delete stored.settings;
+    delete assets['settings.defaults.json'];
+    expect(await loadReportSettings()).toEqual({ language: 'de', tags: [] });
+    vi.stubGlobal('chrome', { storage: { local: { get: async () => { throw new Error('Unavailable'); } } } });
+    expect(await loadReportSettings()).toEqual({ language: 'de', tags: [] });
+  });
+
   it('loads packaged defaults until an override is saved, then reads the selected profile', async () => {
     expect(await loadSettings()).toEqual(defaults);
     await saveSettings(alternate);
@@ -62,6 +106,12 @@ describe('extension settings', () => {
   it('reports invalid saved settings instead of silently using a different profile', async () => {
     stored.settings = {};
     await expect(loadSettings()).rejects.toThrow();
+  });
+
+  it('uses German for older saved settings without a language', async () => {
+    stored.settings = { privacy: defaults.privacy, report: { tags: ['Legacy'] } };
+    expect((await loadSettings()).report).toEqual({ language: 'de', tags: ['Legacy'] });
+    expect(() => parseSettings({ ...defaults, report: { ...defaults.report, language: 'fr' } })).toThrow('language');
   });
 
   it.each(['https://example.test/profile.jsonld', '../privacy/profile.jsonld', 'privacy/../other.jsonld', 'privacy/a.jsonld?x=1'])('rejects non-packaged paths: %s', (profilePath) => {

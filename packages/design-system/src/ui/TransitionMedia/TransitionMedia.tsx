@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import { useId, useState } from 'react';
 import clsx from 'clsx';
 import type { PlayableClip } from '../../lib/playable-clip';
@@ -23,6 +24,7 @@ type Showcase = FrameRole | 'video' | null;
 
 /** Compose clip preview and playback without event semantics. */
 export function TransitionMedia({ before, after, clip, className, expandedClassName, videoClassName }: TransitionMediaProps) {
+  const { t } = useTranslation();
   const [showcase, setShowcase] = useState<Showcase>(null);
   const showcaseId = `transition-media-${useId().replaceAll(':', '')}`;
   const toggle = (shown: Exclude<Showcase, null>) => setShowcase((current) => current === shown ? null : shown);
@@ -51,7 +53,7 @@ export function TransitionMedia({ before, after, clip, className, expandedClassN
           id={showcaseId}
           className={clsx(styles['transition-media__frame'], expandedClassName)}
           src={frame.src}
-          alt={`${frame.label} frame`}
+          alt={t('media.frameAlt', { label: frame.label })}
         />
       )}
       {showcase === 'video' && playableClip && (

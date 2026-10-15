@@ -30,5 +30,8 @@ export * from './ui/TagEditor/TagEditor';
 export * from './ui/TagList/TagList';
 export * from './ui/TimelineRow/TimelineRow';
 export * from './ui/TransitionMedia/TransitionMedia';
+export type { ReportLocale } from './ui/report-locale';
+export { TranslationProvider, useTranslation } from './localisation/TranslationProvider';
+export { translate, type Dictionaries, type TranslationParameters, type Translator } from './localisation/translate';
 export * from './lib/playable-clip';
 export * from './lib/read-size-token';

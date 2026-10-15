@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import { formatClock, type OutlineStep, type ReportTemplate } from '@openuji/journey';
 import { Button } from '../Button/Button';
 import { EditableText } from '../EditableText/EditableText';
@@ -6,24 +7,25 @@ import styles from './ReportDocument.module.css';
 import type { ReportEdit } from './ReportDocument';
 
 /** A step looks as it does in the side panel; the editor adds its note and its tools. */
-export function ReportStep({ step, startsPhase, template, onEdit }: {
+export function ReportStep({ step, startsPhase, template, onEdit }: Readonly<{
   step: OutlineStep;
   /** Whether a phase already begins with this step. */
   startsPhase: boolean;
   template: ReportTemplate;
   onEdit: ReportEdit;
-}) {
+}>) {
+  const { t } = useTranslation();
   const { event, hidden, note } = step;
-  const title = presentation(event).title;
+  const title = presentation(event, t).title;
   const time = formatClock(event.atMs);
 
   if (hidden) {
     return (
       <li className={styles['report-step--hidden']}>
         <time className={styles['report-time']}>{time}</time>
-        <span>Hidden · {title}</span>
+        <span>{t('step.hidden')} · {title}</span>
         <Button variant="quiet" size="small" onClick={() => onEdit({ type: 'setStepHidden', at: event.key, hidden: false })}>
-          Show
+          {t('step.show')}
         </Button>
       </li>
     );
@@ -43,11 +45,11 @@ export function ReportStep({ step, startsPhase, template, onEdit }: {
         <div className={styles['report-step__tools']}>
           {!startsPhase && (
             <Button variant="quiet" size="small" onClick={() => onEdit({ type: 'startPhase', at: event.key })}>
-              Start phase here
+              {t('step.startPhase')}
             </Button>
           )}
           <Button variant="quiet" size="small" onClick={() => onEdit({ type: 'setStepHidden', at: event.key, hidden: true })}>
-            Hide
+            {t('step.hide')}
           </Button>
         </div>
       </div>

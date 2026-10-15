@@ -1,3 +1,4 @@
+import { useTranslation } from '../../localisation/TranslationProvider';
 import { Clock } from 'lucide-react';
 import { formatClock, mapEventMedia, shortUrl, type EntryStep, type FiledClip } from '@openuji/journey';
 import type { PlayableClip } from '../../lib/playable-clip';
@@ -18,19 +19,23 @@ const playableClip = (media: ReaderMedia) => (clip: FiledClip): PlayableClip | u
  * about it, then the pictures. When and where it happened folds away behind
  * the step's own toggle, or the document's.
  */
-export function ReaderStep({ step, media }: { step: EntryStep; media: ReaderMedia }) {
+export function ReaderStep({ step, media }: Readonly<{
+  step: EntryStep;
+  media: ReaderMedia;
+}>) {
+  const { t } = useTranslation();
   const { event, note } = step;
-  const { title, icon: Icon } = presentation(event);
+  const { title, icon: Icon } = presentation(event, t);
   const playable: PlayableEvent = mapEventMedia(event, (file) => media[file], playableClip(media));
-  const { frames, clip } = eventMedia(playable, title);
+  const { frames, clip } = eventMedia(playable, title, t);
 
   return (
     <li className={styles['reader-step']} data-tone={event.kind}>
       <div className={styles['reader-step__head']}>
         <Icon className={styles['reader-step__icon']} strokeWidth={1.75} aria-hidden />
         <span className={styles['reader-step__title']} data-event-title>{title}</span>
-        <label className={styles['reader-step__toggle']} title="Time and address">
-          <input type="checkbox" className={styles['reader-step__toggle-input']} aria-label={`Time and address · ${title}`} />
+        <label className={styles['reader-step__toggle']} title={t('reader.timeAddress')}>
+          <input type="checkbox" className={styles['reader-step__toggle-input']} aria-label={t('reader.timeAddressLabel', { title })} />
           <Clock aria-hidden />
         </label>
       </div>

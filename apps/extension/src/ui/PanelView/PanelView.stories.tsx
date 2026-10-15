@@ -1,8 +1,9 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { journeyTemplate, REPORT_VERSION } from '@openuji/journey';
+import { getJourneyTemplate, REPORT_VERSION } from '@openuji/journey';
 import { storyReportWithClip } from '@openuji/journey/fixtures';
-import { Button, ReportView } from '@openuji/design-system';
+import { Button, ReportView, TranslationProvider, useTranslation } from '@openuji/design-system';
+import { ExtensionTranslationProvider } from '../../localisation/TranslationProvider';
 import { downloadReport } from '../../lib/report-download';
 import { PanelView } from './PanelView';
 import {
@@ -16,16 +17,19 @@ import {
 } from '../../stories/panel-states';
 
 function PanelPreview(args: ComponentProps<typeof PanelView>) {
+  const { t, language: scopedLanguage } = useTranslation();
+  const language = scopedLanguage === 'de' ? 'de' : 'en';
   const [reportOpen, setReportOpen] = useState(false);
   if (reportOpen) {
     return (
       <>
         <ReportView
           session={storyReportWithClip}
-          onDownload={(draft) => downloadReport({ version: REPORT_VERSION, template: journeyTemplate, draft, recording: storyReportWithClip })}
+          locale={{ language, dir: 'ltr' }}
+          onDownload={(draft) => downloadReport({ version: REPORT_VERSION, template: getJourneyTemplate(language), draft, recording: storyReportWithClip })}
         />
         <Button className="story-report-back" size="small" onClick={() => setReportOpen(false)}>
-          Back to panel
+          {t('panel.back')}
         </Button>
       </>
     );
@@ -36,6 +40,7 @@ function PanelPreview(args: ComponentProps<typeof PanelView>) {
 const meta = {
   title: 'Panel/Complete states',
   component: PanelView,
+  decorators: [(Story) => <ExtensionTranslationProvider language="en"><Story /></ExtensionTranslationProvider>],
   render: (args) => <PanelPreview {...args} />,
   args: {
     state: idlePanelState,
@@ -91,6 +96,11 @@ export const Stopping: Story = {
 
 export const Completed: Story = {
   args: { state: donePanelState },
+};
+
+export const German: Story = {
+  args: { state: donePanelState },
+  decorators: [(Story) => <TranslationProvider language="de"><Story /></TranslationProvider>],
 };
 
 export const Interrupted: Story = {
