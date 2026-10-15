@@ -44,7 +44,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0-only",
   "devDependencies": {
     "@types/chrome": "0.3.4",
     "@types/node": "^22.10.2",
