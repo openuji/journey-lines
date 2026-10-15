@@ -1,8 +1,8 @@
-import type { CdpTransport, TabHost } from '@openuji/cdp';
-import type { CaptureSink, Clip, MilestoneCapture } from '@openuji/core';
-import type { ClipWorker } from '@openuji/clip-webm';
-import { recordActiveTab, type ActiveTabRecording, type FollowStatus } from '@openuji/fused';
-import type { EndedBy, RecordingItem, TabSummary } from '@openuji/journey';
+import type { CdpTransport, TabHost } from '@journey-lines/cdp';
+import type { CaptureSink, Clip, MilestoneCapture } from '@journey-lines/core';
+import type { ClipWorker } from '@journey-lines/clip-webm';
+import { recordActiveTab, type ActiveTabRecording, type FollowStatus } from '@journey-lines/fused';
+import type { EndedBy, RecordingItem, TabSummary } from '@journey-lines/journey';
 import type { OpenClips } from './clips';
 import { MemoryRecordingStore, type RecordingStore } from './recording-store';
 import type { RecorderStatus, RecordOptions, WorkerMessage } from './protocol';

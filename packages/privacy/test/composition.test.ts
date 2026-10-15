@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ClipWrite, MilestoneCapture } from '@openuji/core';
-import { compilePrivacy, createPrivacy, PrivacyCompileError } from '@openuji/privacy';
+import type { ClipWrite, MilestoneCapture } from '@journey-lines/core';
+import { compilePrivacy, createPrivacy, PrivacyCompileError } from '@journey-lines/privacy';
 import { css, locatorId, profile, rule } from './fixtures.js';
 
 const source = {

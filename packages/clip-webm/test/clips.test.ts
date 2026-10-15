@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Clip, ClipWrite, CompositorFrame, MilestoneCapture } from '@openuji/core';
+import type { Clip, ClipWrite, CompositorFrame, MilestoneCapture } from '@journey-lines/core';
 import {
   clipSinkOver,
   serveClips,
@@ -7,7 +7,7 @@ import {
   type ClipEncoder,
   type FromEncoder,
   type ToEncoder,
-} from '@openuji/clip-webm';
+} from '@journey-lines/clip-webm';
 
 /** Two ends of a channel; messages arrive a task later, as across a worker. */
 function channelPair(): [Channel<FromEncoder, ToEncoder>, Channel<ToEncoder, FromEncoder>] {

@@ -5,7 +5,7 @@ import type {
   ClipTraceSample,
   ClipWrite,
   MilestoneCapture,
-} from '@openuji/core';
+} from '@journey-lines/core';
 import type { Channel, FromEncoder, ToEncoder } from './protocol.js';
 import { endOf, place, type Timeline } from './timeline.js';
 

@@ -3,12 +3,12 @@ import type {
   CdpTransport,
   Detach,
   Viewport,
-} from '@openuji/cdp';
+} from '@journey-lines/cdp';
 import {
   createPushStream,
   type CompositorFrame,
   type PushStreamStats,
-} from '@openuji/core';
+} from '@journey-lines/core';
 
 type RawFrame = CdpEventParams<'Page.screencastFrame'>;
 

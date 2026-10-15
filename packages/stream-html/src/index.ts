@@ -1,6 +1,6 @@
-import type { DocumentProgress } from '@openuji/core';
-import type { CommittedDocument, DocumentKind } from '@openuji/stream-lifecycle';
-import { attachProbe } from '@openuji/stream-probe';
+import type { DocumentProgress } from '@journey-lines/core';
+import type { CommittedDocument, DocumentKind } from '@journey-lines/stream-lifecycle';
+import { attachProbe } from '@journey-lines/stream-probe';
 
 /**
  * Each step of `DocumentProgress`, and the events of Chromium's page lifecycle

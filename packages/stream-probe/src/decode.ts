@@ -20,7 +20,7 @@ import {
   type ScrollCause,
   type ScrollCauseEvent,
   type TargetElementMeta,
-} from '@openuji/core';
+} from '@journey-lines/core';
 
 /**
  * What the probe source emits: what the person did to an element, the press
@@ -162,7 +162,7 @@ function parseObject(json: string): Fields | null {
  * delivery channel can reuse it.
  *
  * `receivedAtMs` is when the payload reached the host (see the clocks note in
- * `@openuji/core`); the probe's own `pageTimeMs` is carried through as is.
+ * `@journey-lines/core`); the probe's own `pageTimeMs` is carried through as is.
  * `navigationStartMs`, when the host knows the reporting document's time
  * origin on Chrome's clock, gives a press or click its `happenedAtMs`.
  */

@@ -5,7 +5,7 @@ extension share [packaged defaults](../../apps/extension/Settings.md); the
 extension also supports saved overrides in Chrome Options:
 
 ```ts
-import { createPrivacy, privacyProfileFromDocument } from '@openuji/privacy';
+import { createPrivacy, privacyProfileFromDocument } from '@journey-lines/privacy';
 
 // Load the document selected by application settings.
 const profile = privacyProfileFromDocument(JSON.parse(profileDocument));
@@ -25,7 +25,7 @@ and report incomplete coverage; they provide no visual protection yet.
 For standalone injection without recording:
 
 ```ts
-import { attachPrivacy, compilePrivacy } from '@openuji/privacy';
+import { attachPrivacy, compilePrivacy } from '@journey-lines/privacy';
 
 const program = compilePrivacy(profile); // Supplied by the caller.
 const attachment = await attachPrivacy(cdp, program, onDiagnostic);

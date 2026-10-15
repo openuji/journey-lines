@@ -1,4 +1,4 @@
-import type { CdpTransport, TabHost, TabSession, Unsubscribe } from '@openuji/cdp';
+import type { CdpTransport, TabHost, TabSession, Unsubscribe } from '@journey-lines/cdp';
 import { createFusedStream, type FusedStreamHandle } from './fused.js';
 import {
   follow,

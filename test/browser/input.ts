@@ -3,7 +3,7 @@
  * conformance suite drives every host the same way.
  */
 
-import type { CdpTransport } from '@openuji/cdp';
+import type { CdpTransport } from '@journey-lines/cdp';
 
 /** Input only sends commands, so any host's command channel will do. */
 type CommandSender = Pick<CdpTransport, 'send'>;

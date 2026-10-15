@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/stream-html",
+  "name": "@journey-lines/stream-html",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,9 +17,9 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/cdp": "workspace:*",
-    "@openuji/core": "workspace:*",
-    "@openuji/stream-lifecycle": "workspace:*",
-    "@openuji/stream-probe": "workspace:*"
+    "@journey-lines/cdp": "workspace:*",
+    "@journey-lines/core": "workspace:*",
+    "@journey-lines/stream-lifecycle": "workspace:*",
+    "@journey-lines/stream-probe": "workspace:*"
   }
 }

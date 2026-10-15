@@ -2,7 +2,7 @@ import {
   createCdpEventRouter,
   type CdpTransport,
   type Unsubscribe,
-} from '@openuji/cdp';
+} from '@journey-lines/cdp';
 import type { ChromeDebugger, ChromeEventListener } from './chrome-debugger.js';
 
 /**

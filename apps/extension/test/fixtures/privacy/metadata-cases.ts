@@ -1,4 +1,4 @@
-import type { MilestoneCapture } from '@openuji/core';
+import type { MilestoneCapture } from '@journey-lines/core';
 
 // Historical examples are policy data; the test runner only checks public outputs.
 const locationFixtures = [

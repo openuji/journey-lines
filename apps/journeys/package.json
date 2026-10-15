@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/journeys",
+  "name": "@journey-lines/journeys",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@astrojs/react": "7.0.1",
-    "@openuji/design-system": "workspace:*",
-    "@openuji/journey": "workspace:*",
+    "@journey-lines/design-system": "workspace:*",
+    "@journey-lines/journey": "workspace:*",
     "astro": "7.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0"

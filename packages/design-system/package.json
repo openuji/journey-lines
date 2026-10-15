@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/design-system",
+  "name": "@journey-lines/design-system",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,8 +19,8 @@
     "react-dom": "^19.3.0"
   },
   "dependencies": {
-    "@openuji/core": "workspace:*",
-    "@openuji/journey": "workspace:*",
+    "@journey-lines/core": "workspace:*",
+    "@journey-lines/journey": "workspace:*",
     "clsx": "^2.1.1",
     "lucide-react": "1.52.0"
   },

@@ -1,4 +1,4 @@
-import type { MilestoneRule } from '@openuji/engine';
+import type { MilestoneRule } from '@journey-lines/engine';
 import { ClickEpisodeRule } from './click.js';
 import { ScrollEpisodeRule } from './scroll.js';
 

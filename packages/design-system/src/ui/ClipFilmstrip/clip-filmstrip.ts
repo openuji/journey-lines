@@ -1,4 +1,4 @@
-import type { ClipTraceSample } from '@openuji/core';
+import type { ClipTraceSample } from '@journey-lines/core';
 
 export const FILMSTRIP_FRAME_LIMIT = 3;
 

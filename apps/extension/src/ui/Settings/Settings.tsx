@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Button, useTranslation } from '@openuji/design-system';
+import { Button, useTranslation } from '@journey-lines/design-system';
 import { cleanTags, defaultExtensionLanguage, loadSettings, restoreDefaultSettings, saveSettings } from '../../lib/settings';
 import styles from './Settings.module.css';
-import type { ReportLanguage } from '@openuji/journey';
+import type { ReportLanguage } from '@journey-lines/journey';
 
 export function Settings() {
   const { t, language: uiLanguage } = useTranslation();

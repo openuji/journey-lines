@@ -1,6 +1,6 @@
-import type { DocumentKind } from '@openuji/stream-lifecycle';
-import { htmlDocuments } from '@openuji/stream-html';
-import { pdfDocuments } from '@openuji/stream-pdf';
+import type { DocumentKind } from '@journey-lines/stream-lifecycle';
+import { htmlDocuments } from '@journey-lines/stream-html';
+import { pdfDocuments } from '@journey-lines/stream-pdf';
 
 /**
  * The kinds of document a recording observes. The first that describes a

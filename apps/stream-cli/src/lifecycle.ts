@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { runMain, runStreamCli } from '@openuji/cli-kit';
-import { documentKinds } from '@openuji/fused';
-import { createLifecycleStream } from '@openuji/stream-lifecycle';
+import { runMain, runStreamCli } from '@journey-lines/cli-kit';
+import { documentKinds } from '@journey-lines/fused';
+import { createLifecycleStream } from '@journey-lines/stream-lifecycle';
 
 const RESET = '\x1b[0m';
 

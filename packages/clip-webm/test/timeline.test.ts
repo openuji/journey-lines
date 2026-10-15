@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { QUIET_AFTER_MS } from '@openuji/core';
-import { endOf, place, type Timeline } from '@openuji/clip-webm';
+import { QUIET_AFTER_MS } from '@journey-lines/core';
+import { endOf, place, type Timeline } from '@journey-lines/clip-webm';
 
 /** The video times of frames that arrived at `arrivals`, and the video's end. */
 function times(arrivals: readonly number[]): { at: number[]; end: number } {

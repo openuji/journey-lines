@@ -1,4 +1,4 @@
-import type { ClipSink } from '@openuji/core';
+import type { ClipSink } from '@journey-lines/core';
 
 /**
  * What the recorder side and the encoder side of a clip sink say to each

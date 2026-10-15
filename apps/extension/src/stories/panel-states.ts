@@ -1,5 +1,5 @@
-import type { MilestoneCapture } from '@openuji/core';
-import { longStoryCaptures, STORY_STARTED_AT_MS, storyCaptures, storyTab } from '@openuji/journey/fixtures';
+import type { MilestoneCapture } from '@journey-lines/core';
+import { longStoryCaptures, STORY_STARTED_AT_MS, storyCaptures, storyTab } from '@journey-lines/journey/fixtures';
 import type { PanelState } from '../lib/panel-state';
 import type { RecorderStatus } from '../lib/protocol';
 

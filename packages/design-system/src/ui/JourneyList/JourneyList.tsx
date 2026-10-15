@@ -1,5 +1,5 @@
 import { Route } from 'lucide-react';
-import { formatClock, formatDate, shortUrl, type JourneyEntry } from '@openuji/journey';
+import { formatClock, formatDate, shortUrl, type JourneyEntry } from '@journey-lines/journey';
 import { GitHubLink } from '../GitHubLink/GitHubLink';
 import { TagList } from '../TagList/TagList';
 import styles from './JourneyList.module.css';

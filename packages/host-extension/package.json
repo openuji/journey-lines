@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/host-extension",
+  "name": "@journey-lines/host-extension",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,6 +17,6 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/cdp": "workspace:*"
+    "@journey-lines/cdp": "workspace:*"
   }
 }

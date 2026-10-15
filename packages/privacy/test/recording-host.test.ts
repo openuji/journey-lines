@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createFakeCdpTransport, createFakeTabHost, type FakeCdpTransport } from '@openuji/cdp/testing';
-import { compilePrivacy, createPrivacy } from '@openuji/privacy';
+import { createFakeCdpTransport, createFakeTabHost, type FakeCdpTransport } from '@journey-lines/cdp/testing';
+import { compilePrivacy, createPrivacy } from '@journey-lines/privacy';
 import { PRIVACY_BINDING } from '../src/constants.js';
 import { recordingPrivacyTransport } from '../src/recording-host.js';
 import { css, profile, rule } from './fixtures.js';

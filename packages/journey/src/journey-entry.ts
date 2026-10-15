@@ -6,7 +6,7 @@
  * archive itself is never needed to show a journey.
  */
 
-import type { ClipTraceSample } from '@openuji/core';
+import type { ClipTraceSample } from '@journey-lines/core';
 import { recordingEvents, type EventMedia, type JourneyEvent } from './journey-events.js';
 import { recordingTitle } from './recording.js';
 import { captureFile, clipFile, type ReportExport } from './report-archive.js';

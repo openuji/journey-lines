@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { QUIET_AFTER_MS, type CompositorFrame, type DomainEvent, type MilestoneCapture } from '@openuji/core';
-import { RulesEngine, type MilestoneRule } from '@openuji/engine';
-import { CLICK_DEFAULTS, ClickEpisodeRule } from '@openuji/rules-interaction';
+import { QUIET_AFTER_MS, type CompositorFrame, type DomainEvent, type MilestoneCapture } from '@journey-lines/core';
+import { RulesEngine, type MilestoneRule } from '@journey-lines/engine';
+import { CLICK_DEFAULTS, ClickEpisodeRule } from '@journey-lines/rules-interaction';
 import {
   click,
   frame,

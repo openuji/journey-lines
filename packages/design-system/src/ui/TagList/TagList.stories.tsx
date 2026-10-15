@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { campusDraft, longTextDraft } from '@openuji/journey/fixtures';
+import { campusDraft, longTextDraft } from '@journey-lines/journey/fixtures';
 import { TagList } from './TagList';
 
 const meta = {

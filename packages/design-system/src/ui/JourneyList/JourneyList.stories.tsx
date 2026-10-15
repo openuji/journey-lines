@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { campusEntry, longTextEntry, storyEntries, untitledEntry } from '@openuji/journey/fixtures';
+import { campusEntry, longTextEntry, storyEntries, untitledEntry } from '@journey-lines/journey/fixtures';
 import { JourneyList } from './JourneyList';
 
 const meta = {
@@ -8,7 +8,7 @@ const meta = {
   args: {
     journeys: storyEntries,
     href: (id: string) => `#${id}`,
-    repositoryHref: 'https://github.com/openuji/recorder',
+    repositoryHref: 'https://github.com/openuji/journey-lines',
   },
   argTypes: { journeys: { control: false }, href: { control: false } },
   globals: { viewport: { value: 'responsive', isRotated: false } },

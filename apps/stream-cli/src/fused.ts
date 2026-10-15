@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { runMain, runStreamCli } from '@openuji/cli-kit';
-import { startRecording } from '@openuji/fused';
-import { ConsoleSink } from '@openuji/sinks';
+import { runMain, runStreamCli } from '@journey-lines/cli-kit';
+import { startRecording } from '@journey-lines/fused';
+import { ConsoleSink } from '@journey-lines/sinks';
 
 /**
  * Fused detection mode: runs the full pipeline and prints every detected

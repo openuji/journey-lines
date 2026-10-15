@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeCdpTransport, type FakeCdpTransport } from '@openuji/cdp/testing';
-import type { DocumentEvent } from '@openuji/core';
+import { createFakeCdpTransport, type FakeCdpTransport } from '@journey-lines/cdp/testing';
+import type { DocumentEvent } from '@journey-lines/core';
 import {
   createLifecycleStream,
   type CommittedDocument,
   type DocumentKind,
-} from '@openuji/stream-lifecycle';
+} from '@journey-lines/stream-lifecycle';
 import {
   collect,
   frameNavigated,

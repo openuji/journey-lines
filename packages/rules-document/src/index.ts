@@ -1,4 +1,4 @@
-import type { MilestoneRule } from '@openuji/engine';
+import type { MilestoneRule } from '@journey-lines/engine';
 import { FirstFrameRule } from './first-frame.js';
 import { ReadyRule, SettledRule } from './lifecycle-milestone.js';
 import { BeforeNavigationRule } from './before-navigation.js';

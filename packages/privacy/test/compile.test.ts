@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compilePrivacy, PrivacyCompileError, type PrivacyProfile, type PrivacyTextRule } from '@openuji/privacy';
+import { compilePrivacy, PrivacyCompileError, type PrivacyProfile, type PrivacyTextRule } from '@journey-lines/privacy';
 import { css, label, locatorId, profile, rule } from './fixtures.js';
 
 const dummyProfile = profile([css('name', '#identity')], [rule('name')]);

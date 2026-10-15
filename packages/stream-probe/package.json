@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/stream-probe",
+  "name": "@journey-lines/stream-probe",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,8 +17,8 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/cdp": "workspace:*",
-    "@openuji/client-probe": "workspace:*",
-    "@openuji/core": "workspace:*"
+    "@journey-lines/cdp": "workspace:*",
+    "@journey-lines/client-probe": "workspace:*",
+    "@journey-lines/core": "workspace:*"
   }
 }

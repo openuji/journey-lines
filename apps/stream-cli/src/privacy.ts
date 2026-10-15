@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { runMain, runStreamCli } from '@openuji/cli-kit';
-import { attachPrivacy, compilePrivacy } from '@openuji/privacy';
+import { runMain, runStreamCli } from '@journey-lines/cli-kit';
+import { attachPrivacy, compilePrivacy } from '@journey-lines/privacy';
 import { loadPrivacyDemoProfile, startPrivacyDemo } from './privacy-demo.js';
 
 runMain(async () => {

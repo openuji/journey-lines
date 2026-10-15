@@ -2,7 +2,7 @@ import {
   base64ByteLength,
   type CaptureSink,
   type MilestoneCapture,
-} from '@openuji/core';
+} from '@journey-lines/core';
 
 const RESET = '\x1b[0m';
 const MAGENTA = '\x1b[35m';

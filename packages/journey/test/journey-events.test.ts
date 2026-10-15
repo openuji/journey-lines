@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Clip, MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
 import { journeyEvents } from '../src/journey-events.js';
 
 function capture(viewId: number, label: string, receivedAtMs: number, detail = 'Internal diagnostic'): MilestoneCapture {

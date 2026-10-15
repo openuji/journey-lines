@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { defineCollection } from 'astro:content';
 import type { Loader } from 'astro/loaders';
 import { z } from 'astro/zod';
-import type { JourneyEntry } from '@openuji/journey';
+import type { JourneyEntry } from '@journey-lines/journey';
 import { ENTRY_FILE, readEntries, STORE } from './lib/journey-store';
 
 /**

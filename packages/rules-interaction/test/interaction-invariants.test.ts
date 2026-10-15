@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { RulesEngine, type MilestoneRule } from '@openuji/engine';
-import type { ClipWrite, DomainEvent, MilestoneCapture } from '@openuji/core';
-import { ClickEpisodeRule, clickEpisodeRule } from '@openuji/rules-interaction';
-import { ScrollEpisodeRule, scrollEpisodeRule } from '@openuji/rules-interaction';
+import { RulesEngine, type MilestoneRule } from '@journey-lines/engine';
+import type { ClipWrite, DomainEvent, MilestoneCapture } from '@journey-lines/core';
+import { ClickEpisodeRule, clickEpisodeRule } from '@journey-lines/rules-interaction';
+import { ScrollEpisodeRule, scrollEpisodeRule } from '@journey-lines/rules-interaction';
 import {
   frameEvent, navigated, press, pressEnded, quiet, click, pageAt, pageScroll,
   moved, scrollCause,

@@ -1,4 +1,4 @@
-import type { SessionEnd } from '@openuji/cdp';
+import type { SessionEnd } from '@journey-lines/cdp';
 
 /**
  * Which tab a recording follows, as a pure function: `follow(state, event)`

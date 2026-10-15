@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DomainEvent } from '@openuji/core';
-import { RulesEngine } from '@openuji/engine';
+import type { DomainEvent } from '@journey-lines/core';
+import { RulesEngine } from '@journey-lines/engine';
 import { ClickEpisodeRule } from '../src/click.js';
 import {
   frameEvent, navigated, press, pressEnded, quiet,

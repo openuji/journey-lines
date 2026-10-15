@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/sinks",
+  "name": "@journey-lines/sinks",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/clip-webm": "workspace:*",
-    "@openuji/core": "workspace:*"
+    "@journey-lines/clip-webm": "workspace:*",
+    "@journey-lines/core": "workspace:*"
   }
 }

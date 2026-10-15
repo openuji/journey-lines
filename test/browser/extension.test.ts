@@ -10,10 +10,10 @@
  */
 
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { CdpTransport } from '@openuji/cdp';
-import { QUIET_AFTER_MS } from '@openuji/core';
-import { DocumentLabel } from '@openuji/rules-document';
-import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
+import type { CdpTransport } from '@journey-lines/cdp';
+import { QUIET_AFTER_MS } from '@journey-lines/core';
+import { DocumentLabel } from '@journey-lines/rules-document';
+import { episodeLabel, InteractionLabel } from '@journey-lines/rules-interaction';
 import type { Recorder } from '../../apps/extension/src/lib/recorder';
 import { launchWithExtension, type ExtensionBrowser } from './extension-browser.js';
 import { BUTTON, CALENDAR, MONTH_COLORS, NEW_TAB_LINK, startFixtureServer, type FixtureServer } from './fixture.js';

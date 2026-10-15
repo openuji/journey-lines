@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
+import { createFakeCdpTransport } from '@journey-lines/cdp/testing';
 import { frameNavigated } from './events.js';
 import { navigateAndCommit, navigateUntilClosed } from '../src/navigate.js';
 

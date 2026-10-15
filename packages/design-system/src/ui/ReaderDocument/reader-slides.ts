@@ -1,4 +1,4 @@
-import { formatClock, mapEventMedia, type EntryStep, type FiledClip, type JourneyEntry } from '@openuji/journey';
+import { formatClock, mapEventMedia, type EntryStep, type FiledClip, type JourneyEntry } from '@journey-lines/journey';
 import { translateEnglish, type Translator } from '../../localisation/translate';
 import type { PlayableClip } from '../../lib/playable-clip';
 import { eventMedia, presentation, type PlayableEvent } from '../JourneyRow/JourneyRow';

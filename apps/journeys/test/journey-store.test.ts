@@ -8,8 +8,8 @@ import {
   reportArtifacts,
   zipStored,
   type ReportExport,
-} from '@openuji/journey';
-import { campusReport, mostlyUnnotedReport } from '@openuji/journey/fixtures';
+} from '@journey-lines/journey';
+import { campusReport, mostlyUnnotedReport } from '@journey-lines/journey/fixtures';
 import { addJourney, journeyHref, journeyMedia, readEntries, type StoreRoots } from '../src/lib/journey-store';
 
 const archive = (report: ReportExport) => zipStored(reportArtifacts(report));

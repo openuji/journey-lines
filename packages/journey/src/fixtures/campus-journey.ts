@@ -4,7 +4,7 @@
  * It runs through the side panel's own projection, so the events are real.
  */
 
-import type { Clip, MilestoneCapture, TargetElementMeta, ViewEntry } from '@openuji/core';
+import type { Clip, MilestoneCapture, TargetElementMeta, ViewEntry } from '@journey-lines/core';
 import { journeyEvents } from '../journey-events.js';
 import type { RecordingItem, StoredRecording } from '../recording.js';
 import { emptyDraft, type ReportDraft } from '../report-draft.js';

@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import puppeteer, { type Browser, type Page, type WebWorker } from 'puppeteer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { compilePrivacy, privacyProfileFromDocument } from '@openuji/privacy';
+import { compilePrivacy, privacyProfileFromDocument } from '@journey-lines/privacy';
 import { PRIVACY_SOURCE } from '../../packages/privacy/src/generated/privacy-source.js';
 import { PRIVACY_INSTALL } from '../../packages/privacy/src/constants.js';
 import { privacyTextCases, privacyTextHtml } from './fixtures/privacy-text.js';

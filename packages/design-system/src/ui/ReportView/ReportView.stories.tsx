@@ -7,7 +7,7 @@ import {
   storyLongReport,
   storyReport,
   storyReportWithClip,
-} from '@openuji/journey/fixtures';
+} from '@journey-lines/journey/fixtures';
 import { ReportView } from './ReportView';
 
 const meta = {

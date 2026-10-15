@@ -1,5 +1,5 @@
 import { useTranslation } from '../../localisation/TranslationProvider';
-import { formatClock, type OutlineStep, type ReportTemplate } from '@openuji/journey';
+import { formatClock, type OutlineStep, type ReportTemplate } from '@journey-lines/journey';
 import { Button } from '../Button/Button';
 import { EditableText } from '../EditableText/EditableText';
 import { EventRow, presentation } from '../JourneyRow/JourneyRow';

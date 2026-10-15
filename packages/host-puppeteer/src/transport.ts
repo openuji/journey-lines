@@ -3,7 +3,7 @@ import {
   createCdpEventRouter,
   type CdpTransport,
   type Unsubscribe,
-} from '@openuji/cdp';
+} from '@journey-lines/cdp';
 
 type Forwarder = (params: unknown) => void;
 

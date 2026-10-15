@@ -1,5 +1,5 @@
-import { privacyProfileFromDocument, type PrivacyProfile } from '@openuji/privacy';
-import type { ReportLanguage } from '@openuji/journey';
+import { privacyProfileFromDocument, type PrivacyProfile } from '@journey-lines/privacy';
+import type { ReportLanguage } from '@journey-lines/journey';
 
 export type ReportSettings = Readonly<{ language: ReportLanguage; tags: readonly string[] }>;
 export const defaultExtensionLanguage: ReportLanguage = 'de';

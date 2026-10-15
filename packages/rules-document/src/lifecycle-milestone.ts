@@ -1,5 +1,5 @@
-import type { CompositorFrame, DocumentProgress } from '@openuji/core';
-import { captureFor, unchanged, type MilestoneRule } from '@openuji/engine';
+import type { CompositorFrame, DocumentProgress } from '@journey-lines/core';
+import { captureFor, unchanged, type MilestoneRule } from '@journey-lines/engine';
 import { DocumentLabel } from './labels.js';
 
 export type LifecycleMilestoneState = Readonly<{

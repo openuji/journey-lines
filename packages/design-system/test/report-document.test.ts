@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { emptyDraft, getJourneyTemplate, journeyTemplate, type ReportDraft } from '@openuji/journey';
-import { campusDraft, campusEvents } from '@openuji/journey/fixtures';
+import { emptyDraft, getJourneyTemplate, journeyTemplate, type ReportDraft } from '@journey-lines/journey';
+import { campusDraft, campusEvents } from '@journey-lines/journey/fixtures';
 import { ReportDocument } from '../src/ui/ReportDocument/ReportDocument';
 import { TranslationProvider } from '../src/localisation/TranslationProvider';
 

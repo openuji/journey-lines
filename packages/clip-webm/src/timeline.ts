@@ -1,4 +1,4 @@
-import { QUIET_AFTER_MS } from '@openuji/core';
+import { QUIET_AFTER_MS } from '@journey-lines/core';
 
 /**
  * Where a clip's frames sit in its video: the one place video time is decided.

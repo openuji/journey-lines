@@ -70,7 +70,7 @@ jobs:
 
       - name: Install ${{ matrix.chrome.spec }}
         run: |
-          line=$(pnpm --filter @openuji/host-puppeteer exec puppeteer browsers install "${{ matrix.chrome.spec }}" | grep '^chrome@' | tail -1)
+          line=$(pnpm --filter @journey-lines/host-puppeteer exec puppeteer browsers install "${{ matrix.chrome.spec }}" | grep '^chrome@' | tail -1)
           build=${line%% *}
           echo "UXR_CHROME_VERSION=${build#chrome@}" >> "$GITHUB_ENV"
           echo "UXR_CHROME_EXECUTABLE=${line#* }" >> "$GITHUB_ENV"

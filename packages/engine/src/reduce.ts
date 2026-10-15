@@ -5,7 +5,7 @@ import type {
   MilestoneCapture,
   ViewEntry,
   ViewState,
-} from '@openuji/core';
+} from '@journey-lines/core';
 import type { MilestoneRule, RuleContext } from './rule.js';
 import {
   classifyNavigation,

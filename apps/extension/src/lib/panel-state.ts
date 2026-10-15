@@ -1,4 +1,4 @@
-import type { Clip, MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
 import type { RecorderStatus, WorkerMessage } from './protocol';
 
 /** What the panel shows: the worker's state, mirrored from its messages. */

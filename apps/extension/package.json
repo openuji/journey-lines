@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/extension",
+  "name": "@journey-lines/extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,16 +14,16 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@openuji/cdp": "workspace:*",
-    "@openuji/clip-webm": "workspace:*",
-    "@openuji/core": "workspace:*",
-    "@openuji/design-system": "workspace:*",
-    "@openuji/fused": "workspace:*",
-    "@openuji/host-extension": "workspace:*",
-    "@openuji/journey": "workspace:*",
-    "@openuji/privacy": "workspace:*",
-    "@openuji/rules-document": "workspace:*",
-    "@openuji/rules-interaction": "workspace:*",
+    "@journey-lines/cdp": "workspace:*",
+    "@journey-lines/clip-webm": "workspace:*",
+    "@journey-lines/core": "workspace:*",
+    "@journey-lines/design-system": "workspace:*",
+    "@journey-lines/fused": "workspace:*",
+    "@journey-lines/host-extension": "workspace:*",
+    "@journey-lines/journey": "workspace:*",
+    "@journey-lines/privacy": "workspace:*",
+    "@journey-lines/rules-document": "workspace:*",
+    "@journey-lines/rules-interaction": "workspace:*",
     "lucide-react": "1.52.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"

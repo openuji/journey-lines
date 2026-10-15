@@ -1,4 +1,4 @@
-import type { CompositorFrame, DocumentProgress, DomainEvent, TargetElementMeta } from '@openuji/core';
+import type { CompositorFrame, DocumentProgress, DomainEvent, TargetElementMeta } from '@journey-lines/core';
 
 let nextFrameIndex = 0;
 

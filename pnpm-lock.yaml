@@ -32,34 +32,34 @@ importers:
 
   apps/extension:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../../packages/cdp
-      '@openuji/clip-webm':
+      '@journey-lines/clip-webm':
         specifier: workspace:*
         version: link:../../packages/clip-webm
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@openuji/design-system':
+      '@journey-lines/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
-      '@openuji/fused':
+      '@journey-lines/fused':
         specifier: workspace:*
         version: link:../../packages/fused
-      '@openuji/host-extension':
+      '@journey-lines/host-extension':
         specifier: workspace:*
         version: link:../../packages/host-extension
-      '@openuji/journey':
+      '@journey-lines/journey':
         specifier: workspace:*
         version: link:../../packages/journey
-      '@openuji/privacy':
+      '@journey-lines/privacy':
         specifier: workspace:*
         version: link:../../packages/privacy
-      '@openuji/rules-document':
+      '@journey-lines/rules-document':
         specifier: workspace:*
         version: link:../../packages/rules-document
-      '@openuji/rules-interaction':
+      '@journey-lines/rules-interaction':
         specifier: workspace:*
         version: link:../../packages/rules-interaction
       lucide-react:
@@ -117,10 +117,10 @@ importers:
       '@astrojs/react':
         specifier: 7.0.1
         version: 7.0.1(@types/node@22.20.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(esbuild@0.24.2)(jiti@2.7.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(tsx@4.23.13)(yaml@2.9.1)
-      '@openuji/design-system':
+      '@journey-lines/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
-      '@openuji/journey':
+      '@journey-lines/journey':
         specifier: workspace:*
         version: link:../../packages/journey
       astro:
@@ -169,58 +169,58 @@ importers:
 
   apps/recorder:
     dependencies:
-      '@openuji/cli-kit':
+      '@journey-lines/cli-kit':
         specifier: workspace:*
         version: link:../../packages/cli-kit
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@openuji/engine':
+      '@journey-lines/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@openuji/fused':
+      '@journey-lines/fused':
         specifier: workspace:*
         version: link:../../packages/fused
-      '@openuji/host-puppeteer':
+      '@journey-lines/host-puppeteer':
         specifier: workspace:*
         version: link:../../packages/host-puppeteer
-      '@openuji/privacy':
+      '@journey-lines/privacy':
         specifier: workspace:*
         version: link:../../packages/privacy
-      '@openuji/rules-document':
+      '@journey-lines/rules-document':
         specifier: workspace:*
         version: link:../../packages/rules-document
-      '@openuji/rules-interaction':
+      '@journey-lines/rules-interaction':
         specifier: workspace:*
         version: link:../../packages/rules-interaction
-      '@openuji/sinks':
+      '@journey-lines/sinks':
         specifier: workspace:*
         version: link:../../packages/sinks
 
   apps/stream-cli:
     dependencies:
-      '@openuji/cli-kit':
+      '@journey-lines/cli-kit':
         specifier: workspace:*
         version: link:../../packages/cli-kit
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@openuji/fused':
+      '@journey-lines/fused':
         specifier: workspace:*
         version: link:../../packages/fused
-      '@openuji/privacy':
+      '@journey-lines/privacy':
         specifier: workspace:*
         version: link:../../packages/privacy
-      '@openuji/sinks':
+      '@journey-lines/sinks':
         specifier: workspace:*
         version: link:../../packages/sinks
-      '@openuji/stream-compositor':
+      '@journey-lines/stream-compositor':
         specifier: workspace:*
         version: link:../../packages/stream-compositor
-      '@openuji/stream-lifecycle':
+      '@journey-lines/stream-lifecycle':
         specifier: workspace:*
         version: link:../../packages/stream-lifecycle
-      '@openuji/stream-probe':
+      '@journey-lines/stream-probe':
         specifier: workspace:*
         version: link:../../packages/stream-probe
 
@@ -232,16 +232,16 @@ importers:
 
   packages/cli-kit:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openuji/host-puppeteer':
+      '@journey-lines/host-puppeteer':
         specifier: workspace:*
         version: link:../host-puppeteer
 
   packages/client/probe:
     dependencies:
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../../core
     devDependencies:
@@ -251,7 +251,7 @@ importers:
 
   packages/clip-webm:
     dependencies:
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
 
@@ -259,10 +259,10 @@ importers:
 
   packages/design-system:
     dependencies:
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
-      '@openuji/journey':
+      '@journey-lines/journey':
         specifier: workspace:*
         version: link:../journey
       clsx:
@@ -305,49 +305,49 @@ importers:
 
   packages/engine:
     dependencies:
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
 
   packages/fused:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
-      '@openuji/engine':
+      '@journey-lines/engine':
         specifier: workspace:*
         version: link:../engine
-      '@openuji/rules-document':
+      '@journey-lines/rules-document':
         specifier: workspace:*
         version: link:../rules-document
-      '@openuji/rules-interaction':
+      '@journey-lines/rules-interaction':
         specifier: workspace:*
         version: link:../rules-interaction
-      '@openuji/stream-compositor':
+      '@journey-lines/stream-compositor':
         specifier: workspace:*
         version: link:../stream-compositor
-      '@openuji/stream-html':
+      '@journey-lines/stream-html':
         specifier: workspace:*
         version: link:../stream-html
-      '@openuji/stream-lifecycle':
+      '@journey-lines/stream-lifecycle':
         specifier: workspace:*
         version: link:../stream-lifecycle
-      '@openuji/stream-pdf':
+      '@journey-lines/stream-pdf':
         specifier: workspace:*
         version: link:../stream-pdf
 
   packages/host-extension:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
 
   packages/host-puppeteer:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
       puppeteer:
@@ -356,22 +356,22 @@ importers:
 
   packages/journey:
     dependencies:
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
-      '@openuji/rules-document':
+      '@journey-lines/rules-document':
         specifier: workspace:*
         version: link:../rules-document
-      '@openuji/rules-interaction':
+      '@journey-lines/rules-interaction':
         specifier: workspace:*
         version: link:../rules-interaction
 
   packages/privacy:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
       dom-accessibility-api:
@@ -384,88 +384,88 @@ importers:
 
   packages/rules-document:
     dependencies:
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
-      '@openuji/engine':
+      '@journey-lines/engine':
         specifier: workspace:*
         version: link:../engine
 
   packages/rules-interaction:
     dependencies:
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
-      '@openuji/engine':
+      '@journey-lines/engine':
         specifier: workspace:*
         version: link:../engine
 
   packages/sinks:
     dependencies:
-      '@openuji/clip-webm':
+      '@journey-lines/clip-webm':
         specifier: workspace:*
         version: link:../clip-webm
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
 
   packages/stream-compositor:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
 
   packages/stream-html:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
-      '@openuji/stream-lifecycle':
+      '@journey-lines/stream-lifecycle':
         specifier: workspace:*
         version: link:../stream-lifecycle
-      '@openuji/stream-probe':
+      '@journey-lines/stream-probe':
         specifier: workspace:*
         version: link:../stream-probe
 
   packages/stream-lifecycle:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
 
   packages/stream-pdf:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
-      '@openuji/stream-lifecycle':
+      '@journey-lines/stream-lifecycle':
         specifier: workspace:*
         version: link:../stream-lifecycle
-      '@openuji/stream-probe':
+      '@journey-lines/stream-probe':
         specifier: workspace:*
         version: link:../stream-probe
 
   packages/stream-probe:
     dependencies:
-      '@openuji/cdp':
+      '@journey-lines/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openuji/client-probe':
+      '@journey-lines/client-probe':
         specifier: workspace:*
         version: link:../client/probe
-      '@openuji/core':
+      '@journey-lines/core':
         specifier: workspace:*
         version: link:../core
 

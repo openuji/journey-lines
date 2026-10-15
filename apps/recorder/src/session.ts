@@ -1,22 +1,22 @@
 import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { chromeExecutableFromEnv, headlessFromEnv, videoFromEnv } from '@openuji/cli-kit';
-import type { CaptureSink } from '@openuji/core';
-import type { MilestoneRule } from '@openuji/engine';
-import { recordActiveTab, type ActiveTabRecording } from '@openuji/fused';
-import type { createPrivacy } from '@openuji/privacy';
+import { chromeExecutableFromEnv, headlessFromEnv, videoFromEnv } from '@journey-lines/cli-kit';
+import type { CaptureSink } from '@journey-lines/core';
+import type { MilestoneRule } from '@journey-lines/engine';
+import { recordActiveTab, type ActiveTabRecording } from '@journey-lines/fused';
+import type { createPrivacy } from '@journey-lines/privacy';
 import { loadRecordingPrivacy } from './settings.js';
 import {
   DEFAULT_VIEWPORT,
   launchPuppeteerBrowser,
   type PuppeteerBrowser,
-} from '@openuji/host-puppeteer';
+} from '@journey-lines/host-puppeteer';
 import {
   ConsoleSink,
   PersistenceSink,
   startClipWorker,
   type ClipWorker,
-} from '@openuji/sinks';
+} from '@journey-lines/sinks';
 
 export interface StreamWatchOptions {
   url: string;

@@ -4,7 +4,7 @@ import {
   webmEncoder,
   type FromEncoder,
   type ToEncoder,
-} from '@openuji/clip-webm';
+} from '@journey-lines/clip-webm';
 import { defineUnlistedScript } from 'wxt/utils/define-unlisted-script';
 import { clipChannel } from '../lib/clips';
 

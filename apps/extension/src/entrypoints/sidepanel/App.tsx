@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { useTranslation } from '@openuji/design-system';
+import { useTranslation } from '@journey-lines/design-system';
 import { initialPanelState, panelReducer } from '../../lib/panel-state';
 import { connectJourney, type JourneyPort } from '../../lib/port';
 import type { PanelMessage } from '../../lib/protocol';

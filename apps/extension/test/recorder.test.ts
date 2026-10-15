@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { recordActiveTab } from '@openuji/fused';
-import { createFakeTabHost, type FakeCdpTransport } from '@openuji/cdp/testing';
-import type { Clip, ClipWrite } from '@openuji/core';
-import type { ClipWorker } from '@openuji/clip-webm';
-import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
-import type { TabSummary } from '@openuji/journey';
+import { recordActiveTab } from '@journey-lines/fused';
+import { createFakeTabHost, type FakeCdpTransport } from '@journey-lines/cdp/testing';
+import type { Clip, ClipWrite } from '@journey-lines/core';
+import type { ClipWorker } from '@journey-lines/clip-webm';
+import { PROBE_BINDING_NAME } from '@journey-lines/stream-probe';
+import type { TabSummary } from '@journey-lines/journey';
 import {
   bindingCalled,
   causePayload,

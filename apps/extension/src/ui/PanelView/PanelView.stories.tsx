@@ -1,8 +1,8 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { getJourneyTemplate, REPORT_VERSION } from '@openuji/journey';
-import { storyReportWithClip } from '@openuji/journey/fixtures';
-import { Button, ReportView, TranslationProvider, useTranslation } from '@openuji/design-system';
+import { getJourneyTemplate, REPORT_VERSION } from '@journey-lines/journey';
+import { storyReportWithClip } from '@journey-lines/journey/fixtures';
+import { Button, ReportView, TranslationProvider, useTranslation } from '@journey-lines/design-system';
 import { ExtensionTranslationProvider } from '../../localisation/TranslationProvider';
 import { downloadReport } from '../../lib/report-download';
 import { PanelView } from './PanelView';

@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/clip-webm",
+  "name": "@journey-lines/clip-webm",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -18,6 +18,6 @@
     "build-libav": "./build-libav.sh"
   },
   "dependencies": {
-    "@openuji/core": "workspace:*"
+    "@journey-lines/core": "workspace:*"
   }
 }

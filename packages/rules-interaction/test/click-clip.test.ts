@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { QUIET_AFTER_MS, type ClipWrite, type CompositorFrame, type DomainEvent } from '@openuji/core';
-import { RulesEngine } from '@openuji/engine';
-import { ClickEpisodeRule } from '@openuji/rules-interaction';
+import { QUIET_AFTER_MS, type ClipWrite, type CompositorFrame, type DomainEvent } from '@journey-lines/core';
+import { RulesEngine } from '@journey-lines/engine';
+import { ClickEpisodeRule } from '@journey-lines/rules-interaction';
 import {
   click,
   frame,

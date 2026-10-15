@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@openuji/core';
+import type { DomainEvent } from '@journey-lines/core';
 import type { MilestoneRule } from './rule.js';
 import {
   initialEngineState,

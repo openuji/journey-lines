@@ -15,7 +15,7 @@ import {
   type ReportMode,
   type ReportTemplate,
   type StoredRecording,
-} from '@openuji/journey';
+} from '@journey-lines/journey';
 import { useRecordingMedia } from '../../hooks/useRecordingMedia';
 import { Button } from '../Button/Button';
 import { ReaderDocument } from '../ReaderDocument/ReaderDocument';

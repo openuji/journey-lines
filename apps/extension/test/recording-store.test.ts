@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Clip, MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
 import { MemoryRecordingStore } from '../src/lib/recording-store';
 
 const TAB = { id: 7, windowId: 1, title: 'Example', url: 'https://example.com/' };

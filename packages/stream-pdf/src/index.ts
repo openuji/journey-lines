@@ -1,6 +1,6 @@
-import type { CdpTransport, Detach } from '@openuji/cdp';
-import type { CommittedDocument, DocumentKind } from '@openuji/stream-lifecycle';
-import { attachProbe } from '@openuji/stream-probe';
+import type { CdpTransport, Detach } from '@journey-lines/cdp';
+import type { CommittedDocument, DocumentKind } from '@journey-lines/stream-lifecycle';
+import { attachProbe } from '@journey-lines/stream-probe';
 
 /**
  * The PDF's frame has settled once its own network has been idle (Chromium's

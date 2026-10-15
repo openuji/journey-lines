@@ -1,6 +1,6 @@
 import { useTranslation } from '../../localisation/TranslationProvider';
 import { useEffect, useId, useRef, useState } from 'react';
-import type { EntryStep, JourneyEntry } from '@openuji/journey';
+import type { EntryStep, JourneyEntry } from '@journey-lines/journey';
 import { useActiveSection } from '../../hooks/useActiveSection';
 import { PhaseBadge } from '../PhaseBadge/PhaseBadge';
 import { Statement } from '../Statement/Statement';

@@ -1,7 +1,7 @@
-import { extensionTabs } from '@openuji/host-extension';
-import { recordActiveTab } from '@openuji/fused';
-import type { TabSummary } from '@openuji/journey';
-import { createPrivacy } from '@openuji/privacy';
+import { extensionTabs } from '@journey-lines/host-extension';
+import { recordActiveTab } from '@journey-lines/fused';
+import type { TabSummary } from '@journey-lines/journey';
+import { createPrivacy } from '@journey-lines/privacy';
 import { defineBackground } from 'wxt/utils/define-background';
 import { setActionIcon } from '../lib/action-icon';
 import { openClips } from '../lib/clips';

@@ -1,4 +1,4 @@
-import type { CdpTransport } from '@openuji/cdp';
+import type { CdpTransport } from '@journey-lines/cdp';
 import {
   drainInStages,
   enqueueAll,
@@ -6,8 +6,8 @@ import {
   type CaptureSink,
   type ClipSink,
   type PushStreamStats,
-} from '@openuji/core';
-import { RulesEngine, type EngineOutput, type MilestoneRule } from '@openuji/engine';
+} from '@journey-lines/core';
+import { RulesEngine, type EngineOutput, type MilestoneRule } from '@journey-lines/engine';
 import { defaultRules } from './default-rules.js';
 import { createFusedStream, type FusedStreamHandle, type FusedStreamOptions } from './fused.js';
 

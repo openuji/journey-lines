@@ -4,9 +4,9 @@ import {
   type ClipWrite,
   type CompositorFrame,
   type DomainEvent,
-} from '@openuji/core';
-import { RulesEngine } from '@openuji/engine';
-import { ScrollEpisodeRule } from '@openuji/rules-interaction';
+} from '@journey-lines/core';
+import { RulesEngine } from '@journey-lines/engine';
+import { ScrollEpisodeRule } from '@journey-lines/rules-interaction';
 import { frame, moved, navigated, pageAt, pageScroll, quiet } from '../../engine/test/helpers.js';
 
 /** A scroll told event by event, with named frames so the writes can be read. */

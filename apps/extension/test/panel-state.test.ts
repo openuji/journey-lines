@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Clip, MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
 import { initialPanelState, panelReducer, type PanelAction } from '../src/lib/panel-state';
 import type { RecorderStatus } from '../src/lib/protocol';
 

@@ -9,8 +9,8 @@
  * which serializes JSON and needs the document to relay, 0.9–1.2 ms.
  */
 
-import type { Clip } from '@openuji/core';
-import { clipSinkOver, type Channel, type ClipWorker, type FromEncoder, type ToEncoder } from '@openuji/clip-webm';
+import type { Clip } from '@journey-lines/core';
+import { clipSinkOver, type Channel, type ClipWorker, type FromEncoder, type ToEncoder } from '@journey-lines/clip-webm';
 
 export const CLIPS_CHANNEL = 'openuji-clips';
 

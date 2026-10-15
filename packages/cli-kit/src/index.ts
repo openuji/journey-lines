@@ -1,9 +1,9 @@
-import type { RecordingTarget } from '@openuji/cdp';
+import type { RecordingTarget } from '@journey-lines/cdp';
 import {
   DEFAULT_VIEWPORT,
   launchPuppeteerTarget,
   type WaitUntil,
-} from '@openuji/host-puppeteer';
+} from '@journey-lines/host-puppeteer';
 
 export const DEFAULT_TARGET_URL = 'https://example.com';
 export { DEFAULT_VIEWPORT };

@@ -10,7 +10,7 @@ import {
   type ClipLogRecord,
   type InteractionLogRecord,
   type MilestoneCapture,
-} from '@openuji/core';
+} from '@journey-lines/core';
 
 export interface PersistenceSinkOptions {
   /** Directory PNG screenshots are written into. */

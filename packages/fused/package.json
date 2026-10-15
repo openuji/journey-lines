@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/fused",
+  "name": "@journey-lines/fused",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,14 +17,14 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/cdp": "workspace:*",
-    "@openuji/core": "workspace:*",
-    "@openuji/engine": "workspace:*",
-    "@openuji/rules-document": "workspace:*",
-    "@openuji/rules-interaction": "workspace:*",
-    "@openuji/stream-compositor": "workspace:*",
-    "@openuji/stream-html": "workspace:*",
-    "@openuji/stream-lifecycle": "workspace:*",
-    "@openuji/stream-pdf": "workspace:*"
+    "@journey-lines/cdp": "workspace:*",
+    "@journey-lines/core": "workspace:*",
+    "@journey-lines/engine": "workspace:*",
+    "@journey-lines/rules-document": "workspace:*",
+    "@journey-lines/rules-interaction": "workspace:*",
+    "@journey-lines/stream-compositor": "workspace:*",
+    "@journey-lines/stream-html": "workspace:*",
+    "@journey-lines/stream-lifecycle": "workspace:*",
+    "@journey-lines/stream-pdf": "workspace:*"
   }
 }

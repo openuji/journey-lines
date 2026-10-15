@@ -1,6 +1,6 @@
 import { useReducer } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { emptyDraft, reportReducer, type JourneyEvent, type ReportDraft } from '@openuji/journey';
+import { emptyDraft, reportReducer, type JourneyEvent, type ReportDraft } from '@journey-lines/journey';
 import {
   campusDraft,
   campusEvents,
@@ -9,7 +9,7 @@ import {
   manyPhasesDraft,
   phaseAllHiddenDraft,
   ungroupedLeadDraft,
-} from '@openuji/journey/fixtures';
+} from '@journey-lines/journey/fixtures';
 import { ReportBar } from '../ReportBar/ReportBar';
 import { ReportDocument } from './ReportDocument';
 // The report page's column, borrowed to frame the document.

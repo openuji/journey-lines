@@ -1,4 +1,4 @@
-import type { Clip } from '@openuji/core';
+import type { Clip } from '@journey-lines/core';
 import { storyReportWithClip } from './report-sessions.js';
 import { transitionFrames, transitionVideo } from './transition-fixture.js';
 

@@ -1,4 +1,4 @@
-import type { EntryStep } from '@openuji/journey';
+import type { EntryStep } from '@journey-lines/journey';
 import type { ViewerSlide, ViewerView } from '../StepViewer/step-viewer';
 import { ReaderStepMedia } from './ReaderStepMedia';
 import styles from './ReaderDocument.module.css';

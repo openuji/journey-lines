@@ -11,7 +11,7 @@ import {
   type ReportDraft,
   type ReportTemplate,
   type TemplateField,
-} from '@openuji/journey';
+} from '@journey-lines/journey';
 import { Button } from '../Button/Button';
 import { EditableText } from '../EditableText/EditableText';
 import styles from './ReportDocument.module.css';

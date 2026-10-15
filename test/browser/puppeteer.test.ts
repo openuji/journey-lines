@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CdpTransport } from '@openuji/cdp';
-import { QUIET_AFTER_MS, type CaptureSink, type Clip, type MilestoneCapture } from '@openuji/core';
-import { recordActiveTab, startRecording } from '@openuji/fused';
-import { launchPuppeteerBrowser, launchPuppeteerTarget } from '@openuji/host-puppeteer';
-import { DocumentLabel } from '@openuji/rules-document';
-import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
-import { startClipWorker } from '@openuji/sinks';
+import type { CdpTransport } from '@journey-lines/cdp';
+import { QUIET_AFTER_MS, type CaptureSink, type Clip, type MilestoneCapture } from '@journey-lines/core';
+import { recordActiveTab, startRecording } from '@journey-lines/fused';
+import { launchPuppeteerBrowser, launchPuppeteerTarget } from '@journey-lines/host-puppeteer';
+import { DocumentLabel } from '@journey-lines/rules-document';
+import { episodeLabel, InteractionLabel } from '@journey-lines/rules-interaction';
+import { startClipWorker } from '@journey-lines/sinks';
 import { describeHostConformance } from './conformance.js';
 import { CALENDAR, NEW_TAB_LINK, startFixtureServer } from './fixture.js';
 import { click, wheel } from './input.js';

@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/stream-cli",
+  "name": "@journey-lines/stream-cli",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -14,13 +14,13 @@
     "uxr-stream-fused": "pnpm run build && node dist/fused.js"
   },
   "dependencies": {
-    "@openuji/cli-kit": "workspace:*",
-    "@openuji/core": "workspace:*",
-    "@openuji/fused": "workspace:*",
-    "@openuji/privacy": "workspace:*",
-    "@openuji/sinks": "workspace:*",
-    "@openuji/stream-compositor": "workspace:*",
-    "@openuji/stream-probe": "workspace:*",
-    "@openuji/stream-lifecycle": "workspace:*"
+    "@journey-lines/cli-kit": "workspace:*",
+    "@journey-lines/core": "workspace:*",
+    "@journey-lines/fused": "workspace:*",
+    "@journey-lines/privacy": "workspace:*",
+    "@journey-lines/sinks": "workspace:*",
+    "@journey-lines/stream-compositor": "workspace:*",
+    "@journey-lines/stream-probe": "workspace:*",
+    "@journey-lines/stream-lifecycle": "workspace:*"
   }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getJourneyTemplate, REPORT_VERSION, type ReportDraft, type StoredRecording } from '@openuji/journey';
-import { ReportView, useTranslation } from '@openuji/design-system';
+import { getJourneyTemplate, REPORT_VERSION, type ReportDraft, type StoredRecording } from '@journey-lines/journey';
+import { ReportView, useTranslation } from '@journey-lines/design-system';
 import { loadReportSettings, defaultReportSettings, type ReportSettings } from '../../lib/settings';
 import { downloadReport } from '../../lib/report-download';
 import { loadReport } from '../../lib/report-port';

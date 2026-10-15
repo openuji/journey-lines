@@ -1,4 +1,4 @@
-import type { Cancel, CdpTransport, Detach } from '@openuji/cdp';
+import type { Cancel, CdpTransport, Detach } from '@journey-lines/cdp';
 import {
   arrivedAtMs,
   createPushStream,
@@ -7,12 +7,12 @@ import {
   type DomainEvent,
   type PushStreamStats,
   type TimedEvent,
-} from '@openuji/core';
+} from '@journey-lines/core';
 import {
   attachCompositor,
   type ScreencastOptions,
-} from '@openuji/stream-compositor';
-import { attachLifecycle } from '@openuji/stream-lifecycle';
+} from '@journey-lines/stream-compositor';
+import { attachLifecycle } from '@journey-lines/stream-lifecycle';
 import { documentKinds } from './document-kinds.js';
 
 export interface FusedStreamOptions {

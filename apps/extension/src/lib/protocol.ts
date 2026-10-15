@@ -6,9 +6,9 @@
  * change as it happens.
  */
 
-import type { Clip, MilestoneCapture } from '@openuji/core';
-import type { ActiveTabState } from '@openuji/fused';
-import type { EndedBy, TabSummary } from '@openuji/journey';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
+import type { ActiveTabState } from '@journey-lines/fused';
+import type { EndedBy, TabSummary } from '@journey-lines/journey';
 
 export const JOURNEY_PORT = 'journey';
 

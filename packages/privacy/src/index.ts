@@ -1,4 +1,4 @@
-import type { CdpTransport } from '@openuji/cdp';
+import type { CdpTransport } from '@journey-lines/cdp';
 import { PRIVACY_BINDING, PRIVACY_DISPOSE, PRIVACY_INSTALL } from './constants.js';
 import type { PrivacyDiagnostic, PrivacyInitialResult, PrivacyProgram, PrivacyRendered } from './contract.js';
 import { decodeDiagnostic, decodeSnapshot, decodeRendered } from './decode.js';

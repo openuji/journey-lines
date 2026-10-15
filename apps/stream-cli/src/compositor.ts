@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { runMain, runStreamCli } from '@openuji/cli-kit';
-import { base64ByteLength } from '@openuji/core';
-import { createCompositorStream } from '@openuji/stream-compositor';
+import { runMain, runStreamCli } from '@journey-lines/cli-kit';
+import { base64ByteLength } from '@journey-lines/core';
+import { createCompositorStream } from '@journey-lines/stream-compositor';
 
 /** Standalone compositor stream: live frame metrics, no disk writes. */
 runMain(async () => {

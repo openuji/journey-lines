@@ -1,11 +1,11 @@
-import type { MilestoneRule } from '@openuji/engine';
+import type { MilestoneRule } from '@journey-lines/engine';
 import {
   BeforeNavigationRule,
   FirstFrameRule,
   ReadyRule,
   SettledRule,
-} from '@openuji/rules-document';
-import { defaultInteractionRules } from '@openuji/rules-interaction';
+} from '@journey-lines/rules-document';
+import { defaultInteractionRules } from '@journey-lines/rules-interaction';
 
 /**
  * The standard rule suite, in label order.

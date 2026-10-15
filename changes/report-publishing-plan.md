@@ -13,8 +13,8 @@ The app is a new Astro app. The design system moves out of `apps/extension` into
 
 **Your decisions:**
 - **Two packages:**
-  - `@openuji/journey`: the model, with no React;
-  - `@openuji/design-system`: React and CSS.
+  - `@journey-lines/journey`: the model, with no React;
+  - `@journey-lines/design-system`: React and CSS.
 - **The report is read-only in the app.**
 - **An intermediate representation per journey** for search, tagging and later uses.
 
@@ -38,12 +38,12 @@ The app is a new Astro app. The design system moves out of `apps/extension` into
 
 ```
 packages/
-  journey/          @openuji/journey: isomorphic, tsc --build (like rules-document)
+  journey/          @journey-lines/journey: isomorphic, tsc --build (like rules-document)
     src/journey-events.ts  recording.ts  format.ts
     src/report-draft.ts  report-template.ts  report-archive.ts (+ unzipStored)
     src/journey-entry.ts       NEW: the intermediate representation
-    src/fixtures/              → @openuji/journey/fixtures (precedent: @openuji/cdp/testing)
-  design-system/    @openuji/design-system: React + CSS, consumed from source by Vite
+    src/fixtures/              → @journey-lines/journey/fixtures (precedent: @journey-lines/cdp/testing)
+  design-system/    @journey-lines/design-system: React + CSS, consumed from source by Vite
     .storybook/                the design system's own Storybook
     src/styles/                tokens · themes/classic · base · Foundations.stories
     src/ui/<Component>/        shared components; new: ReportBar, ReportReader, JourneyList
@@ -58,7 +58,7 @@ apps/
     public/journeys/<id>/entry.json   JourneyEntry, derived from the zip
 ```
 
-## Stage 1: extract `@openuji/journey` (a pure move)
+## Stage 1: extract `@journey-lines/journey` (a pure move)
 
 - **`git mv` from `apps/extension/src/lib/`:**
   - `journey-events.ts`, `report-draft.ts`, `report-template.ts`, `report-archive.ts`;
@@ -84,7 +84,7 @@ apps/
   - `report-archive.test.ts`;
   - the model halves of `journey-events.test.ts` and `report-draft.test.ts`.
 
-## Stage 2: extract `@openuji/design-system` (a pure move)
+## Stage 2: extract `@journey-lines/design-system` (a pure move)
 
 - **`git mv` into `packages/design-system/src/`:**
   - `styles/`, `hooks/`, `lib/read-size-token.ts`, `ui/css-modules.d.ts`;
@@ -93,20 +93,20 @@ apps/
     - EditableText, FloatingPreview, Frame*, Clip*, PlaybackToggle, TransitionMedia, TimelineRow;
     - JourneyRow, ReportDocument, ReportView.
 
-  Sibling imports stay valid. Only `../../lib/*` imports change, to `@openuji/journey`.
-- **Panel-only views stay in `apps/extension/src/ui/`:** PanelView, Journey, Idle, Recording, Done and Settings. They import from `@openuji/design-system`.
+  Sibling imports stay valid. Only `../../lib/*` imports change, to `@journey-lines/journey`.
+- **Panel-only views stay in `apps/extension/src/ui/`:** PanelView, Journey, Idle, Recording, Done and Settings. They import from `@journey-lines/design-system`.
 - **`report-download.ts` stays in the extension.** It is a DOM side effect, which belongs to the adapter. Design-system stories use Storybook's `fn()` for `onDownload`.
 - **Two Storybooks, each over its own stories:**
   - the design system's is new and holds the moved stories;
-  - the extension's `.storybook/` keeps PanelView, and its preview re-exports the design system's (`@openuji/design-system/storybook`, a downward import). There are no cross-app globs.
+  - the extension's `.storybook/` keeps PanelView, and its preview re-exports the design system's (`@journey-lines/design-system/storybook`, a downward import). There are no cross-app globs.
 - **`package.json`:**
   - exports `.` → `src/index.ts`, `./styles.css` and `./storybook`;
   - `react` and `react-dom` 19.3.0 as peers;
-  - dependencies on `clsx`, `lucide-react`, `@openuji/core` and `@openuji/journey`;
+  - dependencies on `clsx`, `lucide-react`, `@journey-lines/core` and `@journey-lines/journey`;
   - the Storybook devDependencies.
 - **`tsconfig.json`:** bundler resolution, `react-jsx`, DOM, strict, `noUncheckedIndexedAccess`. It has no `chrome` types, so the package can't call `chrome.*`.
 - **Wiring:**
-  - aliases for `@openuji/design-system/styles.css` and `@openuji/design-system`;
+  - aliases for `@journey-lines/design-system/styles.css` and `@journey-lines/design-system`;
   - extension entrypoints import the package's `styles.css`;
   - root scripts `storybook` (design system) and `storybook:extension`;
   - `.gitignore` gets `packages/design-system/storybook-static`.

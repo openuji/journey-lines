@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
+import { createFakeCdpTransport } from '@journey-lines/cdp/testing';
 import {
   createProbeStream,
   decodeProbePayload,
   PROBE_BINDING_NAME,
   PROBE_SOURCE,
-} from '@openuji/stream-probe';
-import { PROBE_UNINSTALL } from '@openuji/client-probe';
-import { TARGET_TEXT_FIELDS } from '@openuji/core';
+} from '@journey-lines/stream-probe';
+import { PROBE_UNINSTALL } from '@journey-lines/client-probe';
+import { TARGET_TEXT_FIELDS } from '@journey-lines/core';
 import {
   bindingCalled,
   causePayload,

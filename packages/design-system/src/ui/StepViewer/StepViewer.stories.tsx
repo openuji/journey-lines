@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { fn } from 'storybook/test';
-import { journeyEntry, type ReportExport } from '@openuji/journey';
-import { campusReport, longTextReport, untitledReport } from '@openuji/journey/fixtures';
+import { journeyEntry, type ReportExport } from '@journey-lines/journey';
+import { campusReport, longTextReport, untitledReport } from '@journey-lines/journey/fixtures';
 import { TranslationProvider } from '../../localisation/TranslationProvider';
 import { translate, type Translator } from '../../localisation/translate';
 import { storyMedia } from '../../stories/media';

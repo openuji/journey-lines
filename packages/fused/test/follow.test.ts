@@ -6,7 +6,7 @@ import {
   type FollowEffect,
   type FollowEvent,
   type FollowState,
-} from '@openuji/fused';
+} from '@journey-lines/fused';
 
 /**
  * The follow rules as plain values: tabs are letters, sessions are `tab#n`.

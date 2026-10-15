@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { privacyProfileFromDocument } from '@openuji/privacy';
+import { privacyProfileFromDocument } from '@journey-lines/privacy';
 
 export function loadPrivacyDemoProfile() {
   const document = JSON.parse(readFileSync(new URL('../privacy/demo.jsonld', import.meta.url), 'utf8'));

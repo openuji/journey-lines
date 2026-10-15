@@ -4,7 +4,7 @@
  * arrival order.
  */
 
-import type { Clip, MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
 import { shortUrl } from './format.js';
 
 export type TabSummary = Readonly<{

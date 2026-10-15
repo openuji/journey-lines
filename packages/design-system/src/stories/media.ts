@@ -1,6 +1,6 @@
-import type { Clip } from '@openuji/core';
-import { itemFile, type ReportExport } from '@openuji/journey';
-import { storyCaptures, storyClip, storyTransitionClip, transitionFrames } from '@openuji/journey/fixtures';
+import type { Clip } from '@journey-lines/core';
+import { itemFile, type ReportExport } from '@journey-lines/journey';
+import { storyCaptures, storyClip, storyTransitionClip, transitionFrames } from '@journey-lines/journey/fixtures';
 import type { PlayableClip } from '../lib/playable-clip';
 import type { ReaderMedia } from '../ui/ReaderDocument/ReaderStep';
 import type { GalleryFrame } from '../ui/FrameGallery/FrameGallery';

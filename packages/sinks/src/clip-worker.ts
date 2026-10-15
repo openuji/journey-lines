@@ -3,7 +3,7 @@
  * encoding never delays the recording's events. Started by `startClipWorker`.
  */
 import { parentPort } from 'node:worker_threads';
-import { loadLibav, serveClips, webmEncoder, type Channel, type FromEncoder, type ToEncoder } from '@openuji/clip-webm';
+import { loadLibav, serveClips, webmEncoder, type Channel, type FromEncoder, type ToEncoder } from '@journey-lines/clip-webm';
 
 if (!parentPort) throw new Error('clip-worker runs as a worker thread');
 const port = parentPort;

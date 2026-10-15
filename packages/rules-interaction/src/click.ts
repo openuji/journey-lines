@@ -2,8 +2,8 @@ import {
   arrivedAtMs, QUIET_AFTER_MS,
   type DomainEvent, type InteractionEvent, type MilestoneCapture,
   type PressEvent, type TargetElementMeta, type ViewState,
-} from '@openuji/core';
-import { captureFor, type MilestoneRule, type RuleContext } from '@openuji/engine';
+} from '@journey-lines/core';
+import { captureFor, type MilestoneRule, type RuleContext } from '@journey-lines/engine';
 import { CLICK_TIMING, boundaryAt, boundarySample, commitBoundary, observeBoundary, canPublishSplit,
   type InputBoundary, type CommittedBoundary } from './click-boundaries.js';
 import { clickClipWrites } from './click-clip.js';

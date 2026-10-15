@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { ViewState } from '@openuji/core';
+import type { ViewState } from '@journey-lines/core';
 import {
   classifyNavigation,
   enterView,
   isDocumentReport,
   pathOrHashRoute,
   type NavigatedEvent,
-} from '@openuji/engine';
+} from '@journey-lines/engine';
 import { frame, navigated, withinDocument } from './helpers.js';
 
 const at = (path: string): string => `https://example.com${path}`;

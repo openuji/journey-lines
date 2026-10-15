@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { decodeBase64 } from '@openuji/core';
-import { itemFile, type StoredRecording } from '@openuji/journey';
+import { decodeBase64 } from '@journey-lines/core';
+import { itemFile, type StoredRecording } from '@journey-lines/journey';
 import type { ReaderMedia } from '../ui/ReaderDocument/ReaderStep';
 
 /**

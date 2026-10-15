@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/rules-interaction",
+  "name": "@journey-lines/rules-interaction",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/core": "workspace:*",
-    "@openuji/engine": "workspace:*"
+    "@journey-lines/core": "workspace:*",
+    "@journey-lines/engine": "workspace:*"
   }
 }

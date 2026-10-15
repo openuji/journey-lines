@@ -11,7 +11,7 @@
  * `[native code]`), and reporting can never throw into it.
  */
 
-import type { ScrollCause, ScrollCauseWirePayload } from '@openuji/core/wire';
+import type { ScrollCause, ScrollCauseWirePayload } from '@journey-lines/core/wire';
 import { on } from './on.js';
 
 type Report = (payload: ScrollCauseWirePayload) => void;

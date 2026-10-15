@@ -4,7 +4,7 @@ import type {
   DomainEvent,
   MilestoneCapture,
   ViewState,
-} from '@openuji/core';
+} from '@journey-lines/core';
 
 export interface RuleContext {
   readonly currentView: ViewState;

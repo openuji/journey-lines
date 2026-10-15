@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { runMain, runStreamCli } from '@openuji/cli-kit';
-import { createProbeStream } from '@openuji/stream-probe';
+import { runMain, runStreamCli } from '@journey-lines/cli-kit';
+import { createProbeStream } from '@journey-lines/stream-probe';
 
 /** Standalone probe stream: live DOM inspection of clicks, the page's position, and what starts a scroll. */
 runMain(async () => {

@@ -1,4 +1,4 @@
-import type { DomainEvent, LifecycleEvent, ViewEntry, ViewState } from '@openuji/core';
+import type { DomainEvent, LifecycleEvent, ViewEntry, ViewState } from '@journey-lines/core';
 
 /**
  * Views: the one place that knows the ways a view can begin.

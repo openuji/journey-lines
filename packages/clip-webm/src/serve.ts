@@ -1,4 +1,4 @@
-import { decodeBase64, encodeBase64 } from '@openuji/core';
+import { decodeBase64, encodeBase64 } from '@journey-lines/core';
 import type { Channel, FromEncoder, ToEncoder } from './protocol.js';
 import type { ClipEncoder, OpenEncoder } from './webm.js';
 

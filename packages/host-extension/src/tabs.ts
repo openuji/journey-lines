@@ -1,4 +1,4 @@
-import type { TabHost } from '@openuji/cdp';
+import type { TabHost } from '@journey-lines/cdp';
 import type { ChromeDebugger } from './chrome-debugger.js';
 import type { ChromeTabs, ChromeWindows } from './chrome-tabs.js';
 import { attachTab } from './target.js';

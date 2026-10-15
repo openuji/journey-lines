@@ -1,8 +1,8 @@
 import { createServer, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { launchPuppeteerTarget, type PuppeteerTarget } from '@openuji/host-puppeteer';
-import { attachPrivacy, compilePrivacy, type PrivacyAttachment, type PrivacyDiagnostic, type PrivacyProgram } from '@openuji/privacy';
+import { launchPuppeteerTarget, type PuppeteerTarget } from '@journey-lines/host-puppeteer';
+import { attachPrivacy, compilePrivacy, type PrivacyAttachment, type PrivacyDiagnostic, type PrivacyProgram } from '@journey-lines/privacy';
 import { loadPrivacyDemoProfile, startPrivacyDemo } from '../../apps/stream-cli/src/privacy-demo.js';
 import { PRIVACY_SOURCE } from '../../packages/privacy/src/generated/privacy-source.js';
 import { PRIVACY_INSTALL, PRIVACY_STATE } from '../../packages/privacy/src/constants.js';

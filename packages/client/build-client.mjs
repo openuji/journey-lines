@@ -44,7 +44,7 @@ export async function buildClientSource({
     target: 'chrome120',
     minify: false,
     legalComments: 'none',
-    alias: { '@openuji/core/wire': WIRE_SOURCE },
+    alias: { '@journey-lines/core/wire': WIRE_SOURCE },
     write: false,
   });
 

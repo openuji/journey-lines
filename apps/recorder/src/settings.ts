@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { createPrivacy, privacyProfileFromDocument } from '@openuji/privacy';
+import { createPrivacy, privacyProfileFromDocument } from '@journey-lines/privacy';
 
 /** Tenant selection is data; an explicit CLI/programmatic path overrides defaults. */
 export function loadRecordingPrivacy(profilePath?: string): ReturnType<typeof createPrivacy> {

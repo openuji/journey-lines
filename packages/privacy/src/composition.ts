@@ -1,6 +1,6 @@
-import type { TabHost } from '@openuji/cdp';
-import type { CaptureSink, ClipSink, MilestoneCapture } from '@openuji/core';
-import type { TargetElementMeta } from '@openuji/core/wire';
+import type { TabHost } from '@journey-lines/cdp';
+import type { CaptureSink, ClipSink, MilestoneCapture } from '@journey-lines/core';
+import type { TargetElementMeta } from '@journey-lines/core/wire';
 import { compilePrivacy } from './compile.js';
 import type { PrivacyMetadataField, PrivacyProfile } from './profile.js';
 import { privacyHost, type PrivacyReporter } from './recording-host.js';

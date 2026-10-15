@@ -7,7 +7,7 @@ import {
   type TabSession,
   type Unsubscribe,
   type Viewport,
-} from '@openuji/cdp';
+} from '@journey-lines/cdp';
 import { createPuppeteerTransport } from './transport.js';
 
 /** The binding the active-tab watcher reports through, on its own sessions. */

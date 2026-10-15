@@ -1,4 +1,4 @@
-import type { RecordingItem, StoredRecording } from '@openuji/journey';
+import type { RecordingItem, StoredRecording } from '@journey-lines/journey';
 import { REPORT_PORT, type ReportRequest, type ReportResponse } from './report-protocol';
 
 /** Pull one item per message so Chrome never receives a whole recording at once. */

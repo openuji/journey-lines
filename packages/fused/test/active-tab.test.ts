@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createFakeTabHost, type FakeCdpTransport } from '@openuji/cdp/testing';
-import type { CaptureSink, MilestoneCapture } from '@openuji/core';
-import { recordActiveTab } from '@openuji/fused';
+import { createFakeTabHost, type FakeCdpTransport } from '@journey-lines/cdp/testing';
+import type { CaptureSink, MilestoneCapture } from '@journey-lines/core';
+import { recordActiveTab } from '@journey-lines/fused';
 import { frameNavigated, screencastFrame, showingDocument } from '../../cdp/test/events.js';
 
 /**

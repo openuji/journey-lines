@@ -1,6 +1,6 @@
 import { useTranslation } from '../../localisation/TranslationProvider';
 import { useState, type KeyboardEvent } from 'react';
-import type { FieldText } from '@openuji/journey';
+import type { FieldText } from '@journey-lines/journey';
 import styles from './TagEditor.module.css';
 
 export type TagEditorProps = Readonly<{

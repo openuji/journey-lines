@@ -7,7 +7,7 @@ import {
   type Clip,
   type CompositorFrame,
   type MilestoneCapture,
-} from '@openuji/core';
+} from '@journey-lines/core';
 import type { RecordingItem, RecordingMeta, StoredRecording } from './recording.js';
 import type { ReportDraft } from './report-draft.js';
 import type { ReportTemplate } from './report-template.js';

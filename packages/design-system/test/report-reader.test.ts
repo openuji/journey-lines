@@ -1,8 +1,8 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { getJourneyTemplate, journeyEntry, readReportArtifacts, reportArtifacts, type EntryStep, type JourneyEntry, type ReportExport } from '@openuji/journey';
-import { campusEntry, campusReport, longTextReport, mostlyUnnotedReport, untitledReport } from '@openuji/journey/fixtures';
+import { getJourneyTemplate, journeyEntry, readReportArtifacts, reportArtifacts, type EntryStep, type JourneyEntry, type ReportExport } from '@journey-lines/journey';
+import { campusEntry, campusReport, longTextReport, mostlyUnnotedReport, untitledReport } from '@journey-lines/journey/fixtures';
 import { storyMedia } from '../src/stories/media';
 import { readerSections } from '../src/ui/ReaderDocument/reader-sections';
 import { ReportReader } from '../src/ui/ReportReader/ReportReader';
@@ -180,7 +180,7 @@ describe('ReportReader', () => {
   it('localizes standard entry labels and media controls for German readers', () => {
     const html = renderToStaticMarkup(createElement(ReportReader, {
       entry: journeyEntry(campusReport), media: storyMedia(campusReport), locale: { language: 'de', dir: 'ltr' },
-      repositoryHref: 'https://github.com/openuji/recorder',
+      repositoryHref: 'https://github.com/openuji/journey-lines',
     }));
     expect(html).toContain('lang="de" dir="ltr"');
     expect(html).toContain('aria-label="Inhalt"');

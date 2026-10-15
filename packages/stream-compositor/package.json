@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/stream-compositor",
+  "name": "@journey-lines/stream-compositor",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/cdp": "workspace:*",
-    "@openuji/core": "workspace:*"
+    "@journey-lines/cdp": "workspace:*",
+    "@journey-lines/core": "workspace:*"
   }
 }

@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import puppeteer, { type Browser, type Page } from 'puppeteer';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { getJourneyTemplate, readReportArtifacts, unzipStored } from '@openuji/journey';
-import { storyReportWithClip } from '@openuji/journey/fixtures';
+import { getJourneyTemplate, readReportArtifacts, unzipStored } from '@journey-lines/journey';
+import { storyReportWithClip } from '@journey-lines/journey/fixtures';
 import type { ReportSettings } from '../../apps/extension/src/lib/settings';
 import type { ReportRequest, ReportResponse } from '../../apps/extension/src/lib/report-protocol';
 import type { WorkerMessage } from '../../apps/extension/src/lib/protocol';
@@ -38,9 +38,9 @@ describe('extension localisation adapters and independent readers', () => {
           import { createRoot } from 'react-dom/client';
           import { Report } from './src/entrypoints/report/Report';
           import { App } from './src/entrypoints/sidepanel/App';
-          import { TranslationProvider, useTranslation, FrameThumbnail } from '@openuji/design-system';
+          import { TranslationProvider, useTranslation, FrameThumbnail } from '@journey-lines/design-system';
           import readerMeta, { German, EnglishRtl } from '../../packages/design-system/src/ui/ReportReader/ReportReader.stories';
-          import '@openuji/design-system/styles.css';
+          import '@journey-lines/design-system/styles.css';
           const stories = { German, EnglishRtl };
           const story = stories[new URLSearchParams(location.search).get('story')];
           const view = story

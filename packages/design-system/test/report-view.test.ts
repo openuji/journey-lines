@@ -6,7 +6,7 @@ import {
   campusRecording,
   storyEmptyReport,
   storyReportWithClip,
-} from '@openuji/journey/fixtures';
+} from '@journey-lines/journey/fixtures';
 import { ReportView } from '../src/ui/ReportView/ReportView';
 import { TranslationProvider } from '../src/localisation/TranslationProvider';
 

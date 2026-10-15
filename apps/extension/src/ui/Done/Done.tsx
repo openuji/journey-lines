@@ -1,5 +1,5 @@
-import { formatClock, shortUrl, type EndedBy, type JourneyEvent } from '@openuji/journey';
-import { Button, useTranslation } from '@openuji/design-system';
+import { formatClock, shortUrl, type EndedBy, type JourneyEvent } from '@journey-lines/journey';
+import { Button, useTranslation } from '@journey-lines/design-system';
 import type { RecorderStatus } from '../../lib/protocol';
 import { Journey } from '../Journey/Journey';
 import styles from './Done.module.css';

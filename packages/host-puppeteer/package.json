@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/host-puppeteer",
+  "name": "@journey-lines/host-puppeteer",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/cdp": "workspace:*",
+    "@journey-lines/cdp": "workspace:*",
     "puppeteer": "25.12.0"
   }
 }

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { journeyEvents } from '@openuji/journey';
-import { Alert, useTranslation } from '@openuji/design-system';
+import { journeyEvents } from '@journey-lines/journey';
+import { Alert, useTranslation } from '@journey-lines/design-system';
 import type { PanelState } from '../../lib/panel-state';
 import { Done } from '../Done/Done';
 import { Idle } from '../Idle/Idle';

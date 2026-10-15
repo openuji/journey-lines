@@ -1,12 +1,12 @@
 import { Worker } from 'node:worker_threads';
-import type { Clip } from '@openuji/core';
+import type { Clip } from '@journey-lines/core';
 import {
   clipSinkOver,
   type Channel,
   type ClipWorker,
   type FromEncoder,
   type ToEncoder,
-} from '@openuji/clip-webm';
+} from '@journey-lines/clip-webm';
 
 export type { ClipWorker };
 

@@ -1,4 +1,4 @@
-import type { ClipWrite, MilestoneCapture } from '@openuji/core';
+import type { ClipWrite, MilestoneCapture } from '@journey-lines/core';
 import { frameWrites, type FrameRange } from './visual.js';
 
 /** Project the click's selected range into its optional video output. */

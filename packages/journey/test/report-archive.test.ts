@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { artifactFileName, encodeBase64, type Clip, type MilestoneCapture } from '@openuji/core';
+import { artifactFileName, encodeBase64, type Clip, type MilestoneCapture } from '@journey-lines/core';
 import {
   readReportArtifacts,
   recordingArtifacts,

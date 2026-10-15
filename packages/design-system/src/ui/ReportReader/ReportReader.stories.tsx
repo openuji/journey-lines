@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { journeyEntry, type ReportExport } from '@openuji/journey';
-import { campusReport, longTextReport, mostlyUnnotedReport, untitledReport } from '@openuji/journey/fixtures';
+import { journeyEntry, type ReportExport } from '@journey-lines/journey';
+import { campusReport, longTextReport, mostlyUnnotedReport, untitledReport } from '@journey-lines/journey/fixtures';
 import { storyMedia } from '../../stories/media';
 import { ReportReader } from './ReportReader';
 
@@ -18,7 +18,7 @@ const meta = {
   args: {
     ...published(campusReport),
     back: { href: '#journeys', label: 'Journeys' },
-    repositoryHref: 'https://github.com/openuji/recorder',
+    repositoryHref: 'https://github.com/openuji/journey-lines',
   },
   argTypes: { entry: { control: false }, media: { control: false } },
   globals: { viewport: { value: 'responsive', isRotated: false } },

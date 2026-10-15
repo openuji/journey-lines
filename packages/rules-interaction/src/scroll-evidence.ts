@@ -1,4 +1,4 @@
-import type { MilestoneCapture } from '@openuji/core';
+import type { MilestoneCapture } from '@journey-lines/core';
 import type { FrameSample } from './visual.js';
 
 /** Evidence decided by one scroll evaluation, consumed immediately. */

@@ -1,5 +1,5 @@
 import { translateEnglish, type Translator } from '../../localisation/translate';
-import { formatClock, siteOf, type EntryField, type EntryPhase, type EntryStep, type JourneyEntry } from '@openuji/journey';
+import { formatClock, siteOf, type EntryField, type EntryPhase, type EntryStep, type JourneyEntry } from '@journey-lines/journey';
 
 /** How long a phase took and the sites it went through, as far as its shown steps tell. */
 export type PhaseSpan = Readonly<{ durationMs: number; sites: readonly string[] }>;

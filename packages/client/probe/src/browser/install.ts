@@ -10,7 +10,7 @@
  * relaying over `chrome.runtime` would be another.
  */
 
-import type { ProbeWirePayload, TargetElementMeta } from '@openuji/core/wire';
+import type { ProbeWirePayload, TargetElementMeta } from '@journey-lines/core/wire';
 import {
   MAX_SELECTOR_CLASSES,
   MAX_TEXT_SNIPPET_LENGTH,

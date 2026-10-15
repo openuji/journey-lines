@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/engine",
+  "name": "@journey-lines/engine",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,6 +17,6 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/core": "workspace:*"
+    "@journey-lines/core": "workspace:*"
   }
 }

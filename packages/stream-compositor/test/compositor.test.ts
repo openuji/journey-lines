@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
-import { createCompositorStream } from '@openuji/stream-compositor';
+import { createFakeCdpTransport } from '@journey-lines/cdp/testing';
+import { createCompositorStream } from '@journey-lines/stream-compositor';
 import { collect, screencastFrame } from '../../cdp/test/events.js';
 
 function startScreencastParams(cdp: ReturnType<typeof createFakeCdpTransport>) {

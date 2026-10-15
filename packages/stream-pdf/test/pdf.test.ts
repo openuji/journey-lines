@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
-import type { DocumentEvent } from '@openuji/core';
-import { createLifecycleStream } from '@openuji/stream-lifecycle';
-import { pdfDocuments } from '@openuji/stream-pdf';
-import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
+import { createFakeCdpTransport } from '@journey-lines/cdp/testing';
+import type { DocumentEvent } from '@journey-lines/core';
+import { createLifecycleStream } from '@journey-lines/stream-lifecycle';
+import { pdfDocuments } from '@journey-lines/stream-pdf';
+import { PROBE_BINDING_NAME } from '@journey-lines/stream-probe';
 import {
   attachedToTarget,
   bindingCalled,

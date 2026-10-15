@@ -1,4 +1,4 @@
-import type { Clip, MilestoneCapture } from '@openuji/core';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
 import type { RecordingItem, StoredRecording } from '../recording.js';
 import { longStoryCaptures, STORY_STARTED_AT_MS, storyCaptures, storyTab } from './story-captures.js';
 

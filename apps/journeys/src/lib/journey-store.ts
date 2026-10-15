@@ -17,7 +17,7 @@ import {
   unzipStored,
   type ArchiveEntry,
   type JourneyEntry,
-} from '@openuji/journey';
+} from '@journey-lines/journey';
 
 /** Relative to the app's root. */
 export const STORE = { published: 'public/journeys', archives: 'archive' } as const;

@@ -1,4 +1,4 @@
-import type { ClipWrite, CompositorFrame, MilestoneCapture, PagePosition } from '@openuji/core';
+import type { ClipWrite, CompositorFrame, MilestoneCapture, PagePosition } from '@journey-lines/core';
 
 /** Evidence at frame arrival, retained unchanged when encoding is deferred. */
 export type FrameSample = Readonly<{

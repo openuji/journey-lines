@@ -1,7 +1,7 @@
 import { useTranslation } from '../../localisation/TranslationProvider';
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { ChevronLeft, ChevronRight, Play, X } from 'lucide-react';
-import { shortUrl } from '@openuji/journey';
+import { shortUrl } from '@journey-lines/journey';
 import { Button } from '../Button/Button';
 import { IconButton } from '../IconButton/IconButton';
 import { PhaseBadge } from '../PhaseBadge/PhaseBadge';

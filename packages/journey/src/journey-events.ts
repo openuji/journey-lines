@@ -1,6 +1,6 @@
-import type { Clip, CompositorFrame, MilestoneCapture, ViewEntry } from '@openuji/core';
-import { DocumentLabel } from '@openuji/rules-document';
-import { InteractionLabel } from '@openuji/rules-interaction';
+import type { Clip, CompositorFrame, MilestoneCapture, ViewEntry } from '@journey-lines/core';
+import { DocumentLabel } from '@journey-lines/rules-document';
+import { InteractionLabel } from '@journey-lines/rules-interaction';
 import type { StoredRecording } from './recording.js';
 
 type EventBase = Readonly<{

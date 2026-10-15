@@ -1,6 +1,6 @@
 import { crc32, deflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { loadLibav, webmEncoder } from '@openuji/clip-webm';
+import { loadLibav, webmEncoder } from '@journey-lines/clip-webm';
 
 /** A PNG of one colour, RGB 8-bit, as Chrome's screencast sends them. */
 function png(width: number, height: number, [r, g, b]: readonly [number, number, number]): Uint8Array {

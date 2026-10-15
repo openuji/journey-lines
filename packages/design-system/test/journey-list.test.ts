@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { campusEntry, longTextEntry, storyEntries, untitledEntry } from '@openuji/journey/fixtures';
+import { campusEntry, longTextEntry, storyEntries, untitledEntry } from '@journey-lines/journey/fixtures';
 import { JourneyList } from '../src/ui/JourneyList/JourneyList';
 
 const render = (journeys: Parameters<typeof JourneyList>[0]['journeys']) =>
@@ -39,9 +39,9 @@ describe('JourneyList', () => {
     const html = renderToStaticMarkup(createElement(JourneyList, {
       journeys: [],
       href: (id: string) => `/journeys/${id}/`,
-      repositoryHref: 'https://github.com/openuji/recorder',
+      repositoryHref: 'https://github.com/openuji/journey-lines',
     }));
-    expect(html).toContain('href="https://github.com/openuji/recorder"');
+    expect(html).toContain('href="https://github.com/openuji/journey-lines"');
     expect(html).toContain('aria-label="View project on GitHub"');
     expect(html).toContain('target="_blank"');
   });

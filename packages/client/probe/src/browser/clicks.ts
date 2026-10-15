@@ -17,7 +17,7 @@ import type {
   PressKind,
   PressWirePayload,
   TargetElementMeta,
-} from '@openuji/core/wire';
+} from '@journey-lines/core/wire';
 import { on } from './on.js';
 
 type Report = (payload: InteractionWirePayload | PressWirePayload | PressEndedWirePayload) => void;

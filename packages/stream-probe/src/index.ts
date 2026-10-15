@@ -1,6 +1,6 @@
-import type { CdpTransport, Detach } from '@openuji/cdp';
-import { createPushStream, type PushStreamStats } from '@openuji/core';
-import { PROBE_BINDING_NAME, PROBE_SOURCE, PROBE_UNINSTALL } from '@openuji/client-probe';
+import type { CdpTransport, Detach } from '@journey-lines/cdp';
+import { createPushStream, type PushStreamStats } from '@journey-lines/core';
+import { PROBE_BINDING_NAME, PROBE_SOURCE, PROBE_UNINSTALL } from '@journey-lines/client-probe';
 import { decodeProbePayload, type ProbeEvent } from './decode.js';
 
 export { decodeProbePayload, type ProbeEvent } from './decode.js';
@@ -19,7 +19,7 @@ const FROM_ANY_FRAME: ReadonlySet<ProbeEvent['type']> = new Set(['interaction', 
  * inside the CDP event handler.
  *
  * How a report gets here: `Runtime.addBinding` puts a function into the page;
- * the probe (`@openuji/client-probe`) calls it with a JSON payload; Chrome
+ * the probe (`@journey-lines/client-probe`) calls it with a JSON payload; Chrome
  * sends each call as a `Runtime.bindingCalled` event, in the same ordered CDP
  * event stream as the compositor frames. Arrival order alone doesn't say
  * which frames a click came between, so a press or click also carries when
@@ -189,4 +189,4 @@ export async function createProbeStream(cdp: CdpTransport): Promise<ProbeStreamH
   return { events: stream.iterable, stop, stats: stream.stats };
 }
 
-export { PROBE_BINDING_NAME, PROBE_SOURCE } from '@openuji/client-probe';
+export { PROBE_BINDING_NAME, PROBE_SOURCE } from '@journey-lines/client-probe';

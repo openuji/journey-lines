@@ -1,4 +1,4 @@
-import type { Cancel, CdpEventListener, CdpTransport, TabHost, TabSession } from '@openuji/cdp';
+import type { Cancel, CdpEventListener, CdpTransport, TabHost, TabSession } from '@journey-lines/cdp';
 import type { PrivacyDiagnostic, PrivacyProgram, PrivacyRendered } from './contract.js';
 import { attachPrivacy, type PrivacyAttachment } from './index.js';
 

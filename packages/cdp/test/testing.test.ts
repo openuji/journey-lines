@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
+import { createFakeCdpTransport } from '@journey-lines/cdp/testing';
 
 describe('createFakeCdpTransport', () => {
   it('has child sessions of their own, on its clock', async () => {

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { journeyEntry } from '@openuji/journey';
-import { campusReport, mostlyUnnotedReport, untitledReport } from '@openuji/journey/fixtures';
+import { journeyEntry } from '@journey-lines/journey';
+import { campusReport, mostlyUnnotedReport, untitledReport } from '@journey-lines/journey/fixtures';
 import { storyMedia } from '../../stories/media';
 import { ReaderDocument } from './ReaderDocument';
 

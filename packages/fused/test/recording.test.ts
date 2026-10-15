@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
-import { QUIET_AFTER_MS, type CaptureSink, type ClipSink, type ClipWrite, type MilestoneCapture } from '@openuji/core';
-import { defaultRules, startRecording } from '@openuji/fused';
-import { defaultDocumentRules } from '@openuji/rules-document';
-import { defaultInteractionRules } from '@openuji/rules-interaction';
-import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
+import { createFakeCdpTransport } from '@journey-lines/cdp/testing';
+import { QUIET_AFTER_MS, type CaptureSink, type ClipSink, type ClipWrite, type MilestoneCapture } from '@journey-lines/core';
+import { defaultRules, startRecording } from '@journey-lines/fused';
+import { defaultDocumentRules } from '@journey-lines/rules-document';
+import { defaultInteractionRules } from '@journey-lines/rules-interaction';
+import { PROBE_BINDING_NAME } from '@journey-lines/stream-probe';
 import {
   bindingCalled,
   clickPayload,

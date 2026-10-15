@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/recorder",
+  "name": "@journey-lines/recorder",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -21,14 +21,14 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
-    "@openuji/cli-kit": "workspace:*",
-    "@openuji/core": "workspace:*",
-    "@openuji/engine": "workspace:*",
-    "@openuji/fused": "workspace:*",
-    "@openuji/host-puppeteer": "workspace:*",
-    "@openuji/privacy": "workspace:*",
-    "@openuji/rules-document": "workspace:*",
-    "@openuji/rules-interaction": "workspace:*",
-    "@openuji/sinks": "workspace:*"
+    "@journey-lines/cli-kit": "workspace:*",
+    "@journey-lines/core": "workspace:*",
+    "@journey-lines/engine": "workspace:*",
+    "@journey-lines/fused": "workspace:*",
+    "@journey-lines/host-puppeteer": "workspace:*",
+    "@journey-lines/privacy": "workspace:*",
+    "@journey-lines/rules-document": "workspace:*",
+    "@journey-lines/rules-interaction": "workspace:*",
+    "@journey-lines/sinks": "workspace:*"
   }
 }

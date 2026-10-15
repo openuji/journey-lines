@@ -2,8 +2,8 @@ import {
   arrivedAtMs, QUIET_AFTER_MS,
   type MilestoneCapture, type CompositorFrame, type DomainEvent, type PagePosition,
   type PageScrollEvent, type ScrollSample, type ScrollStart, type ViewState,
-} from '@openuji/core';
-import { captureFor, type MilestoneRule, type RuleContext } from '@openuji/engine';
+} from '@journey-lines/core';
+import { captureFor, type MilestoneRule, type RuleContext } from '@journey-lines/engine';
 import { scrollClipWrites } from './scroll-clip.js';
 import type { ScrollEvidence } from './scroll-evidence.js';
 import type { InteractionResult, FrameSample } from './visual.js';

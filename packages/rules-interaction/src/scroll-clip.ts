@@ -1,4 +1,4 @@
-import type { ClipWrite } from '@openuji/core';
+import type { ClipWrite } from '@journey-lines/core';
 import type { ScrollEvidence } from './scroll-evidence.js';
 import { frameWrites } from './visual.js';
 

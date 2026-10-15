@@ -1,4 +1,4 @@
-import type { MilestoneCapture } from '@openuji/core';
+import type { MilestoneCapture } from '@journey-lines/core';
 import type { TabSummary } from '../recording.js';
 
 export const STORY_STARTED_AT_MS = 1_700_000_000_000;

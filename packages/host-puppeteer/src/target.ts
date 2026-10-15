@@ -4,7 +4,7 @@ import {
   type RecordingTarget,
   type Unsubscribe,
   type Viewport,
-} from '@openuji/cdp';
+} from '@journey-lines/cdp';
 import { puppeteerTabs, type PuppeteerTabs } from './tabs.js';
 import { createPuppeteerTransport } from './transport.js';
 

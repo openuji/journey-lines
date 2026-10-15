@@ -1,9 +1,9 @@
 /**
- * The wire contract between the in-page probe (`@openuji/client-probe`, runs in the
- * browser) and the host-side probe stream (`@openuji/stream-probe`).
+ * The wire contract between the in-page probe (`@journey-lines/client-probe`, runs in the
+ * browser) and the host-side probe stream (`@journey-lines/stream-probe`).
  *
  * This module must stay free of any Node-only types (no `Buffer`, no `node:*`)
- * so the browser tier can depend on it via the `@openuji/core/wire` subpath without
+ * so the browser tier can depend on it via the `@journey-lines/core/wire` subpath without
  * pulling `@types/node` into a DOM-only program. Where both sides need a list
  * of names, it is a value here and the type is derived from it.
  */

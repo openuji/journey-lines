@@ -1,7 +1,7 @@
 import { useReducer } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { emptyDraft, journeyTemplate, reportReducer, type ReportDraft } from '@openuji/journey';
-import { campusDraft, longTextDraft } from '@openuji/journey/fixtures';
+import { emptyDraft, journeyTemplate, reportReducer, type ReportDraft } from '@journey-lines/journey';
+import { campusDraft, longTextDraft } from '@journey-lines/journey/fixtures';
 import { TagEditor } from './TagEditor';
 
 /** Story-only: holds the draft's tags, as the report editor does. */

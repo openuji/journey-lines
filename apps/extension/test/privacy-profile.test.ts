@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import type { MilestoneCapture } from '@openuji/core';
-import { compilePrivacy, createPrivacy, privacyProfileFromDocument } from '@openuji/privacy';
+import type { MilestoneCapture } from '@journey-lines/core';
+import { compilePrivacy, createPrivacy, privacyProfileFromDocument } from '@journey-lines/privacy';
 import { captureCases, locationCases } from './fixtures/privacy/metadata-cases.js';
 
 const settingsUrl = new URL('../settings.defaults.json', import.meta.url);

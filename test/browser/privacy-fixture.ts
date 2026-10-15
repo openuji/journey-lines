@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { PrivacyProfile } from '@openuji/privacy';
+import type { PrivacyProfile } from '@journey-lines/privacy';
 import { css, locatorId, profile, rule } from '../../packages/privacy/test/fixtures.js';
 
 export const recordingProfile: PrivacyProfile = {

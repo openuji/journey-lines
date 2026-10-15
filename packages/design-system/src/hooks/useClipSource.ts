@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { decodeBase64, type Clip } from '@openuji/core';
+import { decodeBase64, type Clip } from '@journey-lines/core';
 
 /** Own one browser media URL for an inline clip, for as long as its consumer is mounted. */
 export function useClipSource(clip: Pick<Clip, 'base64' | 'mimeType'> | undefined): string | null {

@@ -4,8 +4,8 @@ import type {
   PressWirePayload,
   ScrollCauseWirePayload,
   ScrollWirePayload,
-} from '@openuji/core';
-import type { FakeCdpTransport } from '@openuji/cdp/testing';
+} from '@journey-lines/core';
+import type { FakeCdpTransport } from '@journey-lines/cdp/testing';
 
 /**
  * Scripted Chromium: the CDP events the sources listen for, with only

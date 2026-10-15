@@ -1,5 +1,5 @@
 {
-  "name": "@openuji/cli-kit",
+  "name": "@journey-lines/cli-kit",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc --build"
   },
   "dependencies": {
-    "@openuji/cdp": "workspace:*",
-    "@openuji/host-puppeteer": "workspace:*"
+    "@journey-lines/cdp": "workspace:*",
+    "@journey-lines/host-puppeteer": "workspace:*"
   }
 }

@@ -11,7 +11,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { CdpTransport, RecordingTarget } from '@openuji/cdp';
+import type { CdpTransport, RecordingTarget } from '@journey-lines/cdp';
 import {
   QUIET_AFTER_MS,
   type CaptureSink,
@@ -20,14 +20,14 @@ import {
   type CompositorFrame,
   type DocumentEvent,
   type MilestoneCapture,
-} from '@openuji/core';
-import { documentKinds, startRecording } from '@openuji/fused';
-import { DocumentLabel } from '@openuji/rules-document';
-import { episodeLabel, InteractionLabel } from '@openuji/rules-interaction';
-import { createCompositorStream } from '@openuji/stream-compositor';
-import { PROBE_UNINSTALL } from '@openuji/client-probe';
-import { createProbeStream, PROBE_BINDING_NAME } from '@openuji/stream-probe';
-import { createLifecycleStream } from '@openuji/stream-lifecycle';
+} from '@journey-lines/core';
+import { documentKinds, startRecording } from '@journey-lines/fused';
+import { DocumentLabel } from '@journey-lines/rules-document';
+import { episodeLabel, InteractionLabel } from '@journey-lines/rules-interaction';
+import { createCompositorStream } from '@journey-lines/stream-compositor';
+import { PROBE_UNINSTALL } from '@journey-lines/client-probe';
+import { createProbeStream, PROBE_BINDING_NAME } from '@journey-lines/stream-probe';
+import { createLifecycleStream } from '@journey-lines/stream-lifecycle';
 import {
   ANCHOR,
   BUTTON,

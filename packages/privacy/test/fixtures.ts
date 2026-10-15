@@ -1,5 +1,5 @@
 import { PRIVACY_CATALOG_CONTEXT, PRIVACY_CSS_EXTENSION,
-  type PrivacyCatalogNode, type PrivacyProfile, type PrivacyReplacementRule } from '@openuji/privacy';
+  type PrivacyCatalogNode, type PrivacyProfile, type PrivacyReplacementRule } from '@journey-lines/privacy';
 
 export const locatorId = (id: string) => `urn:privacy:test:${id}`;
 export function css(id: string, selector: string): PrivacyCatalogNode {

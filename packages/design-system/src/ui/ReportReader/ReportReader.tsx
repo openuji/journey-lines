@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react';
-import { formatClock, localizeJourneyEntry, type JourneyEntry } from '@openuji/journey';
+import { formatClock, localizeJourneyEntry, type JourneyEntry } from '@journey-lines/journey';
 import { GitHubLink } from '../GitHubLink/GitHubLink';
 import { ReaderDocument } from '../ReaderDocument/ReaderDocument';
 import type { ReaderMedia } from '../ReaderDocument/ReaderStep';

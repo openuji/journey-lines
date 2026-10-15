@@ -2,8 +2,8 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Clip, MilestoneCapture } from '@openuji/core';
-import { PersistenceSink } from '@openuji/sinks';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
+import { PersistenceSink } from '@journey-lines/sinks';
 
 const filing = {
   viewId: 1,

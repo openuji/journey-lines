@@ -1,8 +1,8 @@
 /** Bundled into the test worker only; no production test hook or profile override. */
-import { extensionTabs, attachTab } from '@openuji/host-extension';
-import { recordActiveTab } from '@openuji/fused';
-import { createPrivacy, type PrivacyProfile, type PrivacyRecordingDiagnostic } from '@openuji/privacy';
-import { PROBE_BINDING_NAME } from '@openuji/stream-probe';
+import { extensionTabs, attachTab } from '@journey-lines/host-extension';
+import { recordActiveTab } from '@journey-lines/fused';
+import { createPrivacy, type PrivacyProfile, type PrivacyRecordingDiagnostic } from '@journey-lines/privacy';
+import { PROBE_BINDING_NAME } from '@journey-lines/stream-probe';
 import { Recorder } from '../../apps/extension/src/lib/recorder';
 import { MemoryRecordingStore } from '../../apps/extension/src/lib/recording-store';
 import { openClips } from '../../apps/extension/src/lib/clips';

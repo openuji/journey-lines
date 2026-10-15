@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createFakeCdpTransport } from '@openuji/cdp/testing';
-import { attachPrivacy, type PrivacyProgram } from '@openuji/privacy';
+import { createFakeCdpTransport } from '@journey-lines/cdp/testing';
+import { attachPrivacy, type PrivacyProgram } from '@journey-lines/privacy';
 import { PRIVACY_BINDING } from '../src/constants.js';
 
 const program: PrivacyProgram = {

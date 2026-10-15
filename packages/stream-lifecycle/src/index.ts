@@ -3,13 +3,13 @@ import type {
   CdpResult,
   CdpTransport,
   Detach,
-} from '@openuji/cdp';
+} from '@journey-lines/cdp';
 import {
   createPushStream,
   type DocumentEvent,
   type LifecycleEvent,
   type PushStreamStats,
-} from '@openuji/core';
+} from '@journey-lines/core';
 
 type Frame = CdpEventParams<'Page.frameNavigated'>['frame'];
 type FrameTree = CdpResult<'Page.getFrameTree'>['frameTree'];

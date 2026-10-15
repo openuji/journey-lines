@@ -4,7 +4,7 @@
  * element with its own scrollbar.
  */
 
-import type { ScrollCauseWirePayload, ScrollWirePayload } from '@openuji/core/wire';
+import type { ScrollCauseWirePayload, ScrollWirePayload } from '@journey-lines/core/wire';
 import { on } from './on.js';
 import { observeScrollCauses } from './scroll-causes.js';
 

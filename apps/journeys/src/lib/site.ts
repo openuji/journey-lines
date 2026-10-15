@@ -1,1 +1,1 @@
-export const PROJECT_REPOSITORY = 'https://github.com/openuji/recorder';
+export const PROJECT_REPOSITORY = 'https://github.com/openuji/journey-lines';

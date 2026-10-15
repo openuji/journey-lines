@@ -1,5 +1,5 @@
 /**
- * The OpenUJI design system: global styles at `@openuji/design-system/styles.css`,
+ * The OpenUJI design system: global styles at `@journey-lines/design-system/styles.css`,
  * components here. Components take data and callbacks only; hosts own effects.
  */
 

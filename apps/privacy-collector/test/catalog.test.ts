@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { privacyProfileFromDocument } from '@openuji/privacy';
+import { privacyProfileFromDocument } from '@journey-lines/privacy';
 import { buildProfileDocument, defaultScope, parseState, type CollectorState } from '../src/lib/catalog';
 
 const state: CollectorState = {

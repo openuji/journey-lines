@@ -18,8 +18,8 @@ describe('the reader’s step viewer in a browser', () => {
         contents: `
           import { createElement } from 'react';
           import { createRoot } from 'react-dom/client';
-          import { journeyEntry } from '@openuji/journey';
-          import { campusReport } from '@openuji/journey/fixtures';
+          import { journeyEntry } from '@journey-lines/journey';
+          import { campusReport } from '@journey-lines/journey/fixtures';
           import { ReportReader } from './src/ui/ReportReader/ReportReader';
           import { storyMedia } from './src/stories/media';
           import './src/styles/styles.css';

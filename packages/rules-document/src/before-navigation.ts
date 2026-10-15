@@ -1,4 +1,4 @@
-import { captureFor, unchanged, type MilestoneRule } from '@openuji/engine';
+import { captureFor, unchanged, type MilestoneRule } from '@journey-lines/engine';
 import { DocumentLabel } from './labels.js';
 
 export type BeforeNavigationState = Readonly<{ saved: boolean }>;

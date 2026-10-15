@@ -28,4 +28,4 @@ export type {
   ScrollCauseWirePayload,
   ScrollWirePayload,
   TargetElementMeta,
-} from '@openuji/core/wire';
+} from '@journey-lines/core/wire';

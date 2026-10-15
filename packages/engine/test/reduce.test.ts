@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ClipWrite, DomainEvent, MilestoneCapture } from '@openuji/core';
+import type { ClipWrite, DomainEvent, MilestoneCapture } from '@journey-lines/core';
 import {
   RulesEngine,
   captureFor,
@@ -7,8 +7,8 @@ import {
   reduce,
   unchanged,
   type MilestoneRule,
-} from '@openuji/engine';
-import { defaultDocumentRules } from '@openuji/rules-document';
+} from '@journey-lines/engine';
+import { defaultDocumentRules } from '@journey-lines/rules-document';
 import { navigated, frameEvent, milestone, quiet, withinDocument } from './helpers.js';
 
 /** Records every event it is shown, so we can assert on engine dispatch. */

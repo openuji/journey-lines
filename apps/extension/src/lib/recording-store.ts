@@ -1,5 +1,5 @@
-import type { Clip, MilestoneCapture } from '@openuji/core';
-import type { EndedBy, RecordingItem, RecordingMeta, StoredRecording, TabSummary } from '@openuji/journey';
+import type { Clip, MilestoneCapture } from '@journey-lines/core';
+import type { EndedBy, RecordingItem, RecordingMeta, StoredRecording, TabSummary } from '@journey-lines/journey';
 
 /** Domain-facing boundary: another adapter can persist or send the same output elsewhere. */
 export interface RecordingStore {

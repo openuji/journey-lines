@@ -1,4 +1,4 @@
-import type { RecordingItem, RecordingMeta } from '@openuji/journey';
+import type { RecordingItem, RecordingMeta } from '@journey-lines/journey';
 
 export const REPORT_PORT = 'recording-report';
 

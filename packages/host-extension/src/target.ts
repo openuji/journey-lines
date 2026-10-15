@@ -6,7 +6,7 @@ import {
   type SessionEnd,
   type TabSession,
   type Unsubscribe,
-} from '@openuji/cdp';
+} from '@journey-lines/cdp';
 import type { ChromeDebugger, ChromeDetachListener } from './chrome-debugger.js';
 import { createChromeDebuggerTransport } from './transport.js';
 

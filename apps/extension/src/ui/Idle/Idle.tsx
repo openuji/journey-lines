@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, useTranslation } from '@openuji/design-system';
+import { Button, useTranslation } from '@journey-lines/design-system';
 import type { RecordOptions } from '../../lib/protocol';
 import styles from './Idle.module.css';
 

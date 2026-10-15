@@ -4,7 +4,7 @@ import { GitHubLink } from './GitHubLink';
 const meta = {
   title: 'Primitives/GitHub link',
   component: GitHubLink,
-  args: { href: 'https://github.com/openuji/recorder', label: 'View project on GitHub' },
+  args: { href: 'https://github.com/openuji/journey-lines', label: 'View project on GitHub' },
 } satisfies Meta<typeof GitHubLink>;
 
 export default meta;

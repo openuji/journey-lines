@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { ReportLanguage } from '@openuji/journey';
-import { useTranslation } from '@openuji/design-system';
+import type { ReportLanguage } from '@journey-lines/journey';
+import { useTranslation } from '@journey-lines/design-system';
 import { defaultExtensionLanguage, loadExtensionLanguage } from '../../lib/settings';
 import { ExtensionTranslationProvider } from '../../localisation/TranslationProvider';
 import { Settings } from '../../ui/Settings/Settings';
