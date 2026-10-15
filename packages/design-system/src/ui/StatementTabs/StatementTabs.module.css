@@ -1,0 +1,104 @@
+/*
+ * Labels side by side, each a tab once pointed at or focused: it takes the
+ * fill and line of its panel and runs into it, open where they meet. The
+ * labels are the panels' positioned box: a panel hangs from their start, at
+ * least as wide as all of them, over whatever lies below. A panel shown sits
+ * over one fading out, so moving along the labels hands over from tab to tab;
+ * while the pointer is on them, a label holding the focus gives way to the
+ * one pointed at.
+ */
+
+.statement-tabs {
+  position: relative;
+  display: inline-flex;
+}
+
+.statement-tabs__item {
+  --statement-tabs-fill: var(--ds-color-surface);
+  --statement-tabs-line: var(--ds-color-line-strong);
+  --statement-tabs-label: var(--ds-color-ink-soft);
+  --statement-tabs-label-open: var(--ds-color-ink);
+  display: flex;
+}
+
+/* A problem's tint over the surface, so what lies below does not show through. */
+.statement-tabs__item--problem {
+  --statement-tabs-fill: linear-gradient(var(--ds-color-problem-tint), var(--ds-color-problem-tint)), var(--ds-color-surface);
+  --statement-tabs-line: var(--ds-color-problem);
+  --statement-tabs-label: var(--ds-color-problem-text);
+  --statement-tabs-label-open: var(--ds-color-problem-text);
+}
+
+/* Over the panel by its line's width, so an open tab covers the panel's line where they meet. */
+.statement-tabs__tab {
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  margin-bottom: calc(-1 * var(--ds-border-thin));
+  padding: var(--ds-space-half) var(--ds-space-2) calc(var(--ds-space-half) + var(--ds-border-thin));
+  border: var(--ds-border-thin) solid transparent;
+  border-bottom: 0;
+  border-start-start-radius: var(--ds-radius-control);
+  border-start-end-radius: var(--ds-radius-control);
+  background: none;
+  color: var(--statement-tabs-label);
+  font-size: var(--ds-type-label);
+  font-weight: var(--ds-weight-medium);
+  white-space: nowrap;
+}
+
+.statement-tabs__icon {
+  flex: none;
+  width: var(--ds-icon-small);
+  height: var(--ds-icon-small);
+  transition: rotate var(--ds-transition-fast);
+}
+
+.statement-tabs__panel {
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  inset-inline-start: 0;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(var(--ds-statement-tabs-width), 100cqw);
+  max-height: var(--ds-statement-tabs-max-height);
+  margin: 0;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  overflow-y: auto;
+  border: var(--ds-border-thin) solid var(--statement-tabs-line);
+  border-radius: var(--ds-radius-panel);
+  border-start-start-radius: 0;
+  background: var(--statement-tabs-fill);
+  box-shadow: 0 var(--ds-preview-shadow-y) var(--ds-preview-shadow-blur) rgb(0 0 0 / 0.28);
+  color: var(--ds-color-ink);
+  font-size: var(--ds-type-reader-body);
+  line-height: var(--ds-leading-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--ds-transition-fast), visibility 0s linear var(--ds-transition-fast);
+}
+
+.statement-tabs__item:hover .statement-tabs__tab,
+.statement-tabs:not(:hover) .statement-tabs__item:focus-within .statement-tabs__tab {
+  border-color: var(--statement-tabs-line);
+  background: var(--statement-tabs-fill);
+  color: var(--statement-tabs-label-open);
+}
+
+.statement-tabs__item:hover .statement-tabs__icon,
+.statement-tabs:not(:hover) .statement-tabs__item:focus-within .statement-tabs__icon {
+  rotate: 180deg;
+}
+
+.statement-tabs__item:hover .statement-tabs__panel,
+.statement-tabs:not(:hover) .statement-tabs__item:focus-within .statement-tabs__panel {
+  z-index: 2;
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}

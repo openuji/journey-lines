@@ -1,5 +1,6 @@
 import { Route } from 'lucide-react';
 import { formatClock, formatDate, shortUrl, type JourneyEntry } from '@openuji/journey';
+import { GitHubLink } from '../GitHubLink/GitHubLink';
 import { TagList } from '../TagList/TagList';
 import styles from './JourneyList.module.css';
 
@@ -8,16 +9,25 @@ export type JourneyListProps = Readonly<{
   journeys: readonly JourneyEntry[];
   /** Where a journey's report opens. */
   href: (id: string) => string;
+  /** The project repository offered from the page's top bar. */
+  repositoryHref?: string;
 }>;
 
 /** The journeys there are, each opening its report. Holds no state. */
-export function JourneyList({ journeys, href }: JourneyListProps) {
+export function JourneyList({ journeys, href, repositoryHref }: JourneyListProps) {
   return (
     <>
       <header className={styles['journeys-bar']}>
         <Route aria-hidden />
         <h1 className={styles['journeys-bar__title']}>Journeys</h1>
         {/* <span className={styles['journeys-bar__meta']}>{journeys.length}</span> */}
+        {repositoryHref && (
+          <GitHubLink
+            className={styles['journeys-bar__repository']}
+            href={repositoryHref}
+            label="View project on GitHub"
+          />
+        )}
       </header>
       <main className={styles['journeys']}>
         {journeys.length === 0

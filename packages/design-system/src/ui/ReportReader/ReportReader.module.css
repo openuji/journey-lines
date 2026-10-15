@@ -18,4 +18,8 @@
   height: var(--ds-icon-default);
 }
 
+.report-repository {
+  margin-inline-start: auto;
+}
+
 :dir(rtl) .report-back svg { transform: scaleX(-1); }

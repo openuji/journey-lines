@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "journey-lines",
+  "compatibility_date": "2026-10-15",
+  "assets": {
+    "directory": "./dist"
+  }
+}

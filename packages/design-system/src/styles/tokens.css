@@ -44,10 +44,10 @@
   --ds-tracking-header: -0.01em;
   --ds-tracking-report-title: -0.02em;
 
-  --ds-radius-panel: 8px;
+  --ds-radius-panel: 4px;
   --ds-radius-card: 11px;
   --ds-radius-thumbnail: 6px;
-  --ds-radius-control: 8px;
+  --ds-radius-control: 4px;
   --ds-radius-pill: 999px;
   --ds-control-small: 32px;
   --ds-control-default: 44px;
@@ -111,6 +111,13 @@
   /* The viewer's room under the screen for the step: its line, then about four lines of
      its note; a longer note scrolls inside. Fixed, so the screen never changes size. */
   --ds-viewer-caption-height: 128px;
+  /* The viewer's bar: the phase's headline over its facts, or only the way out. Fixed, so
+     a step before any phase gets the same screen as one in a phase. */
+  --ds-viewer-bar-height: 48px;
+  /* A statement tab's panel: wide enough for a few lines of a statement; a longer one
+     scrolls inside. */
+  --ds-statement-tabs-width: 440px;
+  --ds-statement-tabs-max-height: 60vh;
   /* Hatching: dense, fine diagonal lines. A mask, so its colour is the element's
      background (--ds-color-pattern) and follows the theme. */
   --ds-pattern-hatch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6'%3E%3Cpath d='M-1 1l2-2M0 6l6-6M5 7l2-2' stroke='%23000' stroke-width='1'/%3E%3C/svg%3E");

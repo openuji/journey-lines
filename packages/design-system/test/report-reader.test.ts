@@ -180,6 +180,7 @@ describe('ReportReader', () => {
   it('localizes standard entry labels and media controls for German readers', () => {
     const html = renderToStaticMarkup(createElement(ReportReader, {
       entry: journeyEntry(campusReport), media: storyMedia(campusReport), locale: { language: 'de', dir: 'ltr' },
+      repositoryHref: 'https://github.com/openuji/recorder',
     }));
     expect(html).toContain('lang="de" dir="ltr"');
     expect(html).toContain('aria-label="Inhalt"');
@@ -187,6 +188,7 @@ describe('ReportReader', () => {
     expect(html).toContain('Was passiert?');
     expect(html).toContain('data-action-label="Öffnen"');
     expect(html).toContain('aria-label="Bild „Vorher“ öffnen"');
+    expect(html).toContain('aria-label="Projekt auf GitHub öffnen"');
     expect(html).toContain('Where is my lecture hall, actually?');
   });
 

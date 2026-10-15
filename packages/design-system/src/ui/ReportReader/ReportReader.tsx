@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { formatClock, localizeJourneyEntry, type JourneyEntry } from '@openuji/journey';
+import { GitHubLink } from '../GitHubLink/GitHubLink';
 import { ReaderDocument } from '../ReaderDocument/ReaderDocument';
 import type { ReaderMedia } from '../ReaderDocument/ReaderStep';
 import { ReportBar } from '../ReportBar/ReportBar';
@@ -13,6 +14,8 @@ export type ReportReaderProps = Readonly<{
   media: ReaderMedia;
   /** Where the reader came from, such as the list of journeys. */
   back?: Readonly<{ href: string; label: string }>;
+  /** The project repository offered from the page's top bar. */
+  repositoryHref?: string;
   locale?: ReportLocale;
 }>;
 
@@ -26,7 +29,7 @@ export function ReportReader(props: ReportReaderProps) {
   );
 }
 
-function ReaderContent({ entry, media, back, locale = defaultReportLocale }: ReportReaderProps) {
+function ReaderContent({ entry, media, back, repositoryHref, locale = defaultReportLocale }: ReportReaderProps) {
   const { t } = useTranslation();
   const localized = localizeJourneyEntry(entry, locale.language);
   const backLink = back && (
@@ -45,7 +48,15 @@ function ReaderContent({ entry, media, back, locale = defaultReportLocale }: Rep
           summary: t('report.steps', { count: entry.steps.length }),
         })}
         leading={backLink}
-      />
+      >
+        {repositoryHref && (
+          <GitHubLink
+            className={styles['report-repository']}
+            href={repositoryHref}
+            label={t('repository.open')}
+          />
+        )}
+      </ReportBar>
       <main>
         <ReaderDocument entry={localized} media={media} />
       </main>

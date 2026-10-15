@@ -14,6 +14,7 @@ export * from './ui/FloatingPreview/FloatingPreview';
 export * from './ui/FrameGallery/FrameGallery';
 export * from './ui/FramePair/FramePair';
 export * from './ui/FrameThumbnail/FrameThumbnail';
+export * from './ui/GitHubLink/GitHubLink';
 export * from './ui/IconButton/IconButton';
 export * from './ui/JourneyList/JourneyList';
 export * from './ui/JourneyRow/JourneyRow';

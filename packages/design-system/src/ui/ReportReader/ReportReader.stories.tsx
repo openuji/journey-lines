@@ -15,7 +15,11 @@ const withoutConclusion: ReportExport = {
 const meta = {
   title: 'Report/Reader',
   component: ReportReader,
-  args: { ...published(campusReport), back: { href: '#journeys', label: 'Journeys' } },
+  args: {
+    ...published(campusReport),
+    back: { href: '#journeys', label: 'Journeys' },
+    repositoryHref: 'https://github.com/openuji/recorder',
+  },
   argTypes: { entry: { control: false }, media: { control: false } },
   globals: { viewport: { value: 'responsive', isRotated: false } },
 } satisfies Meta<typeof ReportReader>;

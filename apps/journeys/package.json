@@ -8,6 +8,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "preview:cloudflare": "pnpm run build && wrangler dev",
+    "deploy:dry-run": "pnpm run build && wrangler deploy --dry-run",
+    "deploy": "pnpm run build && wrangler deploy",
     "typecheck": "astro check",
     "add-journey": "node src/cli/add-journey.ts"
   },
@@ -24,6 +27,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "wrangler": "^4.151.0"
   }
 }

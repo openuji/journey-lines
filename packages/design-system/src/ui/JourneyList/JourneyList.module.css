@@ -13,7 +13,7 @@
   background: var(--ds-color-canvas);
 }
 
-.journeys-bar svg {
+.journeys-bar > svg {
   flex: none;
   color: var(--ds-color-accent-text);
   width: var(--ds-icon-report);
@@ -24,6 +24,10 @@
   margin: 0;
   font-size: var(--ds-type-report-body);
   font-weight: var(--ds-weight-bold);
+}
+
+.journeys-bar__repository {
+  margin-inline-start: auto;
 }
 
 .journeys-bar__meta {

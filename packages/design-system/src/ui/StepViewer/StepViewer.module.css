@@ -1,14 +1,17 @@
 /*
- * The step viewer: the whole window, one step at a time. A panel beside the
- * screen says which phase the step belongs to (number, title, where and how
- * long, what happened, the problem). The screen has the way to the previous
- * and next step on either side of it; under it, the ways to look at the step,
- * then the step itself: what happened, when and where, and its note. The
- * views and the step have fixed room, and the screen is the largest 3:2 box
- * the rest of the stage holds, so stepping, switching views, and notes of any
- * length move nothing. On a narrow screen everything is one column.
+ * The step viewer: the whole window, one step at a time. A bar over the
+ * screen says which phase the step belongs to (number, title beside the
+ * labels of what happened and the problem, where and how long), which step of
+ * how many, and the way out. A label pointed at turns tab, its text over the
+ * screen. The screen has the way to the previous and next step on either
+ * side of it; under it, the ways to look at the step, then the step itself:
+ * what happened, when and where, and its note. The bar, the views and the
+ * step have fixed room, and the screen is the largest 3:2 box the rest of the
+ * stage holds, so stepping, switching views, notes of any length, and the
+ * phase's texts move nothing. On a narrow screen everything is one column.
  *
- * Layout only: the controls are the design system's Button and IconButton.
+ * Layout only: the controls are the design system's Button, IconButton and
+ * StatementTabs.
  */
 
 .step-viewer {
@@ -44,69 +47,79 @@
 .step-viewer__layout {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--ds-viewer-bar-height) minmax(0, 1fr);
   grid-template-areas:
-    'panel bar'
-    'panel stage';
-  gap: var(--ds-space-4) var(--ds-space-8);
+    'bar'
+    'stage';
+  gap: var(--ds-space-4);
   height: 100%;
   padding: var(--ds-space-6);
 }
 
-/* The panel: the phase. It scrolls on its own when the phase says a lot. */
-.step-viewer__panel {
+/* The phase, then which step of how many and the way out at the far end; over the stage, where its panels hang. */
+.step-viewer__bar {
+  position: relative;
+  z-index: 1;
   display: flex;
-  grid-area: panel;
-  flex-direction: column;
-  gap: var(--ds-space-5);
-  min-height: 0;
-  overflow-y: auto;
+  grid-area: bar;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-3);
+  min-width: 0;
 }
 
+/* The phase takes what the bar has left: its badge, then its headline over its facts, each on one line. */
 .step-viewer__phase {
   display: grid;
+  flex: 1;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: var(--ds-space-3);
+  min-width: 0;
 }
 
 .step-viewer__phase-heading {
   min-width: 0;
 }
 
+/*
+ * The title, then the labels of what happened and the problem. The title is
+ * cut short before the labels give way, and before they stand so far along
+ * that a panel hanging from them would run past the headline.
+ */
+.step-viewer__headline {
+  container-type: inline-size;
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-4);
+  min-width: 0;
+}
+
 .step-viewer__phase-title {
+  min-width: 0;
+  max-width: calc(100cqw - var(--ds-statement-tabs-width) - var(--ds-space-4));
   margin: 0;
   padding-top: calc((var(--ds-phase-badge-size) - 1lh) / 2);
+  overflow: hidden;
   font-weight: var(--ds-weight-bold);
   line-height: var(--ds-leading-tight);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .step-viewer__phase-facts {
   margin: var(--ds-space-1) 0 0;
+  overflow: hidden;
   color: var(--ds-color-ink-soft);
   font-size: var(--ds-type-label);
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.step-viewer__statements {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-4);
-}
-
-/* Which step of how many, then the way out. */
-.step-viewer__bar {
-  display: flex;
-  grid-area: bar;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--ds-space-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .step-viewer__position {
+  flex: none;
   margin: 0;
   color: var(--ds-color-ink-muted);
   font-size: var(--ds-type-label);
@@ -249,35 +262,42 @@
 }
 
 /*
- * Narrow: one column that scrolls — the phase, the screen, the ways back and
- * on with the views between them, the step, then what the phase says. The
- * step takes the room its note needs; nothing above it moves.
+ * Narrow: one column that scrolls — the bar, its title and labels wrapping as
+ * they need, the screen, the ways back and on with the views between them,
+ * then the step, which takes the room its note needs; nothing above it moves.
  */
 @media (width < 56rem) {
   .step-viewer__layout {
-    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: none;
-    grid-template-areas:
-      'phase      bar'
-      'stage      stage'
-      'statements statements';
     align-content: start;
-    gap: var(--ds-space-4);
     height: auto;
     min-height: 100%;
     padding: var(--ds-space-3);
   }
 
-  .step-viewer__panel {
-    display: contents;
+  .step-viewer__bar {
+    align-items: flex-start;
   }
 
-  .step-viewer__phase {
-    grid-area: phase;
+  .step-viewer__headline {
+    flex-wrap: wrap;
+    row-gap: var(--ds-space-1);
   }
 
+  .step-viewer__phase-title,
+  .step-viewer__phase-facts {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .step-viewer__phase-title {
+    max-width: none;
+  }
+
+  /* The labels on a line of their own, so their panels hang from the headline's start. */
   .step-viewer__statements {
-    grid-area: statements;
+    flex-basis: 100%;
   }
 
   .step-viewer__stage {

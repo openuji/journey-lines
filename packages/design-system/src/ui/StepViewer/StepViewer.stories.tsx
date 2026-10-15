@@ -75,7 +75,7 @@ export const MissingMedia: Story = {
   args: { slides: slidesOf(campusReport, {}), at: at(campus, withClip) },
 };
 
-/** A phase that says a lot, and a long note: the panel scrolls on its own, the screen stays. */
+/** A phase that says a lot, and a long note: the title is cut short, the note scrolls in its room, the screen stays. */
 export const LongPhaseTexts: Story = {
   args: { slides: slidesOf(longTextReport), at: at(slidesOf(longTextReport), 0) },
 };

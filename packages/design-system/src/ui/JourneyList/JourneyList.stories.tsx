@@ -5,7 +5,11 @@ import { JourneyList } from './JourneyList';
 const meta = {
   title: 'Journeys/List',
   component: JourneyList,
-  args: { journeys: storyEntries, href: (id: string) => `#${id}` },
+  args: {
+    journeys: storyEntries,
+    href: (id: string) => `#${id}`,
+    repositoryHref: 'https://github.com/openuji/recorder',
+  },
   argTypes: { journeys: { control: false }, href: { control: false } },
   globals: { viewport: { value: 'responsive', isRotated: false } },
 } satisfies Meta<typeof JourneyList>;

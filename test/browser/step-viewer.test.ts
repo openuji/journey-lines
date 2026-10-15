@@ -133,19 +133,60 @@ describe('the reader’s step viewer in a browser', () => {
     await page.close();
   });
 
+  const boxes = (page: Page) => page.evaluate(() => ['[class*="step-viewer__screen"]', 'section', 'button[aria-label="Nächster Schritt"]'].map((selector) => {
+    const { x, y, width, height } = document.querySelector(`dialog ${selector}`)!.getBoundingClientRect();
+    return { x, y, width, height };
+  }));
+
+  /** How many lines the labels of what was written about the phase take; none before any phase. */
+  const headline = (page: Page) => page.evaluate(() => {
+    const labels = Array.from(document.querySelectorAll('dialog [class*="statement-tabs__tab"]'));
+    return labels.length > 0 ? new Set(labels.map((label) => label.getBoundingClientRect().bottom)).size : null;
+  });
+
   // 1440×900 leaves the screen as wide as the stage allows; 1600×760, as tall.
   it.each([[1440, 900], [1600, 760]])('keeps the screen, the way on, and the step in place on every step at %i×%i', async (width, height) => {
     const page = await openViewer(width, height);
-    const boxes = () => page.evaluate(() => ['[class*="step-viewer__screen"]', 'section', 'button[aria-label="Nächster Schritt"]'].map((selector) => {
-      const { x, y, width, height } = document.querySelector(`dialog ${selector}`)!.getBoundingClientRect();
-      return { x, y, width, height };
-    }));
     const { index: first, count } = await position(page);
-    const shown = await boxes();
+    const shown = await boxes(page);
+    const lines = [await headline(page)];
     for (let index = first; index < count; index++) {
       await page.keyboard.press('ArrowRight');
-      expect(await boxes()).toEqual(shown);
+      expect(await boxes(page)).toEqual(shown);
+      lines.push(await headline(page));
     }
+    const told = lines.filter((line) => line !== null);
+    expect(told.length).toBeGreaterThan(0);
+    expect(told.every((line) => line === 1)).toBe(true);
+    await page.close();
+  });
+
+  it('shows what was written about the phase over the screen from the label pointed at, hands over to its neighbour, and moves nothing', async () => {
+    const page = await openViewer();
+    while ((await page.$$('dialog [class*="statement-tabs__tab"]')).length < 2) await page.keyboard.press('ArrowRight');
+    const panels = 'dialog [role="tooltip"]';
+    const closed = () => page.waitForFunction((panels) => Array.from(document.querySelectorAll(panels)).every((panel) => getComputedStyle(panel).visibility === 'hidden'), {}, panels);
+    // Which panel is on top of everything else: the one pointed at, joined to its tab, and over the screen.
+    const onTop = () => page.evaluate((panels) => Array.from(document.querySelectorAll(panels)).flatMap((panel, index) => {
+      const { left, top, width, height } = panel.getBoundingClientRect();
+      const tab = panel.previousElementSibling!.getBoundingClientRect();
+      const hit = document.elementFromPoint(left + width / 2, top + height / 2);
+      return panel.contains(hit) ? [{ index, joined: tab.bottom > top && tab.left >= left && tab.right <= left + width }] : [];
+    }), panels);
+    // Away from where the picture was clicked to open the viewer.
+    await page.mouse.move(5, 5);
+    await closed();
+    const shown = await boxes(page);
+    const [first, second] = await page.$$('dialog [class*="statement-tabs__tab"]');
+    await second!.hover();
+    await page.waitForFunction((panels) => getComputedStyle(document.querySelectorAll(panels)[1]!).opacity === '1', {}, panels);
+    expect(await onTop()).toEqual([{ index: 1, joined: true }]);
+    await first!.hover();
+    await page.waitForFunction((panels) => getComputedStyle(document.querySelectorAll(panels)[1]!).visibility === 'hidden', {}, panels);
+    expect(await onTop()).toEqual([{ index: 0, joined: true }]);
+    expect(await boxes(page)).toEqual(shown);
+    await page.mouse.move(5, 5);
+    await closed();
     await page.close();
   });
 });

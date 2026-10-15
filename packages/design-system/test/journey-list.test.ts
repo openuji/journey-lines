@@ -34,4 +34,15 @@ describe('JourneyList', () => {
   it('says so when there are none', () => {
     expect(render([])).toContain('No journeys yet.');
   });
+
+  it('offers the project repository from its top bar', () => {
+    const html = renderToStaticMarkup(createElement(JourneyList, {
+      journeys: [],
+      href: (id: string) => `/journeys/${id}/`,
+      repositoryHref: 'https://github.com/openuji/recorder',
+    }));
+    expect(html).toContain('href="https://github.com/openuji/recorder"');
+    expect(html).toContain('aria-label="View project on GitHub"');
+    expect(html).toContain('target="_blank"');
+  });
 });

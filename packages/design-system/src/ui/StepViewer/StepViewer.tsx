@@ -5,7 +5,7 @@ import { shortUrl } from '@openuji/journey';
 import { Button } from '../Button/Button';
 import { IconButton } from '../IconButton/IconButton';
 import { PhaseBadge } from '../PhaseBadge/PhaseBadge';
-import { Statement } from '../Statement/Statement';
+import { StatementTabs } from '../StatementTabs/StatementTabs';
 import { clipDurationMs, frameTimeLabel } from '../ClipFilmstrip/clip-filmstrip';
 import { defaultView, slideViews, viewFrame, type ViewerAt, type ViewerSlide, type ViewerView } from './step-viewer';
 import styles from './StepViewer.module.css';
@@ -20,12 +20,13 @@ export type StepViewerProps = Readonly<{
 }>;
 
 /**
- * Steps shown large, one at a time: beside them their phase, what happened in
- * it and its problem; on either side of the screen the way to the previous
- * and next step; under it the ways to look at the step, then the step and its
- * note. Every picture and clip fills the same screen, and what is under it
- * has fixed room, so moving between views and steps moves nothing else. Which
- * step is open belongs to its host.
+ * Steps shown large, one at a time: over them the phase they belong to, its
+ * headline beside the labels of what happened in it and its problem, a label
+ * pointed at a tab showing its text over the screen; on either side of the
+ * screen the way to the previous and next step; under it the ways to look at
+ * the step, then the step and its note. Every picture and clip fills the same
+ * screen, and what is over and under it has fixed room, so moving between
+ * views and steps moves nothing else. Which step is open belongs to its host.
  */
 export function StepViewer({ id, slides, at, onChange }: StepViewerProps) {
   const { t, dir } = useTranslation();
@@ -88,31 +89,26 @@ export function StepViewer({ id, slides, at, onChange }: StepViewerProps) {
     >
       {slide && at && Icon && (
         <div className={styles['step-viewer__layout']}>
-          <div className={styles['step-viewer__panel']}>
+          <header className={styles['step-viewer__bar']}>
             {slide.phase && (
-              <header className={styles['step-viewer__phase']}>
+              <div className={styles['step-viewer__phase']}>
                 <PhaseBadge number={slide.phase.number} name={slide.phase.name} />
                 <div className={styles['step-viewer__phase-heading']}>
-                  <p className={styles['step-viewer__phase-title']}>{slide.phase.title}</p>
+                  <div className={styles['step-viewer__headline']}>
+                    <p className={styles['step-viewer__phase-title']}>{slide.phase.title}</p>
+                    {slide.phase.statements.length > 0 && (
+                      <StatementTabs items={slide.phase.statements} className={styles['step-viewer__statements']} />
+                    )}
+                  </div>
                   {slide.phase.facts && <p className={styles['step-viewer__phase-facts']}>{slide.phase.facts}</p>}
                 </div>
-              </header>
-            )}
-            {slide.phase && slide.phase.statements.length > 0 && (
-              <div className={styles['step-viewer__statements']}>
-                {slide.phase.statements.map((statement) => (
-                  <Statement key={statement.label} label={statement.label} tone={statement.tone}>{statement.text}</Statement>
-                ))}
               </div>
             )}
-          </div>
-
-          <div className={styles['step-viewer__bar']}>
             <p className={styles['step-viewer__position']}>{position}</p>
             <IconButton label={t('viewer.close')} onClick={() => onChange(null)}>
               <X aria-hidden />
             </IconButton>
-          </div>
+          </header>
 
           <div className={styles['step-viewer__stage']}>
             <div className={styles['step-viewer__board']}>

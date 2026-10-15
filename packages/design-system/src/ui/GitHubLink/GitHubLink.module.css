@@ -1,0 +1,24 @@
+.github-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--ds-control-small);
+  height: var(--ds-control-small);
+  padding: 0;
+  border-radius: var(--ds-radius-control);
+  background: transparent;
+  color: var(--ds-color-ink-soft);
+  text-decoration: none;
+}
+
+.github-link:hover {
+  background: var(--ds-color-surface);
+  color: var(--ds-color-ink);
+}
+
+.github-link svg {
+  width: var(--ds-icon-report);
+  height: var(--ds-icon-report);
+  fill: currentColor;
+}

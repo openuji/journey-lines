@@ -76,7 +76,7 @@ describe('viewer views', () => {
 });
 
 describe('StepViewer', () => {
-  it('explains the open step: its phase and what was written about it beside, the step, when and where, and its note under its picture', () => {
+  it('explains the open step: its phase over it, what was written about the phase behind its labels, the step, when and where, and its note under its picture', () => {
     const index = slides.findIndex((slide) => slide.note !== '');
     const slide = slides[index]!;
     const html = render({ index, view: 'before' });
@@ -85,8 +85,9 @@ describe('StepViewer', () => {
     expect(html).toContain(slide.phase!.title);
     expect(html).toContain(slide.phase!.facts);
     for (const statement of slide.phase!.statements) {
-      expect(html).toContain(statement.label);
-      expect(html).toContain(statement.text);
+      expect(html).toMatch(new RegExp(`<button[^>]*aria-describedby="[^"]+"[^>]*>${statement.label.replace(/[?.*+()[\]]/g, '\\$&')}<`));
+      expect(html.split(statement.label)).toHaveLength(2);
+      expect(html.indexOf(statement.text)).toBeLessThan(html.indexOf(`src="${slide.frames[0]!.src}"`));
     }
     expect(html).toContain(slide.note);
     expect(html).toContain(`<time>${slide.time}</time>`);
