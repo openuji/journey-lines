@@ -17,4 +17,5 @@
   height: var(--ds-playback-toggle-size);
   padding: 0;
   justify-content: center;
+  min-height: 100%;
 }

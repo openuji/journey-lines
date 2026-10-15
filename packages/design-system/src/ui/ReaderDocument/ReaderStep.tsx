@@ -13,7 +13,7 @@ export type { ReaderMedia } from './reader-slides';
 export function ReaderStep({ step, slide, viewed, viewerId, onOpen }: Readonly<{
   step: EntryStep;
   slide: ViewerSlide;
-  /** The step the viewer showed last: ringed, so the reader finds their place. */
+  /** The step the viewer showed last: ringed while it holds the focus the viewer hands back, so the reader finds their place. */
   viewed: boolean;
   viewerId: string;
   onOpen: (view: ViewerView) => void;

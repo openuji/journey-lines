@@ -98,22 +98,38 @@ describe('the reader’s step viewer in a browser', () => {
     await page.close();
   });
 
-  it('closes on the step it showed with one ring: the focus ring, then the viewed ring once the focus moves on', async () => {
+  /** Which ring the step the viewer showed last has: the focused picture's own, or its pictures' together. */
+  const rings = (page: Page) => page.evaluate(() => {
+    const media = document.querySelector('[data-viewed] [class*="reader-step__media"]')!;
+    const focused = media.querySelector(':focus-visible');
+    return {
+      focus: focused !== null && getComputedStyle(focused).outlineStyle !== 'none',
+      viewed: getComputedStyle(media).outlineStyle !== 'none',
+    };
+  });
+
+  it('closes by key on the step it showed with the focus ring alone, gone once the focus moves on', async () => {
     const page = await openViewer();
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('Escape');
-    await page.waitForSelector('dialog:not([open])');
-    const rings = () => page.evaluate(() => {
-      const media = document.querySelector('[data-viewed] [class*="reader-step__media"]')!;
-      const focused = media.querySelector(':focus-visible');
-      return {
-        focus: focused !== null && getComputedStyle(focused).outlineStyle !== 'none',
-        viewed: getComputedStyle(media).outlineStyle !== 'none',
-      };
-    });
-    expect(await rings()).toEqual({ focus: true, viewed: false });
+    await page.waitForFunction(() => document.activeElement?.closest('[data-viewed]'));
+    expect(await rings(page)).toEqual({ focus: true, viewed: false });
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
     await page.evaluate(() => (document.activeElement as HTMLElement).blur());
-    expect(await rings()).toEqual({ focus: false, viewed: true });
+    expect(await rings(page)).toEqual({ focus: false, viewed: false });
+    await page.close();
+  });
+
+  it('closes by pointer on the step it showed with its pictures ringed while they hold the focus, and no longer', async () => {
+    const page = await openViewer();
+    await page.keyboard.press('ArrowRight');
+    await page.click('dialog button[aria-label="Schließen"]');
+    await page.waitForFunction(() => document.activeElement?.closest('[data-viewed]'));
+    expect(await rings(page)).toEqual({ focus: false, viewed: true });
+    await page.mouse.click(5, 5);
+    expect(await rings(page)).toEqual({ focus: false, viewed: false });
     await page.close();
   });
 

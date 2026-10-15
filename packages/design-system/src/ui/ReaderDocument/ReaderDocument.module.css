@@ -404,10 +404,12 @@
 }
 
 /*
- * The step the viewer showed last: its pictures ringed, so the reader finds
- * their place again. While one of them shows the focus ring, that ring alone.
+ * Back from the viewer, the focus is on the step it showed last. Where the
+ * browser draws no ring for that focus (the viewer was closed with the
+ * pointer), the step's pictures are ringed instead; the ring goes wherever
+ * the focus goes.
  */
-.reader-step[data-viewed] .reader-step__media:not(:has(:focus-visible)) {
+.reader-step[data-viewed] .reader-step__media:has(:focus):not(:has(:focus-visible)) {
   border-radius: var(--ds-radius-panel);
   outline: var(--ds-focus-width) solid var(--ds-color-focus);
   outline-offset: var(--ds-space-2);
