@@ -28,3 +28,4 @@ apps/privacy-collector/.wxt
 
 # generated: standalone privacy browser runtime
 packages/privacy/src/generated
+deploy
