@@ -64,6 +64,7 @@ describe('extension host against a real browser', () => {
       const reportPrefix = chrome.runtime.getURL('report.html');
       const reports = (await chrome.tabs.query({})).filter((tab) => tab.id !== undefined && tab.url?.startsWith(reportPrefix));
       await Promise.all(reports.map((tab) => chrome.tabs.remove(tab.id!)));
+      await chrome.storage.local.remove('settings');
     });
   });
 
@@ -528,6 +529,74 @@ describe('extension host against a real browser', () => {
     const report = await (await extension.browser.waitForTarget((target) => target.url() === url)).page();
     if (!report) throw new Error('Report tab did not open');
     await vi.waitFor(async () => expect(await report.$eval('[role="alert"]', (element) => element.textContent)).toContain('Recording unavailable'), WAIT);
+  });
+
+  it('encodes click and scroll clips at the startup scale, applying saved changes to the next recording', async () => {
+    for (const scale of [1, 0.5]) {
+      const tabId = await openTab(fixture.url('/'));
+      await record(tabId, { video: true });
+      await waitForLabel(DocumentLabel.first);
+      // Change settings before either interaction. The running encoder keeps
+      // its startup scale; only the following recording sees the saved value.
+      await extension.worker.evaluate(async (nextScale) => {
+        const defaults = await (await fetch(chrome.runtime.getURL('settings.defaults.json'))).json();
+        await chrome.storage.local.set({ settings: { ...defaults, video: { scale: nextScale } } });
+      }, scale === 1 ? 0.5 : 1);
+      await click(recordedTab, BUTTON_CENTER.x, BUTTON_CENTER.y);
+      await waitForLabel(postClick);
+      await scrollOnce();
+      await stop();
+
+      const files = await extension.worker.evaluate(() => recorder.clips.map((clip) => {
+        const before = recorder.captures.find((capture) =>
+          capture.viewId === clip.viewId && capture.frame.index === clip.trace[0]?.frameIndex);
+        if (!before) throw new Error('The clip has no source capture');
+        return { video: clip.base64, mimeType: clip.mimeType, png: before.frame.base64, label: clip.label };
+      }));
+      expect(files.map((file) => file.label)).toEqual([postClick, postScroll]);
+      const panel = await extension.openPanel();
+      try {
+        // Chrome defers media loading in a hidden extension page.
+        await panel.bringToFront();
+        const dimensions = await panel.evaluate(async (files) => {
+          const blob = (base64: string, type: string) => new Blob([
+            Uint8Array.from(atob(base64), (character) => character.charCodeAt(0)),
+          ], { type });
+          const sizes = [];
+          for (const file of files) {
+            const image = await createImageBitmap(blob(file.png, 'image/png'));
+            const source = [image.width, image.height];
+            image.close();
+            const video = document.createElement('video');
+            video.muted = true;
+            video.preload = 'auto';
+            const url = URL.createObjectURL(blob(file.video, file.mimeType));
+            try {
+              await new Promise<void>((resolve, reject) => {
+                const timer = setTimeout(() => reject(new Error(`Video metadata did not load (network ${video.networkState}, ready ${video.readyState})`)), 5_000);
+                video.onloadedmetadata = () => { clearTimeout(timer); resolve(); };
+                video.onerror = () => { clearTimeout(timer); reject(new Error(video.error?.message)); };
+                video.src = url;
+                video.load();
+              });
+              sizes.push({ source, encoded: [video.videoWidth, video.videoHeight] });
+            } finally {
+              video.removeAttribute('src');
+              video.load();
+              URL.revokeObjectURL(url);
+            }
+          }
+          return sizes;
+        }, files);
+        for (const { source, encoded } of dimensions) {
+          expect(encoded).toEqual(source.map((size) => {
+            const scaled = Math.round(size * scale);
+            return Math.max(2, scaled - scaled % 2);
+          }));
+        }
+      } finally { await panel.close(); }
+      expect(await hasEncoderDocument()).toBe(false);
+    }
   });
 
   // On `/still`: in this host the screencast never reports a still page's

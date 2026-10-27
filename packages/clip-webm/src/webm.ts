@@ -23,11 +23,11 @@ export interface WebmOptions {
 }
 
 /**
- * Half size at crf 10: on a real page's scroll (Chrome 154, 2026-10-07) it
- * encodes a 60 fps scroll in 0.6× its length, in Node and in an extension
- * worker alike, at about 1.2 MB per second of scrolling. Full size took 1.4×.
+ * Preserve the source resolution so text stays readable. On a real page's
+ * 60 fps scroll (Chrome 154, 2026-10-07), full size took 1.4× the clip's length
+ * to encode; the former half-size default took 0.6×.
  */
-export const WEBM_DEFAULTS = { scale: 0.5, crf: 10, maxBitRate: 10_000_000 } as const;
+export const WEBM_DEFAULTS = { scale: 1, crf: 10, maxBitRate: 10_000_000 } as const;
 
 const MIME_TYPE = 'video/webm';
 const SWS_BILINEAR = 2;

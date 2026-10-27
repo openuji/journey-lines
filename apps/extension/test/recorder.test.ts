@@ -32,9 +32,10 @@ const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve,
  * `keep` hands back a clip filed like its capture.
  */
 function fakeClips() {
-  const clips = { opened: 0, closed: 0, writes: [] as ClipWrite[] };
-  const open: OpenClips = async (onClip) => {
+  const clips = { opened: 0, closed: 0, writes: [] as ClipWrite[], scales: [] as (number | undefined)[] };
+  const open: OpenClips = async (onClip, options) => {
     clips.opened += 1;
+    clips.scales.push(options?.scale);
     const worker: ClipWorker = {
       sink: {
         name: 'fake-clips',
@@ -323,6 +324,24 @@ describe('Recorder', () => {
   });
 
   describe('video', () => {
+    it('keeps the prepared scale for the recording and reads a new scale for the next one', async () => {
+      let scale = 0.625;
+      const { cdp, recorder, clips } = setup({ prepare: async (tab) => ({
+        tab, describeTab: async () => TAB, recordUsing: recordActiveTab, videoScale: scale,
+      }) });
+      await recorder.record(TAB, { video: true });
+      scale = 1;
+      scroll(cdp());
+      await settle();
+      await recorder.stop();
+      expect(clips.scales).toEqual([0.625]);
+      await recorder.record(TAB, { video: true });
+      clickOnce(cdp());
+      await settle();
+      await recorder.stop();
+      expect(clips.scales).toEqual([0.625, 1]);
+    });
+
     it('makes none unless asked: no encoder is started', async () => {
       const { cdp, recorder, clips } = setup();
 

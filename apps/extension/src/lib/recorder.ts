@@ -15,6 +15,7 @@ export type PrepareRecording = (tab: TabSummary) => Promise<{
   tab: TabSummary;
   describeTab: DescribeTab;
   recordUsing: RecordingFunction;
+  videoScale?: number;
 }>;
 
 const endedByChrome: Record<'gone' | 'revoked', EndedBy> = {
@@ -117,7 +118,7 @@ export class Recorder {
             kind: 'clip',
             epochMs: recording?.cdp?.clock.now() ?? Date.now(),
             clip,
-          }))
+          }), prepared?.videoScale)
         : null;
       recording = await (prepared?.recordUsing ?? this.recordUsing)(this.tabsOf(tab.windowId), tab.id, {
         sinks: [this.sink(journey, (capture) => append({
@@ -261,13 +262,13 @@ export class Recorder {
   }
 
   /** The video encoder, its clips going onto the journey and out to the panels. */
-  private startClips(videos: Clip[], onClip: (clip: Clip) => void): Promise<ClipWorker> {
+  private startClips(videos: Clip[], onClip: (clip: Clip) => void, scale?: number): Promise<ClipWorker> {
     if (!this.openClips) throw new Error('This recorder cannot make videos.');
     return this.openClips((clip) => {
       onClip(clip);
       videos.push(clip);
       if (this.videos === videos) this.emit({ type: 'clip', clip });
-    });
+    }, { scale });
   }
 
   private setStatus(status: RecorderStatus): void {

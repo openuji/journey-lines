@@ -44,8 +44,10 @@ export default defineBackground(() => {
     store,
     undefined,
     async (tab) => {
-      const privacy = createPrivacy(await loadPrivacyProfile(await loadSettings()));
+      const settings = await loadSettings();
+      const privacy = createPrivacy(await loadPrivacyProfile(settings));
       return {
+        videoScale: settings.video.scale,
         tab: privacy.sanitizeLocation(tab),
         describeTab: async (id) => privacy.sanitizeLocation(await describeTab(id)),
         recordUsing: (host, active, options) => recordActiveTab(privacy.wrapHost(host), active, {

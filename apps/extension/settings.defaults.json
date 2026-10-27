@@ -2,6 +2,9 @@
   "privacy": {
     "profilePath": "privacy/fu/profiles.jsonld"
   },
+  "video": {
+    "scale": 1
+  },
   "report": {
     "language": "de",
     "tags": ["Freie Universität Berlin"]

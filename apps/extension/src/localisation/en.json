@@ -29,6 +29,8 @@
   "settings.restored": "Defaults restored. Extension language applies when pages open or reload.",
   "settings.profile": "Privacy profile",
   "settings.profileHelp": "Path to a JSON-LD file included in this extension’s privacy folder. Changes apply to the next recording.",
+  "settings.videoScale": "Video scale",
+  "settings.videoScaleHelp": "From 0.1 to 1. A scale of 1 preserves the original dimensions; 0.5 halves the width and height. Higher values create larger videos and take longer to process. Changes apply to the next recording.",
   "settings.language": "Extension language",
   "settings.german": "Deutsch",
   "settings.english": "English",

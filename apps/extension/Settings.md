@@ -1,8 +1,8 @@
 # Extension settings
 
 Chrome exposes **Options** from the extension icon's context menu and from
-`chrome://extensions` → OpenUJI Recorder → Details. The options page saves a
-validated privacy-profile path in `chrome.storage.local`. **Restore defaults**
+`chrome://extensions` → OpenUJI Recorder → Details. The options page saves
+validated recording preferences in `chrome.storage.local`. **Restore defaults**
 removes that override.
 
 [settings.defaults.json](settings.defaults.json) supplies the packaged defaults:
@@ -12,12 +12,25 @@ removes that override.
   "privacy": {
     "profilePath": "privacy/fu/profiles.jsonld"
   },
+  "video": {
+    "scale": 1
+  },
   "report": {
     "language": "de",
     "tags": ["Freie Universität Berlin"]
   }
 }
 ```
+
+**Video scale** controls the dimensions of both click and scroll videos. Enter
+any number from `0.1` through `1`: `1` preserves the captured dimensions, while
+`0.5` halves width and height. Dimensions are rounded to even pixels for the
+encoder. Higher values create larger videos and take longer to process. This
+setting applies when interaction video is enabled and is fixed when recording
+starts; changes apply to the next recording. The default is `1`, including for
+older saved settings without `video.scale`. Restore defaults also returns it to
+`1`. CLI videos use the shared default of `1`; extension overrides affect only
+extension recordings.
 
 `report.tags` are the default tags: the report editor offers them as one-click
 suggestions (one per line in Options). A new report starts with no tags, and a

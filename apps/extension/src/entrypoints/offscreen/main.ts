@@ -10,7 +10,9 @@ const tell = (message: ClipsReady): void => void chrome.runtime.sendMessage(mess
 
 try {
   // From the extension's own origin: a page's worker must come from there.
-  const worker = new Worker(chrome.runtime.getURL('/clip-worker.js'));
+  const workerUrl = new URL(chrome.runtime.getURL('/clip-worker.js'));
+  workerUrl.search = location.search;
+  const worker = new Worker(workerUrl);
   worker.addEventListener('message', (event: MessageEvent<{ ready: boolean; error?: string }>) => {
     const { ready, error } = event.data;
     tell(ready ? { type: CLIPS_READY } : { type: CLIPS_READY, error: error ?? 'The video encoder failed to start' });

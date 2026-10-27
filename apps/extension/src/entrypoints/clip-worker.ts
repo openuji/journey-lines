@@ -7,6 +7,7 @@ import {
 } from '@journey-lines/clip-webm';
 import { defineUnlistedScript } from 'wxt/utils/define-unlisted-script';
 import { clipChannel } from '../lib/clips';
+import { parseVideoScale } from '../lib/video-scale';
 
 /**
  * The encoder side of the clip sink, run as a dedicated worker by the
@@ -18,7 +19,9 @@ import { clipChannel } from '../lib/clips';
 const LIBAV_BASE = new URL('/libav', self.location.origin).href;
 
 async function start(): Promise<void> {
-  serveClips(clipChannel<ToEncoder, FromEncoder>(), webmEncoder(await loadLibav(LIBAV_BASE)));
+  const value = new URL(self.location.href).searchParams.get('scale');
+  const scale = parseVideoScale(value === null ? undefined : Number(value));
+  serveClips(clipChannel<ToEncoder, FromEncoder>(), webmEncoder(await loadLibav(LIBAV_BASE), { scale }));
 }
 
 export default defineUnlistedScript(() => {

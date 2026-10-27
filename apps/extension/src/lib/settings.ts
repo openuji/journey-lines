@@ -1,5 +1,6 @@
 import { privacyProfileFromDocument, type PrivacyProfile } from '@journey-lines/privacy';
 import type { ReportLanguage } from '@journey-lines/journey';
+import { parseVideoScale } from './video-scale';
 
 export type ReportSettings = Readonly<{ language: ReportLanguage; tags: readonly string[] }>;
 export const defaultExtensionLanguage: ReportLanguage = 'de';
@@ -12,6 +13,7 @@ export interface ExtensionSettings {
   readonly privacy: { readonly profilePath: string };
   /** `language` applies to the extension; `tags` are literal report suggestions. */
   readonly report: ReportSettings;
+  readonly video: { readonly scale: number };
 }
 const STORAGE_KEY = 'settings';
 
@@ -44,9 +46,13 @@ export function parseSettings(value: unknown): ExtensionSettings {
   if (value.report.language !== undefined && value.report.language !== 'en' && value.report.language !== 'de') {
     throw new Error('Extension language must be German or English.');
   }
+  if (value.video !== undefined && !object(value.video)) {
+    throw new Error('Video settings must contain a scale.');
+  }
   return {
     privacy: { profilePath: value.privacy.profilePath },
     report: reportSettingsFrom(value.report),
+    video: { scale: parseVideoScale(value.video?.scale) },
   };
 }
 

@@ -5,7 +5,11 @@ import { loadSettings, loadReportSettings, loadExtensionLanguage, loadPrivacyPro
 const defaultsUrl = new URL('../settings.defaults.json', import.meta.url);
 const defaults = JSON.parse(readFileSync(defaultsUrl, 'utf8'));
 const document = JSON.parse(readFileSync(new URL(defaults.privacy.profilePath, defaultsUrl), 'utf8'));
-const alternate = { privacy: { profilePath: 'privacy/alternate/profiles.jsonld' }, report: { language: 'en' as const, tags: ['Alternate'] } };
+const alternate = {
+  privacy: { profilePath: 'privacy/alternate/profiles.jsonld' },
+  report: { language: 'en' as const, tags: ['Alternate'] },
+  video: { scale: 0.625 },
+};
 let stored: Record<string, unknown>;
 let assets: Record<string, unknown>;
 
@@ -36,6 +40,32 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('extension settings', () => {
+  it('uses full resolution by default and for older saved settings', async () => {
+    expect((await loadSettings()).video.scale).toBe(1);
+    stored.settings = { privacy: alternate.privacy, report: alternate.report };
+    expect(await loadSettings()).toEqual({ ...alternate, video: { scale: 1 } });
+    expect(parseSettings({ ...defaults, video: {} }).video.scale).toBe(1);
+  });
+
+  it.each([0.1, 0.5, 0.625, 1])('persists video scale %s and restores full resolution', async (scale) => {
+    await saveSettings({ ...alternate, video: { scale } });
+    expect((await loadSettings()).video.scale).toBe(scale);
+    expect((await restoreDefaultSettings()).video.scale).toBe(1);
+    expect((await loadSettings()).video.scale).toBe(1);
+  });
+
+  it.each([0, -1, 0.099, 1.001, NaN, Infinity, -Infinity, '0.5', null])(
+    'rejects invalid video scale %s without overwriting saved settings', async (scale) => {
+      await saveSettings(alternate);
+      await expect(saveSettings({ ...defaults, video: { scale } })).rejects.toThrow('Video scale');
+      expect(await loadSettings()).toEqual(alternate);
+    },
+  );
+
+  it.each([null, [], 0.5, '0.5'])('rejects malformed video settings: %j', (video) => {
+    expect(() => parseSettings({ ...defaults, video })).toThrow('Video settings');
+  });
+
   it.each([
     [{ privacy: null, report: { language: 'en', tags: null } }, 'en'],
     [{ privacy: null, report: { language: 'de', tags: [1] } }, 'de'],

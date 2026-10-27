@@ -22,19 +22,24 @@ describe('extension settings', () => {
     try {
       await page.waitForFunction(() => document.querySelector<HTMLInputElement>('#privacy-profile')?.disabled === false);
       expect(await page.$eval('#privacy-profile', (input) => (input as HTMLInputElement).value)).toBe(defaults.privacy.profilePath);
+      expect(await page.$eval('#video-scale', (input) => (input as HTMLInputElement).value)).toBe('1');
+      await page.click('#video-scale', { count: 3 });
+      await page.type('#video-scale', '0.625');
       await page.click('button[type="submit"]');
       await page.waitForFunction(() => document.querySelector('[role="status"]')?.textContent?.startsWith('Gespeichert.'));
       await page.reload();
       await page.waitForFunction(() => document.querySelector<HTMLInputElement>('#privacy-profile')?.disabled === false);
       expect(await page.$eval('#privacy-profile', (input) => (input as HTMLInputElement).value)).toBe(defaults.privacy.profilePath);
+      expect(await page.$eval('#video-scale', (input) => (input as HTMLInputElement).value)).toBe('0.625');
       await page.click('#privacy-profile', { count: 3 });
       await page.type('#privacy-profile', 'privacy/missing.jsonld');
       await page.click('button[type="submit"]');
       await page.waitForSelector('[role="alert"]');
-      expect(await extension.worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toEqual(defaults);
+      expect(await extension.worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toEqual({ ...defaults, video: { scale: 0.625 } });
       await page.click('button[type="button"]');
       await page.waitForFunction(() => document.querySelector('[role="status"]')?.textContent?.startsWith('Standardwerte wiederhergestellt.'));
       expect(await extension.worker.evaluate(async () => (await chrome.storage.local.get('settings')).settings)).toBeUndefined();
+      expect(await page.$eval('#video-scale', (input) => (input as HTMLInputElement).value)).toBe('1');
     } finally { await page.close(); }
   });
 
@@ -54,6 +59,8 @@ describe('extension settings', () => {
       await options.bringToFront();
       await options.waitForFunction(() => document.querySelector<HTMLSelectElement>('#extension-language')?.disabled === false);
       expect(await options.$eval('label[for="extension-language"]', (element) => element.textContent)).toBe('Sprache der Erweiterung');
+      expect(await options.$eval('label[for="video-scale"]', (element) => element.textContent)).toBe('Videoskalierung');
+      expect(await options.$eval('#video-scale-help', (element) => element.textContent)).toContain('nächste Aufzeichnung');
 
       await options.select('#extension-language', 'en');
       await options.click('button[type="submit"]');
@@ -73,6 +80,8 @@ describe('extension settings', () => {
       await report.bringToFront();
       await report.waitForFunction(() => document.documentElement.lang === 'en');
       expect(await options.$eval('label[for="extension-language"]', (element) => element.textContent)).toBe('Extension language');
+      expect(await options.$eval('label[for="video-scale"]', (element) => element.textContent)).toBe('Video scale');
+      expect(await options.$eval('#video-scale-help', (element) => element.textContent)).toContain('next recording');
       expect(await options.title()).toBe('OpenUJI Recorder settings');
       expect(await report.$eval('[role="alert"]', (element) => element.textContent)).toBe('No recording specified.');
 

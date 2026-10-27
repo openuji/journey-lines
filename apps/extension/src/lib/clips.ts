@@ -11,6 +11,7 @@
 
 import type { Clip } from '@journey-lines/core';
 import { clipSinkOver, type Channel, type ClipWorker, type FromEncoder, type ToEncoder } from '@journey-lines/clip-webm';
+import { parseVideoScale } from './video-scale';
 
 export const CLIPS_CHANNEL = 'openuji-clips';
 
@@ -19,7 +20,7 @@ export const CLIPS_READY = 'clips-ready';
 export type ClipsReady = Readonly<{ type: typeof CLIPS_READY; error?: string }>;
 
 /** Starts the encoder for one recording; each finished clip goes to `onClip`. */
-export type OpenClips = (onClip: (clip: Clip) => void) => Promise<ClipWorker>;
+export type OpenClips = (onClip: (clip: Clip) => void, options?: { readonly scale?: number }) => Promise<ClipWorker>;
 
 /**
  * One end of the clip channel. A BroadcastChannel never hears its own
@@ -43,7 +44,8 @@ export function clipChannel<In, Out>(): Channel<In, Out> & { close(): void } {
  * worker, and the clip sink's recorder side talks to it over the clip channel.
  * `close` ends both.
  */
-export async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorker> {
+export const openClips: OpenClips = async (onClip, options) => {
+  const scale = parseVideoScale(options?.scale);
   // A document left over from a recording the worker did not see end.
   if (await chrome.offscreen.hasDocument()) await chrome.offscreen.closeDocument();
 
@@ -62,7 +64,7 @@ export async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorke
     chrome.runtime.onMessage.addListener(listener);
   });
   await chrome.offscreen.createDocument({
-    url: 'offscreen.html',
+    url: `offscreen.html?scale=${scale}`,
     reasons: [chrome.offscreen.Reason.WORKERS],
     justification: 'Encodes a video of each scroll and click in a worker.',
   });
@@ -76,4 +78,4 @@ export async function openClips(onClip: (clip: Clip) => void): Promise<ClipWorke
       await chrome.offscreen.closeDocument();
     },
   };
-}
+};

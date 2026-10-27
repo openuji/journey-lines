@@ -29,6 +29,8 @@
   "settings.restored": "Standardwerte wiederhergestellt. Die Sprache der Erweiterung gilt beim Öffnen oder Neuladen der Seiten.",
   "settings.profile": "Datenschutzprofil",
   "settings.profileHelp": "Pfad zu einer JSON-LD-Datei im Datenschutzordner dieser Erweiterung. Änderungen gelten für die nächste Aufzeichnung.",
+  "settings.videoScale": "Videoskalierung",
+  "settings.videoScaleHelp": "Von 0,1 bis 1. Der Wert 1 erhält die Originalabmessungen; 0,5 halbiert Breite und Höhe. Höhere Werte erzeugen größere Videos und benötigen mehr Verarbeitungszeit. Änderungen gelten für die nächste Aufzeichnung.",
   "settings.language": "Sprache der Erweiterung",
   "settings.german": "Deutsch",
   "settings.english": "English",
