@@ -39,6 +39,11 @@ function Panel() {
       onReset={() => send({ type: 'reset' })}
       onOpenReport={(sessionId) => void chrome.tabs.create({ url: reportUrl(sessionId) })}
       onDismissError={() => dispatch({ type: 'dismiss-error' })}
+      onOpenSettings={() => {
+        void chrome.runtime.openOptionsPage().catch((error: unknown) => {
+          dispatch({ type: 'error', message: t('panel.settingsFailed', { detail: error instanceof Error ? error.message : String(error) }) });
+        });
+      }}
     />
   );
 }

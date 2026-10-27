@@ -3,15 +3,19 @@ import {
   drainInStages,
   enqueueAll,
   noClips,
+  QUIET_AFTER_MS,
   type CaptureSink,
   type ClipSink,
   type PushStreamStats,
 } from '@journey-lines/core';
 import { RulesEngine, type EngineOutput, type MilestoneRule } from '@journey-lines/engine';
-import { defaultRules } from './default-rules.js';
+import { parseClickTiming, type ClickTiming } from '@journey-lines/rules-interaction';
+import { createDefaultRules, defaultRules } from './default-rules.js';
 import { createFusedStream, type FusedStreamHandle, type FusedStreamOptions } from './fused.js';
 
 export interface RecordingOptions extends FusedStreamOptions {
+  /** Timing for the default click rule, fixed at recording start. */
+  click?: Partial<ClickTiming>;
   /** Defaults to `defaultRules`. */
   rules?: readonly MilestoneRule[];
   /** Where captures go. */
@@ -44,7 +48,25 @@ export async function startRecording(
   cdp: CdpTransport,
   options: RecordingOptions,
 ): Promise<RecordingHandle> {
+  options = prepareRecordingOptions(options);
   return runPipeline(await createFusedStream(cdp, options), options);
+}
+
+/** Shared startup normalization for single-transport and active-tab recordings. */
+export function prepareRecordingOptions(options: RecordingOptions): RecordingOptions {
+  if (options.click === undefined) return options;
+  const click = parseClickTiming(options.click);
+  return {
+    ...options,
+    click,
+    rules: options.rules ?? createDefaultRules(click),
+    // Click preferences must not bring document/scroll quiet checks forward.
+    additionalQuietAfterMs: [
+      ...(options.additionalQuietAfterMs ?? []),
+      Math.max(QUIET_AFTER_MS, click.quietAfterMs),
+      Math.max(QUIET_AFTER_MS, click.stillMovingMs),
+    ],
+  };
 }
 
 /**

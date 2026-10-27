@@ -7,13 +7,17 @@ import { donePanelState, idlePanelState, interruptedRecorderStatus, recordingPan
 import { dictionaries } from '../src/localisation/dictionaries';
 
 describe('event-based panel', () => {
-  const actions = { onRecord: () => {}, onStop: () => {}, onReset: () => {}, onOpenReport: () => {}, onDismissError: () => {} };
+  const actions = { onRecord: () => {}, onStop: () => {}, onReset: () => {}, onOpenReport: () => {}, onDismissError: () => {}, onOpenSettings: () => {} };
   const renderPanel = (state: typeof recordingPanelState) => renderToStaticMarkup(createElement(TranslationProvider, {
     language: 'en', children: createElement(PanelView, { state, ...actions }),
   }));
 
   it('keeps extension dictionary keys in parity', () => {
     expect(Object.keys(dictionaries.de).sort()).toEqual(Object.keys(dictionaries.en).sort());
+  });
+
+  it.each([idlePanelState, { ...idlePanelState, connected: false }, recordingPanelState, donePanelState])('keeps settings available in every panel state', (state) => {
+    expect(renderPanel(state)).toContain('aria-label="Settings"');
   });
 
   it.each([

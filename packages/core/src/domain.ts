@@ -219,7 +219,7 @@ export type ViewState = Readonly<{
 /**
  * How long nothing may arrive before the fused stream says so with `quiet`,
  * ms. Also how long a page's offset must stay unchanged for a scroll to have
- * ended: one number for "the page has stopped".
+ * ended. Click rules may use a longer configurable visual pause.
  */
 export const QUIET_AFTER_MS = 250;
 
@@ -246,7 +246,8 @@ export type DomainEvent =
     }>
   /**
    * Synthesized by the fused stream once nothing (no frame, no lifecycle event,
-   * no interaction) has arrived for `QUIET_AFTER_MS`, once per quiet stretch. A
+   * no interaction) has arrived for `QUIET_AFTER_MS`, and at any additional
+   * configured silence thresholds, once per threshold per quiet stretch. A
    * page that stops moving stops painting, so no next frame is coming: what
    * shows is `lastFrame`.
    */
@@ -254,7 +255,7 @@ export type DomainEvent =
       type: 'quiet';
       /**
        * The moment it describes: the last event's `receivedAtMs` plus
-       * `QUIET_AFTER_MS`, on the transport's clock.
+       * the silence threshold, on the transport's clock.
        */
       receivedAtMs: number;
     }>

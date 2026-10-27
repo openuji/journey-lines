@@ -1,11 +1,14 @@
 import { useState, type ComponentProps } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { getJourneyTemplate, REPORT_VERSION } from '@journey-lines/journey';
 import { storyReportWithClip } from '@journey-lines/journey/fixtures';
 import { Button, ReportView, TranslationProvider, useTranslation } from '@journey-lines/design-system';
 import { ExtensionTranslationProvider } from '../../localisation/TranslationProvider';
 import { downloadReport } from '../../lib/report-download';
 import { PanelView } from './PanelView';
+import { Settings } from '../Settings/Settings';
+import { createStorySettings } from '../../stories/settings';
 import {
   donePanelState,
   droppedFramesRecorderStatus,
@@ -20,6 +23,16 @@ function PanelPreview(args: ComponentProps<typeof PanelView>) {
   const { t, language: scopedLanguage } = useTranslation();
   const language = scopedLanguage === 'de' ? 'de' : 'en';
   const [reportOpen, setReportOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsStorage] = useState(() => createStorySettings());
+  if (settingsOpen) {
+    return <>
+      <Settings storage={settingsStorage} />
+      <Button className="story-report-back" size="small" onClick={() => setSettingsOpen(false)}>
+        {t('panel.back')}
+      </Button>
+    </>;
+  }
   if (reportOpen) {
     return (
       <>
@@ -34,7 +47,7 @@ function PanelPreview(args: ComponentProps<typeof PanelView>) {
       </>
     );
   }
-  return <PanelView {...args} onOpenReport={() => setReportOpen(true)} />;
+  return <PanelView {...args} onOpenReport={() => setReportOpen(true)} onOpenSettings={() => setSettingsOpen(true)} />;
 }
 
 const meta = {
@@ -49,6 +62,7 @@ const meta = {
     onReset: () => undefined,
     onOpenReport: () => undefined,
     onDismissError: () => undefined,
+    onOpenSettings: () => undefined,
   },
 } satisfies Meta<typeof PanelView>;
 
@@ -62,6 +76,26 @@ export const Connecting: Story = {
 };
 
 export const Idle: Story = {};
+
+export const SettingsNavigation: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Settings' }));
+    const pause = await canvas.findByLabelText('Visual pause before ending a click (seconds)');
+    await waitFor(() => expect(pause).toBeEnabled());
+    await userEvent.clear(pause);
+    await userEvent.type(pause, '1');
+    const maximum = canvas.getByLabelText('Maximum click observation time (seconds)');
+    await userEvent.clear(maximum);
+    await userEvent.type(maximum, '5');
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('Saved.'));
+    await userEvent.click(canvas.getByRole('button', { name: 'Back to panel' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Settings' }));
+    await waitFor(() => expect(canvas.getByLabelText('Visual pause before ending a click (seconds)')).toHaveValue(1));
+    await expect(canvas.getByLabelText('Maximum click observation time (seconds)')).toHaveValue(5);
+  },
+};
 
 export const Error: Story = {
   args: {

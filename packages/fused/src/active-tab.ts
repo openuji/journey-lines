@@ -8,7 +8,7 @@ import {
   type FollowEvent,
   type FollowStatus,
 } from './follow.js';
-import { runPipeline, type RecordingHandle, type RecordingOptions } from './recording.js';
+import { prepareRecordingOptions, runPipeline, type RecordingHandle, type RecordingOptions } from './recording.js';
 
 export interface ActiveTabRecording<Tab> extends RecordingHandle {
   /** The session the sources are on; null while nothing is recorded. */
@@ -29,6 +29,7 @@ export async function recordActiveTab<Tab>(
   tab: Tab,
   options: RecordingOptions,
 ): Promise<ActiveTabRecording<Tab>> {
+  options = prepareRecordingOptions(options);
   const session = await host.attach(tab);
 
   let fused: FusedStreamHandle;

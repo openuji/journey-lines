@@ -292,7 +292,32 @@ const CALENDAR_PAGE = `<!doctype html>
   </body>
 </html>`;
 
+/** A tour with a real gap between fade-out and the next card's fade-in. */
+export const TOUR = { next: { x: 100, y: 100 }, card: { x: 450, y: 200 } } as const;
+const TOUR_PAGE = `<!doctype html>
+<html><head><meta charset="utf-8"><title>Tour with delayed cards</title>
+<style>
+  body { margin: 0; font: 20px sans-serif; }
+  button { position: absolute; left: 80px; top: 80px; width: 160px; height: 60px; }
+  #card { position: absolute; left: 350px; top: 100px; width: 300px; height: 220px;
+    background: rgb(220, 40, 40); transition: opacity 180ms linear; }
+</style></head><body>
+  <button id="next">Next card</button><div id="card">First card</div>
+  <script>
+    document.getElementById('next').addEventListener('click', () => {
+      const card = document.getElementById('card');
+      card.style.opacity = '0';
+      setTimeout(() => {
+        card.textContent = 'Second card';
+        card.style.background = 'rgb(40, 40, 220)';
+        card.style.opacity = '1';
+      }, 780);
+    });
+  </script>
+</body></html>`;
+
 const PAGES: Readonly<Record<string, string>> = {
+  '/tour': TOUR_PAGE,
   '/calendar': CALENDAR_PAGE,
   '/': INDEX,
   '/second': SECOND,

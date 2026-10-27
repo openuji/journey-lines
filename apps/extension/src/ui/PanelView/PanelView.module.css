@@ -11,3 +11,9 @@
   margin: 0;
   color: var(--ds-color-ink-soft);
 }
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}

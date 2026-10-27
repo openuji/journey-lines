@@ -5,7 +5,7 @@ import {
   ReadyRule,
   SettledRule,
 } from '@journey-lines/rules-document';
-import { defaultInteractionRules } from '@journey-lines/rules-interaction';
+import { ClickEpisodeRule, clickEpisodeRule, ScrollEpisodeRule, type ClickTiming } from '@journey-lines/rules-interaction';
 
 /**
  * The standard rule suite, in label order.
@@ -17,10 +17,15 @@ import { defaultInteractionRules } from '@journey-lines/rules-interaction';
  * click still open when the recording stops gives its `10` before the view's
  * `99-before-navigation`.
  */
-export const defaultRules: readonly MilestoneRule[] = [
-  FirstFrameRule, // 00
-  ReadyRule, // 01
-  SettledRule, // 02
-  ...defaultInteractionRules, // 03–04 scroll, 10–11 click
-  BeforeNavigationRule, // 99
-];
+export function createDefaultRules(click?: Partial<ClickTiming>): readonly MilestoneRule[] {
+  return [
+    FirstFrameRule, // 00
+    ReadyRule, // 01
+    SettledRule, // 02
+    ScrollEpisodeRule, // 03–04
+    click ? clickEpisodeRule(click) : ClickEpisodeRule, // 10–11
+    BeforeNavigationRule, // 99
+  ];
+}
+
+export const defaultRules: readonly MilestoneRule[] = createDefaultRules();

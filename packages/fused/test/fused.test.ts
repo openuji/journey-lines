@@ -132,6 +132,22 @@ describe('createFusedStream', () => {
     ).toEqual(['frame', 'frame', 'quiet 1499', 'frame']);
   });
 
+  it('keeps the standard quiet signal, deduplicates extra thresholds, re-arms and cancels them', async () => {
+    const cdp = createFakeCdpTransport();
+    const fused = await createFusedStream(cdp, { screencast: { viewport }, additionalQuietAfterMs: [1000, 250, 1000] });
+    screencastFrame(cdp);
+    cdp.advance(250);
+    cdp.advance(250);
+    screencastFrame(cdp); // cancels the original 1000 ms deadline
+    cdp.advance(1000);
+    screencastFrame(cdp); // new deadlines must be cancelled on release
+    await fused.release();
+    cdp.advance(2000);
+    await fused.stop();
+    expect((await collect(fused.events)).flatMap((e) => e.type === 'quiet' ? [e.receivedAtMs] : []))
+      .toEqual([250, 750, 1500]);
+  });
+
   it('detaches every source on stop and ends the stream', async () => {
     const cdp = createFakeCdpTransport();
     cdp.respond('Page.addScriptToEvaluateOnNewDocument', { identifier: 'probe' });

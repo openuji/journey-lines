@@ -1,6 +1,7 @@
 import { privacyProfileFromDocument, type PrivacyProfile } from '@journey-lines/privacy';
 import type { ReportLanguage } from '@journey-lines/journey';
 import { parseVideoScale } from './video-scale';
+import { parseClickTiming, type ClickTiming } from '@journey-lines/rules-interaction';
 
 export type ReportSettings = Readonly<{ language: ReportLanguage; tags: readonly string[] }>;
 export const defaultExtensionLanguage: ReportLanguage = 'de';
@@ -14,6 +15,7 @@ export interface ExtensionSettings {
   /** `language` applies to the extension; `tags` are literal report suggestions. */
   readonly report: ReportSettings;
   readonly video: { readonly scale: number };
+  readonly click: ClickTiming;
 }
 const STORAGE_KEY = 'settings';
 
@@ -53,6 +55,7 @@ export function parseSettings(value: unknown): ExtensionSettings {
     privacy: { profilePath: value.privacy.profilePath },
     report: reportSettingsFrom(value.report),
     video: { scale: parseVideoScale(value.video?.scale) },
+    click: parseClickTiming(value.click),
   };
 }
 

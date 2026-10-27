@@ -10,6 +10,15 @@
   font-weight: var(--ds-weight-bold);
 }
 
+.settings h1 {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.settings select + label {
+  margin-top: var(--ds-space-4);
+}
+
 .settings input,
 .settings select,
 .settings textarea {
@@ -22,4 +31,17 @@
   display: flex;
   gap: var(--ds-space-3);
   margin-top: var(--ds-settings-padding-inline);
+}
+
+.click-timing {
+  min-width: 0;
+  margin: var(--ds-space-5) 0;
+  padding: 0;
+  border: 0;
+}
+
+.click-timing legend {
+  margin-bottom: var(--ds-space-3);
+  padding: 0;
+  font-weight: var(--ds-weight-bold);
 }

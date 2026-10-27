@@ -16,7 +16,7 @@ import { DocumentLabel } from '@journey-lines/rules-document';
 import { episodeLabel, InteractionLabel } from '@journey-lines/rules-interaction';
 import type { Recorder } from '../../apps/extension/src/lib/recorder';
 import { launchWithExtension, type ExtensionBrowser } from './extension-browser.js';
-import { BUTTON, CALENDAR, MONTH_COLORS, NEW_TAB_LINK, startFixtureServer, type FixtureServer } from './fixture.js';
+import { BUTTON, CALENDAR, MONTH_COLORS, NEW_TAB_LINK, TOUR, startFixtureServer, type FixtureServer } from './fixture.js';
 import { click, wheel } from './input.js';
 
 declare global {
@@ -529,6 +529,57 @@ describe('extension host against a real browser', () => {
     const report = await (await extension.browser.waitForTarget((target) => target.url() === url)).page();
     if (!report) throw new Error('Report tab did not open');
     await vi.waitFor(async () => expect(await report.$eval('[role="alert"]', (element) => element.textContent)).toContain('Recording unavailable'), WAIT);
+  });
+
+  it('keeps the incoming tour card using startup timings, and applies changed timings to the next recording', async () => {
+    await extension.worker.evaluate(async () => {
+      const defaults = await (await fetch(chrome.runtime.getURL('settings.defaults.json'))).json();
+      await chrome.storage.local.set({ settings: { ...defaults, click: { quietAfterMs: 1000, stillMovingMs: 5000 } } });
+    });
+    for (const longerWait of [true, false]) {
+      const tabId = await openTab(fixture.url('/tour'));
+      await record(tabId, { video: true });
+      await waitForLabel(DocumentLabel.first);
+      if (longerWait) {
+        // The active recording keeps 1s/5s despite this storage change.
+        await extension.worker.evaluate(async () => {
+          const defaults = await (await fetch(chrome.runtime.getURL('settings.defaults.json'))).json();
+          await chrome.storage.local.set({ settings: defaults });
+        });
+      }
+      await click(recordedTab, TOUR.next.x, TOUR.next.y);
+      await waitForLabel(postClick);
+      await stop();
+      const result = await extension.worker.evaluate((preClick, postClick) => {
+        const pre = recorder.captures.find((c) => c.label === preClick)!;
+        const post = recorder.captures.find((c) => c.label === postClick)!;
+        const clip = recorder.clips.find((c) => c.label === postClick)!;
+        return { png: post.frame.base64, width: post.frame.viewportWidth,
+          pre: pre.frame.index, post: post.frame.index,
+          first: clip.trace[0]?.frameIndex, last: clip.trace.at(-1)?.frameIndex, magic: clip.base64.slice(0, 5) };
+      }, preClick, postClick);
+      expect(result.first).toBe(result.pre);
+      expect(result.last).toBe(result.post);
+      expect(result.magic).toBe('GkXfo');
+      const panel = await extension.openPanel();
+      try {
+        await panel.bringToFront();
+        const pixel = await panel.evaluate(async ({ png, width }, at) => {
+          const image = new Image();
+          image.src = `data:image/png;base64,${png}`;
+          await image.decode();
+          const canvas = document.createElement('canvas');
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+          const context = canvas.getContext('2d')!;
+          context.drawImage(image, 0, 0);
+          const scale = image.naturalWidth / width;
+          return [...context.getImageData(Math.round(at.x * scale), Math.round(at.y * scale), 1, 1).data].slice(0, 3);
+        }, result, TOUR.card);
+        const expected = longerWait ? [40, 40, 220] : [255, 255, 255];
+        expect(Math.hypot(...pixel.map((channel, i) => channel - expected[i]!))).toBeLessThan(40);
+      } finally { await panel.close(); }
+    }
   });
 
   it('encodes click and scroll clips at the startup scale, applying saved changes to the next recording', async () => {

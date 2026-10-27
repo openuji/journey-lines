@@ -130,14 +130,14 @@ function completePendingSegments(state: ClickEpisodeState, ending: ClickEndReaso
   return { state: { ...state, pending: [] }, completed };
 }
 
-function elapsedEndReason(state: ClickEpisodeState, nowMs: number, limitMs: number): ClickEndReason | null {
+function elapsedEndReason(state: ClickEpisodeState, nowMs: number, timing: ClickTiming): ClickEndReason | null {
   const observing = state.pending.at(-1);
   if (!observing) return null;
   const lastFrameMs = state.frameHistory.at(-1)?.frame.receivedAtMs ?? -Infinity;
   const rested = observing.quietEligibleAtMs !== null &&
-    nowMs - Math.max(observing.quietEligibleAtMs, lastFrameMs) >= QUIET_AFTER_MS;
+    nowMs - Math.max(observing.quietEligibleAtMs, lastFrameMs) >= timing.quietAfterMs;
   if (rested) return 'visual-rest';
-  return nowMs - observing.beganMs >= limitMs ? 'observation-limit' : null;
+  return nowMs - observing.beganMs >= timing.stillMovingMs ? 'observation-limit' : null;
 }
 
 function observeFrame(state: ClickEpisodeState, sample: FrameSample): ClickEpisodeState {
@@ -191,7 +191,7 @@ function trimHistory(state: ClickEpisodeState): ClickEpisodeState {
 
 function advanceClick(
   state: ClickEpisodeState, event: DomainEvent, context: RuleContext,
-  ruleId: string, limitMs: number,
+  ruleId: string, timing: ClickTiming,
 ): ClickProgress {
   const { currentView, currentFrame } = context;
   if (event.type === 'stop' || (event.type === 'view-exit' && event.nextEntry === 'tab')) {
@@ -200,7 +200,7 @@ function advanceClick(
   }
   const nowMs = arrivedAtMs(event);
   const earlier = completeReadySplits(state, nowMs);
-  const ending = elapsedEndReason(earlier.state, nowMs, limitMs);
+  const ending = elapsedEndReason(earlier.state, nowMs, timing);
   const elapsed = ending ? completePendingSegments(earlier.state, ending, currentView)
     : { state: earlier.state, completed: [] };
   let next = elapsed.state;
@@ -270,11 +270,29 @@ function presentClick(click: ResolvedClick, limitMs: number): InteractionOutput 
 export type ClickFrame = FrameSample;
 export interface ClickEpisodeOptions {
   readonly id?: string;
+  /** How long the released response must remain visually unchanged, ms. */
+  readonly quietAfterMs?: number;
   /** Maximum observation window after a press, ms. */
   readonly stillMovingMs?: number;
 }
 
-export const CLICK_DEFAULTS = { stillMovingMs: 2_000 } as const;
+export type ClickTiming = Readonly<{ quietAfterMs: number; stillMovingMs: number }>;
+export const CLICK_DEFAULTS = { quietAfterMs: QUIET_AFTER_MS, stillMovingMs: 2_000 } as const;
+
+/** Normalize legacy/partial timing settings before any recording attaches. */
+export function parseClickTiming(value: unknown = {}): ClickTiming {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Click timing must contain a visual pause and maximum observation time.');
+  }
+  const supplied = value as Record<string, unknown>;
+  const quietAfterMs = supplied.quietAfterMs === undefined ? CLICK_DEFAULTS.quietAfterMs : supplied.quietAfterMs;
+  const stillMovingMs = supplied.stillMovingMs === undefined ? CLICK_DEFAULTS.stillMovingMs : supplied.stillMovingMs;
+  const valid = (ms: unknown): ms is number => typeof ms === 'number' && Number.isSafeInteger(ms) && ms > 0 && ms <= 2_147_483_647;
+  if (!valid(quietAfterMs)) throw new Error('Click visual pause must be a positive integer number of milliseconds, at most 2147483647.');
+  if (!valid(stillMovingMs)) throw new Error('Maximum click observation time must be a positive integer number of milliseconds, at most 2147483647.');
+  if (stillMovingMs < quietAfterMs) throw new Error('Maximum click observation time must be at least as long as the visual pause.');
+  return { quietAfterMs, stillMovingMs };
+}
 /**
  * Each press starts one segment. The next independent action ends it at the
  * same frame that starts the next segment. The last segment ends after its
@@ -288,15 +306,16 @@ export const CLICK_DEFAULTS = { stillMovingMs: 2_000 } as const;
  * Existing 10/11 labels are retained for recordings and their consumers.
  */
 export function clickEpisodeRule(
-  { id = 'click-episode', stillMovingMs = CLICK_DEFAULTS.stillMovingMs }: ClickEpisodeOptions = {},
+  { id = 'click-episode', ...options }: ClickEpisodeOptions = {},
 ): MilestoneRule<ClickEpisodeState> {
+  const timing = parseClickTiming(options);
   return {
     id,
     init: (view, previous) => !previous || view.entry === 'tab'
       ? INITIAL : { ...previous, episodeCount: 0 },
     evaluate: (state, event, context): InteractionResult<ClickEpisodeState> => {
-      const result = advanceClick(state, event, context, id, stillMovingMs);
-      const output = result.completed.map((click) => presentClick(click, stillMovingMs));
+      const result = advanceClick(state, event, context, id, timing);
+      const output = result.completed.map((click) => presentClick(click, timing.stillMovingMs));
       return {
         nextState: result.state,
         captures: output.flatMap((part) => part.captures),

@@ -5,6 +5,10 @@
   "video": {
     "scale": 1
   },
+  "click": {
+    "quietAfterMs": 250,
+    "stillMovingMs": 2000
+  },
   "report": {
     "language": "de",
     "tags": ["Freie Universität Berlin"]

@@ -28,6 +28,8 @@ export interface FusedStreamOptions {
   onDropFrame?: (frame: CompositorFrame, totalDropped: number) => void;
   /** Passed to the compositor source's `Page.startScreencast`. */
   screencast?: ScreencastOptions;
+  /** Additional silence thresholds, ms. The standard 250 ms notification remains. */
+  additionalQuietAfterMs?: readonly number[];
 }
 
 export interface FusedStreamHandle {
@@ -67,7 +69,7 @@ export interface FusedStreamHandle {
  * what they emit already are domain events, so a source watched in isolation
  * yields exactly what it feeds the engine here.
  *
- * The events of its own: `quiet`, once nothing has arrived for a while, and
+ * The events of its own: `quiet`, at each configured silence threshold, and
  * `session-changed`, when the sources move to a new session.
  */
 export async function createFusedStream(
@@ -75,6 +77,10 @@ export async function createFusedStream(
   options: FusedStreamOptions = {},
 ): Promise<FusedStreamHandle> {
   const { maxPendingEvents, onDropFrame, screencast } = options;
+  const quietDelays = [...new Set([QUIET_AFTER_MS, ...(options.additionalQuietAfterMs ?? [])])].sort((a, b) => a - b);
+  if (quietDelays.some((ms) => !Number.isSafeInteger(ms) || ms <= 0 || ms > 2_147_483_647)) {
+    throw new Error('Quiet thresholds must be positive integer milliseconds, at most 2147483647.');
+  }
 
   const stream = createPushStream<DomainEvent>({
     ...(maxPendingEvents !== undefined ? { capacity: maxPendingEvents } : {}),
@@ -86,18 +92,20 @@ export async function createFusedStream(
 
   let transport = cdp;
 
-  // Once nothing has arrived for `QUIET_AFTER_MS`, say so, once. A page that
-  // stops moving stops painting, so without this the engine would learn that
-  // only from whatever happens next. Every event re-arms the timer; `quiet`
-  // itself does not. The timer is the transport's clock, so `quiet` carries
-  // exactly the moment it describes.
-  let cancelQuiet: Cancel | undefined;
+  // Once per threshold per silent stretch. Extra thresholds let click rules
+  // wait longer without delaying the standard document/scroll notification.
+  // Quiet notifications do not re-arm themselves.
+  let quietTimers: Cancel[] = [];
+  const cancelQuiet = (): void => {
+    for (const cancel of quietTimers) cancel();
+    quietTimers = [];
+  };
   const push = (event: TimedEvent): void => {
     stream.push(event);
-    cancelQuiet?.();
-    cancelQuiet = transport.clock.at(arrivedAtMs(event) + QUIET_AFTER_MS, (atMs) =>
+    cancelQuiet();
+    quietTimers = quietDelays.map((delay) => transport.clock.at(arrivedAtMs(event) + delay, (atMs) =>
       stream.push({ type: 'quiet', receivedAtMs: atMs }),
-    );
+    ));
   };
 
   // Every `release` and `continueOn` begins a new move. Sources attached during
@@ -114,13 +122,14 @@ export async function createFusedStream(
   try {
     detaches = await attachSources(cdp, emitFor(move), screencast);
   } catch (err) {
-    cancelQuiet?.();
+    cancelQuiet();
     stream.end();
     throw err;
   }
 
   const release = async (): Promise<void> => {
     move += 1;
+    cancelQuiet();
     const current = detaches;
     detaches = [];
     await detachEach(current);
@@ -152,7 +161,7 @@ export async function createFusedStream(
     detaches = [];
     // After the sources are gone, so nothing re-arms it. A push to an ended
     // stream is a no-op anyway.
-    cancelQuiet?.();
+    cancelQuiet();
     stream.end();
   };
 

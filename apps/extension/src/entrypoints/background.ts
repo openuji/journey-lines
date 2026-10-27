@@ -52,6 +52,7 @@ export default defineBackground(() => {
         describeTab: async (id) => privacy.sanitizeLocation(await describeTab(id)),
         recordUsing: (host, active, options) => recordActiveTab(privacy.wrapHost(host), active, {
           ...options,
+          click: settings.click,
           sinks: options.sinks.map((sink) => privacy.wrapCaptureSink(sink)),
           ...(options.clips ? { clips: privacy.wrapClipSink(options.clips) } : {}),
         }),

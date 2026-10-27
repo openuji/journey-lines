@@ -47,7 +47,7 @@ describe('interaction invariants', () => {
       navigated('a'), shown('before', 0, 0), press('p1', 101, { happenedAtMs: 100 }),
       press('p2', 120, { happenedAtMs: 119 }), pageAt(0, 170),
       shown('too-late', 200, 118), quiet(450),
-    ], [clickEpisodeRule({ stillMovingMs: 50 })]);
+    ], [clickEpisodeRule({ quietAfterMs: 50, stillMovingMs: 50 })]);
     expect(result.captures.map((c) => c.label)).toEqual([
       '10-pre-click-01', '11-post-click-01', '10-pre-click-02', '11-post-click-02',
     ]);

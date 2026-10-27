@@ -5,6 +5,9 @@ Chrome exposes **Options** from the extension icon's context menu and from
 validated recording preferences in `chrome.storage.local`. **Restore defaults**
 removes that override.
 
+The gear button at the top right of the recorder sidebar opens the same Chrome
+Options page. It is available before, during, and after recording.
+
 [settings.defaults.json](settings.defaults.json) supplies the packaged defaults:
 
 ```json
@@ -15,12 +18,30 @@ removes that override.
   "video": {
     "scale": 1
   },
+  "click": {
+    "quietAfterMs": 250,
+    "stillMovingMs": 2000
+  },
   "report": {
     "language": "de",
     "tags": ["Freie Universität Berlin"]
   }
 }
 ```
+
+**Visual pause before ending a click** controls how long the released response
+must stay visually unchanged before its screenshot and video are completed.
+The default is **0.25 seconds**. A longer pause accommodates tours that fade out,
+wait, then fade in a new card. **Maximum click observation time** bounds the
+response window after a press, even if the page keeps changing. Its default is
+**2 seconds**, and it must be at least as long as the visual pause.
+
+For slower tours, try a **1-second visual pause** and a **5-second maximum**.
+Both controls display seconds; the stored values above are positive integer
+milliseconds. Changes apply to the next recording, including when recording
+without video. Older saved settings use the defaults, and Restore defaults
+resets both values. Scroll and document timing remain unchanged. CLI recordings
+keep the existing defaults; programmatic recordings can pass `RecordingOptions.click`.
 
 **Video scale** controls the dimensions of both click and scroll videos. Enter
 any number from `0.1` through `1`: `1` preserves the captured dimensions, while

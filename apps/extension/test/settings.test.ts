@@ -9,6 +9,7 @@ const alternate = {
   privacy: { profilePath: 'privacy/alternate/profiles.jsonld' },
   report: { language: 'en' as const, tags: ['Alternate'] },
   video: { scale: 0.625 },
+  click: defaults.click,
 };
 let stored: Record<string, unknown>;
 let assets: Record<string, unknown>;
@@ -40,6 +41,30 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('extension settings', () => {
+  it('uses legacy click defaults, persists both timings, and restores them', async () => {
+    stored.settings = { privacy: alternate.privacy, report: alternate.report };
+    expect((await loadSettings()).click).toEqual({ quietAfterMs: 250, stillMovingMs: 2000 });
+    expect(parseSettings({ ...defaults, click: {} }).click).toEqual(defaults.click);
+    await saveSettings({ ...alternate, click: { quietAfterMs: 1000, stillMovingMs: 5000 } });
+    expect((await loadSettings()).click).toEqual({ quietAfterMs: 1000, stillMovingMs: 5000 });
+    expect((await restoreDefaultSettings()).click).toEqual(defaults.click);
+    expect((await loadSettings()).click).toEqual(defaults.click);
+  });
+
+  it.each([
+    null, [], '1000',
+    { quietAfterMs: 0 }, { quietAfterMs: -1 }, { quietAfterMs: NaN }, { quietAfterMs: Infinity },
+    { quietAfterMs: 1.5 }, { quietAfterMs: '1000' }, { quietAfterMs: null },
+    { stillMovingMs: 0 }, { stillMovingMs: Infinity }, { stillMovingMs: 1.5 },
+    { stillMovingMs: 2_147_483_648 }, { quietAfterMs: 3000, stillMovingMs: 2000 },
+  ])('rejects invalid click timing %j without replacing saved settings', async (click) => {
+    await saveSettings(alternate);
+    await expect(saveSettings({ ...defaults, click })).rejects.toThrow();
+    expect(await loadSettings()).toEqual(alternate);
+    stored.settings = { ...defaults, click };
+    await expect(loadSettings()).rejects.toThrow();
+  });
+
   it('uses full resolution by default and for older saved settings', async () => {
     expect((await loadSettings()).video.scale).toBe(1);
     stored.settings = { privacy: alternate.privacy, report: alternate.report };
